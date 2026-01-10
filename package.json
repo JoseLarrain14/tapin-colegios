@@ -1,0 +1,31 @@
+{
+  "name": "tap-in-colegios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de gestion de cafeterias escolares para apoderados",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:mobile\"",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:mobile": "npm run start --workspace=apps/mobile",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build --workspace=packages/api",
+    "build:mobile": "npm run build --workspace=apps/mobile",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "rm -rf node_modules packages/*/node_modules apps/*/node_modules",
+    "db:migrate": "npm run db:migrate --workspace=packages/api",
+    "db:generate": "npm run db:generate --workspace=packages/api",
+    "db:studio": "npm run db:studio --workspace=packages/api"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,438 @@
+// =============================================================================
+// Tap In Colegios - Database Schema
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum UserRole {
+  super_admin
+  school_admin
+  cafeteria_operator
+  guardian
+}
+
+enum GuardianRelationship {
+  father
+  mother
+  guardian
+  other
+}
+
+enum RechargePackageType {
+  ticket
+  balance
+}
+
+enum WalletLogType {
+  deposit
+  purchase
+  refund
+  adjustment
+}
+
+enum TransactionType {
+  purchase
+  refund
+  adjustment
+}
+
+enum ValidationMethod {
+  fingerprint
+  rut_search
+  qr_code
+  app_order
+}
+
+enum TransactionSource {
+  app
+  casino
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  preparing
+  ready
+  delivered
+  cancelled
+}
+
+enum PaymentGateway {
+  webpay
+  flow
+  fintoc
+  mock
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  completed
+  failed
+  refunded
+}
+
+// =============================================================================
+// Core Tables
+// =============================================================================
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String?
+  city      String?
+  region    String?
+  phone     String?
+  email     String?
+  logoUrl   String?  @map("logo_url")
+  active    Boolean  @default(true)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  students    Student[]
+  cafeterias  Cafeteria[]
+  schoolAdmins SchoolAdmin[]
+
+  @@map("schools")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole
+  emailVerified Boolean   @default(false) @map("email_verified")
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLogin     DateTime? @map("last_login")
+
+  guardian       Guardian?
+  refreshTokens  RefreshToken[]
+  pushTokens     PushToken[]
+  notifications  Notification[]
+  schoolAdmin    SchoolAdmin?
+  operatedTransactions Transaction[] @relation("ValidatedBy")
+
+  @@index([email])
+  @@map("users")
+}
+
+model SchoolAdmin {
+  id       String @id @default(uuid())
+  userId   String @unique @map("user_id")
+  schoolId String @map("school_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_admins")
+}
+
+model Guardian {
+  id           String               @id @default(uuid())
+  userId       String               @unique @map("user_id")
+  rut          String?
+  firstName    String               @map("first_name")
+  lastName     String               @map("last_name")
+  phone        String?
+  relationship GuardianRelationship @default(guardian)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students GuardianStudent[]
+  orders   Order[]
+  payments Payment[]
+
+  @@index([rut])
+  @@map("guardians")
+}
+
+model Student {
+  id                  String   @id @default(uuid())
+  schoolId            String   @map("school_id")
+  rut                 String   @unique
+  firstName           String   @map("first_name")
+  lastName            String   @map("last_name")
+  grade               String?
+  section             String?
+  photoUrl            String?  @map("photo_url")
+  fingerprintTemplate Bytes?   @map("fingerprint_template")
+  dailyLimit          Int      @default(0) @map("daily_limit")
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  school    School            @relation(fields: [schoolId], references: [id])
+  guardians GuardianStudent[]
+  wallet    Wallet?
+  tickets   StudentTicket[]
+  orders    Order[]
+  payments  Payment[]
+
+  @@index([rut])
+  @@index([schoolId])
+  @@map("students")
+}
+
+model GuardianStudent {
+  id         String   @id @default(uuid())
+  guardianId String   @map("guardian_id")
+  studentId  String   @map("student_id")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  guardian Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, studentId])
+  @@map("guardian_students")
+}
+
+// =============================================================================
+// Cafeteria & Menu
+// =============================================================================
+
+model Cafeteria {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  config      Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  school            School             @relation(fields: [schoolId], references: [id])
+  menuItems         MenuItem[]
+  rechargePackages  RechargePackage[]
+  transactions      Transaction[]
+  orders            Order[]
+
+  @@map("cafeterias")
+}
+
+model MenuItem {
+  id            String   @id @default(uuid())
+  cafeteriaId   String   @map("cafeteria_id")
+  name          String
+  description   String?
+  price         Int
+  category      String?
+  imageUrl      String?  @map("image_url")
+  available     Boolean  @default(true)
+  availableDays Int[]    @default([1, 2, 3, 4, 5]) @map("available_days")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+
+  @@map("menu_items")
+}
+
+model RechargePackage {
+  id          String             @id @default(uuid())
+  cafeteriaId String             @map("cafeteria_id")
+  name        String
+  description String?
+  price       Int
+  type        RechargePackageType
+  ticketCount Int?               @map("ticket_count")
+  ticketType  String?            @map("ticket_type")
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+
+  @@map("recharge_packages")
+}
+
+// =============================================================================
+// Wallet & Transactions
+// =============================================================================
+
+model Wallet {
+  id        String   @id @default(uuid())
+  studentId String   @unique @map("student_id")
+  balance   Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  logs         WalletLog[]
+  transactions Transaction[]
+  payments     Payment[]
+
+  @@index([studentId])
+  @@map("wallets")
+}
+
+model StudentTicket {
+  id         String    @id @default(uuid())
+  studentId  String    @map("student_id")
+  ticketType String    @map("ticket_type")
+  quantity   Int       @default(0)
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_tickets")
+}
+
+model WalletLog {
+  id            String        @id @default(uuid())
+  walletId      String        @map("wallet_id")
+  type          WalletLogType
+  amount        Int
+  balanceBefore Int           @map("balance_before")
+  balanceAfter  Int           @map("balance_after")
+  referenceId   String?       @map("reference_id")
+  description   String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_logs")
+}
+
+model Transaction {
+  id               String           @id @default(uuid())
+  walletId         String           @map("wallet_id")
+  cafeteriaId      String           @map("cafeteria_id")
+  type             TransactionType
+  amount           Int
+  description      String?
+  items            Json?
+  ticketsUsed      Json?            @map("tickets_used")
+  validatedBy      String?          @map("validated_by")
+  validationMethod ValidationMethod? @map("validation_method")
+  source           TransactionSource
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  wallet     Wallet     @relation(fields: [walletId], references: [id])
+  cafeteria  Cafeteria  @relation(fields: [cafeteriaId], references: [id])
+  validator  User?      @relation("ValidatedBy", fields: [validatedBy], references: [id])
+
+  @@index([walletId])
+  @@index([createdAt(sort: Desc)])
+  @@map("transactions")
+}
+
+// =============================================================================
+// Orders
+// =============================================================================
+
+model Order {
+  id          String      @id @default(uuid())
+  guardianId  String      @map("guardian_id")
+  studentId   String      @map("student_id")
+  cafeteriaId String      @map("cafeteria_id")
+  status      OrderStatus @default(pending)
+  pickupDate  DateTime    @map("pickup_date") @db.Date
+  pickupTime  DateTime?   @map("pickup_time") @db.Time()
+  items       Json
+  total       Int
+  comments    String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  guardian  Guardian  @relation(fields: [guardianId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [id])
+  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id])
+
+  @@index([studentId])
+  @@index([status])
+  @@map("orders")
+}
+
+// =============================================================================
+// Payments
+// =============================================================================
+
+model Payment {
+  id                String         @id @default(uuid())
+  guardianId        String         @map("guardian_id")
+  studentId         String         @map("student_id")
+  walletId          String         @map("wallet_id")
+  rechargePackageId String?        @map("recharge_package_id")
+  amount            Int
+  gateway           PaymentGateway
+  gatewayTxId       String?        @map("gateway_tx_id")
+  status            PaymentStatus  @default(pending)
+  metadata          Json?
+  errorMessage      String?        @map("error_message")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  completedAt       DateTime?      @map("completed_at")
+
+  guardian        Guardian         @relation(fields: [guardianId], references: [id])
+  student         Student          @relation(fields: [studentId], references: [id])
+  wallet          Wallet           @relation(fields: [walletId], references: [id])
+  rechargePackage RechargePackage? @relation(fields: [rechargePackageId], references: [id])
+
+  @@index([guardianId])
+  @@map("payments")
+}
+
+// =============================================================================
+// Notifications & Auth
+// =============================================================================
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String
+  platform  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  body      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
