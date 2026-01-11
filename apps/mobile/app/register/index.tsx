@@ -34,9 +34,9 @@ export default function RegisterStep1() {
         {/* Progress indicator */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '25%' }]} />
+            <View style={[styles.progressFill, { width: '20%' }]} />
           </View>
-          <Text style={styles.progressText}>Paso 1 de 4</Text>
+          <Text style={styles.progressText}>Paso 1 de 5</Text>
         </View>
 
         {/* Title */}

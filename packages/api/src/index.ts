@@ -5,6 +5,8 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { config } from './config/env.js';
 import { authRoutes } from './routes/auth.routes.js';
+import { schoolsRoutes } from './routes/schools.routes.js';
+import { guardiansRoutes } from './routes/guardians.routes.js';
 
 const app = Fastify({
   logger: {
@@ -74,6 +76,8 @@ app.get('/api/v1', async () => {
 // Register route modules
 async function registerRoutes() {
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
+  await app.register(schoolsRoutes, { prefix: '/api/v1/schools' });
+  await app.register(guardiansRoutes, { prefix: '/api/v1/guardians' });
 }
 
 // Start server

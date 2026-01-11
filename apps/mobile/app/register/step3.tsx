@@ -70,9 +70,9 @@ export default function RegisterStep3() {
           {/* Progress indicator */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '75%' }]} />
+              <View style={[styles.progressFill, { width: '60%' }]} />
             </View>
-            <Text style={styles.progressText}>Paso 3 de 4</Text>
+            <Text style={styles.progressText}>Paso 3 de 5</Text>
           </View>
 
           {/* Title */}

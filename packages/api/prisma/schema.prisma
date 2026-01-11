@@ -33,6 +33,7 @@ model School {
   students     Student[]
   cafeterias   Cafeteria[]
   schoolAdmins SchoolAdmin[]
+  preferredByGuardians Guardian[] @relation("PreferredSchool")
 
   @@map("schools")
 }
@@ -78,10 +79,12 @@ model Guardian {
   lastName     String   @map("last_name")
   phone        String?
   relationship String   @default("guardian") // father, mother, guardian, other
+  preferredSchoolId String?  @map("preferred_school_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredSchool School?           @relation("PreferredSchool", fields: [preferredSchoolId], references: [id])
   students GuardianStudent[]
   orders   Order[]
   payments Payment[]

@@ -33,9 +33,8 @@ export default function RegisterStep4() {
 
     try {
       await register(registerData);
-      // Registration successful - reset form and navigate to home
-      reset();
-      router.replace('/home');
+      // Registration successful - navigate to school selection
+      router.push('/register/step5');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al registrar';
       Alert.alert('Error de Registro', message);
@@ -62,9 +61,9 @@ export default function RegisterStep4() {
         {/* Progress indicator */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '100%' }]} />
+            <View style={[styles.progressFill, { width: '80%' }]} />
           </View>
-          <Text style={styles.progressText}>Paso 4 de 4</Text>
+          <Text style={styles.progressText}>Paso 4 de 5</Text>
         </View>
 
         {/* Title */}

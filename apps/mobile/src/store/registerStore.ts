@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { School } from '../services/api';
 
 export type RelationshipType = 'father' | 'mother' | 'guardian' | 'other';
 
@@ -10,6 +11,7 @@ interface RegisterFormData {
   firstName: string;
   lastName: string;
   acceptTerms: boolean;
+  selectedSchool: School | null;
 }
 
 interface RegisterState {
@@ -24,6 +26,7 @@ interface RegisterState {
   setFirstName: (firstName: string) => void;
   setLastName: (lastName: string) => void;
   setAcceptTerms: (accept: boolean) => void;
+  setSelectedSchool: (school: School) => void;
   setCurrentStep: (step: number) => void;
   reset: () => void;
   getRegisterData: () => {
@@ -43,6 +46,7 @@ const initialFormData: RegisterFormData = {
   firstName: '',
   lastName: '',
   acceptTerms: false,
+  selectedSchool: null,
 };
 
 export const useRegisterStore = create<RegisterState>((set, get) => ({
@@ -82,6 +86,11 @@ export const useRegisterStore = create<RegisterState>((set, get) => ({
   setAcceptTerms: (acceptTerms) =>
     set((state) => ({
       formData: { ...state.formData, acceptTerms }
+    })),
+
+  setSelectedSchool: (selectedSchool) =>
+    set((state) => ({
+      formData: { ...state.formData, selectedSchool }
     })),
 
   setCurrentStep: (step) => set({ currentStep: step }),
