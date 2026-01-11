@@ -7,80 +7,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-// =============================================================================
-// Enums
-// =============================================================================
-
-enum UserRole {
-  super_admin
-  school_admin
-  cafeteria_operator
-  guardian
-}
-
-enum GuardianRelationship {
-  father
-  mother
-  guardian
-  other
-}
-
-enum RechargePackageType {
-  ticket
-  balance
-}
-
-enum WalletLogType {
-  deposit
-  purchase
-  refund
-  adjustment
-}
-
-enum TransactionType {
-  purchase
-  refund
-  adjustment
-}
-
-enum ValidationMethod {
-  fingerprint
-  rut_search
-  qr_code
-  app_order
-}
-
-enum TransactionSource {
-  app
-  casino
-}
-
-enum OrderStatus {
-  pending
-  confirmed
-  preparing
-  ready
-  delivered
-  cancelled
-}
-
-enum PaymentGateway {
-  webpay
-  flow
-  fintoc
-  mock
-}
-
-enum PaymentStatus {
-  pending
-  processing
-  completed
-  failed
-  refunded
 }
 
 // =============================================================================
@@ -98,12 +26,12 @@ model School {
   email     String?
   logoUrl   String?  @map("logo_url")
   active    Boolean  @default(true)
-  config    Json     @default("{}")
+  config    String   @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  students    Student[]
-  cafeterias  Cafeteria[]
+  students     Student[]
+  cafeterias   Cafeteria[]
   schoolAdmins SchoolAdmin[]
 
   @@map("schools")
@@ -113,19 +41,19 @@ model User {
   id            String    @id @default(uuid())
   email         String    @unique
   passwordHash  String    @map("password_hash")
-  role          UserRole
+  role          String    @default("guardian") // super_admin, school_admin, cafeteria_operator, guardian
   emailVerified Boolean   @default(false) @map("email_verified")
   active        Boolean   @default(true)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastLogin     DateTime? @map("last_login")
 
-  guardian       Guardian?
-  refreshTokens  RefreshToken[]
-  pushTokens     PushToken[]
-  notifications  Notification[]
-  schoolAdmin    SchoolAdmin?
-  operatedTransactions Transaction[] @relation("ValidatedBy")
+  guardian              Guardian?
+  refreshTokens         RefreshToken[]
+  pushTokens            PushToken[]
+  notifications         Notification[]
+  schoolAdmin           SchoolAdmin?
+  operatedTransactions  Transaction[]
 
   @@index([email])
   @@map("users")
@@ -143,15 +71,15 @@ model SchoolAdmin {
 }
 
 model Guardian {
-  id           String               @id @default(uuid())
-  userId       String               @unique @map("user_id")
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
   rut          String?
-  firstName    String               @map("first_name")
-  lastName     String               @map("last_name")
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
   phone        String?
-  relationship GuardianRelationship @default(guardian)
-  createdAt    DateTime             @default(now()) @map("created_at")
-  updatedAt    DateTime             @updatedAt @map("updated_at")
+  relationship String   @default("guardian") // father, mother, guardian, other
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   students GuardianStudent[]
@@ -213,15 +141,15 @@ model Cafeteria {
   name        String
   description String?
   active      Boolean  @default(true)
-  config      Json     @default("{}")
+  config      String   @default("{}")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  school            School             @relation(fields: [schoolId], references: [id])
-  menuItems         MenuItem[]
-  rechargePackages  RechargePackage[]
-  transactions      Transaction[]
-  orders            Order[]
+  school           School            @relation(fields: [schoolId], references: [id])
+  menuItems        MenuItem[]
+  rechargePackages RechargePackage[]
+  transactions     Transaction[]
+  orders           Order[]
 
   @@map("cafeterias")
 }
@@ -235,7 +163,7 @@ model MenuItem {
   category      String?
   imageUrl      String?  @map("image_url")
   available     Boolean  @default(true)
-  availableDays Int[]    @default([1, 2, 3, 4, 5]) @map("available_days")
+  availableDays String   @default("[1,2,3,4,5]") @map("available_days")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -245,17 +173,17 @@ model MenuItem {
 }
 
 model RechargePackage {
-  id          String             @id @default(uuid())
-  cafeteriaId String             @map("cafeteria_id")
+  id          String   @id @default(uuid())
+  cafeteriaId String   @map("cafeteria_id")
   name        String
   description String?
   price       Int
-  type        RechargePackageType
-  ticketCount Int?               @map("ticket_count")
-  ticketType  String?            @map("ticket_type")
-  active      Boolean            @default(true)
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
+  type        String   // ticket, balance
+  ticketCount Int?     @map("ticket_count")
+  ticketType  String?  @map("ticket_type")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
   payments  Payment[]
@@ -298,15 +226,15 @@ model StudentTicket {
 }
 
 model WalletLog {
-  id            String        @id @default(uuid())
-  walletId      String        @map("wallet_id")
-  type          WalletLogType
+  id            String   @id @default(uuid())
+  walletId      String   @map("wallet_id")
+  type          String   // deposit, purchase, refund, adjustment
   amount        Int
-  balanceBefore Int           @map("balance_before")
-  balanceAfter  Int           @map("balance_after")
-  referenceId   String?       @map("reference_id")
+  balanceBefore Int      @map("balance_before")
+  balanceAfter  Int      @map("balance_after")
+  referenceId   String?  @map("reference_id")
   description   String?
-  createdAt     DateTime      @default(now()) @map("created_at")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
@@ -314,25 +242,24 @@ model WalletLog {
 }
 
 model Transaction {
-  id               String           @id @default(uuid())
-  walletId         String           @map("wallet_id")
-  cafeteriaId      String           @map("cafeteria_id")
-  type             TransactionType
+  id               String   @id @default(uuid())
+  walletId         String   @map("wallet_id")
+  cafeteriaId      String   @map("cafeteria_id")
+  type             String   // purchase, refund, adjustment
   amount           Int
   description      String?
-  items            Json?
-  ticketsUsed      Json?            @map("tickets_used")
-  validatedBy      String?          @map("validated_by")
-  validationMethod ValidationMethod? @map("validation_method")
-  source           TransactionSource
-  createdAt        DateTime         @default(now()) @map("created_at")
+  items            String?  // JSON string
+  ticketsUsed      String?  @map("tickets_used") // JSON string
+  validatedBy      String?  @map("validated_by")
+  validationMethod String?  @map("validation_method") // fingerprint, rut_search, qr_code, app_order
+  source           String   // app, casino
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  wallet     Wallet     @relation(fields: [walletId], references: [id])
-  cafeteria  Cafeteria  @relation(fields: [cafeteriaId], references: [id])
-  validator  User?      @relation("ValidatedBy", fields: [validatedBy], references: [id])
+  wallet    Wallet    @relation(fields: [walletId], references: [id])
+  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id])
+  validator User?     @relation(fields: [validatedBy], references: [id])
 
   @@index([walletId])
-  @@index([createdAt(sort: Desc)])
   @@map("transactions")
 }
 
@@ -341,18 +268,18 @@ model Transaction {
 // =============================================================================
 
 model Order {
-  id          String      @id @default(uuid())
-  guardianId  String      @map("guardian_id")
-  studentId   String      @map("student_id")
-  cafeteriaId String      @map("cafeteria_id")
-  status      OrderStatus @default(pending)
-  pickupDate  DateTime    @map("pickup_date") @db.Date
-  pickupTime  DateTime?   @map("pickup_time") @db.Time()
-  items       Json
+  id          String   @id @default(uuid())
+  guardianId  String   @map("guardian_id")
+  studentId   String   @map("student_id")
+  cafeteriaId String   @map("cafeteria_id")
+  status      String   @default("pending") // pending, confirmed, preparing, ready, delivered, cancelled
+  pickupDate  DateTime @map("pickup_date")
+  pickupTime  String?  @map("pickup_time")
+  items       String   // JSON string
   total       Int
   comments    String?
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   guardian  Guardian  @relation(fields: [guardianId], references: [id])
   student   Student   @relation(fields: [studentId], references: [id])
@@ -368,19 +295,19 @@ model Order {
 // =============================================================================
 
 model Payment {
-  id                String         @id @default(uuid())
-  guardianId        String         @map("guardian_id")
-  studentId         String         @map("student_id")
-  walletId          String         @map("wallet_id")
-  rechargePackageId String?        @map("recharge_package_id")
+  id                String    @id @default(uuid())
+  guardianId        String    @map("guardian_id")
+  studentId         String    @map("student_id")
+  walletId          String    @map("wallet_id")
+  rechargePackageId String?   @map("recharge_package_id")
   amount            Int
-  gateway           PaymentGateway
-  gatewayTxId       String?        @map("gateway_tx_id")
-  status            PaymentStatus  @default(pending)
-  metadata          Json?
-  errorMessage      String?        @map("error_message")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  completedAt       DateTime?      @map("completed_at")
+  gateway           String    // webpay, flow, fintoc, mock
+  gatewayTxId       String?   @map("gateway_tx_id")
+  status            String    @default("pending") // pending, processing, completed, failed, refunded
+  metadata          String?   // JSON string
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
 
   guardian        Guardian         @relation(fields: [guardianId], references: [id])
   student         Student          @relation(fields: [studentId], references: [id])
@@ -414,7 +341,7 @@ model Notification {
   userId    String   @map("user_id")
   title     String
   body      String
-  data      Json?
+  data      String?  // JSON string
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 

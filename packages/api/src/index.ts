@@ -1,35 +1,29 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import jwt from '@fastify/jwt';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { config } from './config/env.js';
+import { authRoutes } from './routes/auth.routes.js';
 
 const app = Fastify({
   logger: {
     level: config.nodeEnv === 'development' ? 'info' : 'warn',
-    transport: config.nodeEnv === 'development'
-      ? { target: 'pino-pretty' }
-      : undefined,
   },
 });
 
 // Register plugins
 async function registerPlugins() {
   // Security
-  await app.register(helmet);
-  await app.register(cors, {
-    origin: config.nodeEnv === 'development' ? true : config.corsOrigins,
-    credentials: true,
+  await app.register(helmet, {
+    contentSecurityPolicy: false, // Disable for development
   });
 
-  // JWT
-  await app.register(jwt, {
-    secret: config.jwtSecret,
-    sign: {
-      expiresIn: config.jwtExpiresIn,
-    },
+  await app.register(cors, {
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Swagger documentation
@@ -37,7 +31,7 @@ async function registerPlugins() {
     openapi: {
       info: {
         title: 'Tap In Colegios API',
-        description: 'API para la plataforma de gestion de cafeterias escolares',
+        description: 'API para la plataforma de gestión de cafeterías escolares',
         version: '1.0.0',
       },
       servers: [
@@ -77,10 +71,16 @@ app.get('/api/v1', async () => {
   };
 });
 
+// Register route modules
+async function registerRoutes() {
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
+}
+
 // Start server
 async function start() {
   try {
     await registerPlugins();
+    await registerRoutes();
 
     await app.listen({
       port: config.port,
@@ -89,12 +89,12 @@ async function start() {
 
     console.log(`
 ╔════════════════════════════════════════════════════════════╗
-║           TAP IN COLEGIOS - API Server                      ║
+║           TAP IN COLEGIOS - API Server                     ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Server:  http://${config.host}:${config.port}                        ║
 ║  Docs:    http://${config.host}:${config.port}/documentation          ║
 ║  Health:  http://${config.host}:${config.port}/health                 ║
-║  Mode:    ${config.nodeEnv.padEnd(48)}║
+║  Mode:    ${config.nodeEnv.padEnd(47)}║
 ╚════════════════════════════════════════════════════════════╝
     `);
   } catch (err) {
