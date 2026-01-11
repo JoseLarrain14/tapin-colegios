@@ -42,6 +42,16 @@ interface RefreshResponse {
   refreshToken: string;
 }
 
+export interface School {
+  id: string;
+  name: string;
+  code: string;
+  address?: string;
+  city?: string;
+  region?: string;
+  logoUrl?: string;
+}
+
 class ApiService {
   private client: AxiosInstance;
 
@@ -145,6 +155,85 @@ class ApiService {
 
   clearAuthToken() {
     delete this.client.defaults.headers.common['Authorization'];
+  }
+
+  // School endpoints
+  async searchSchools(query: string): Promise<ApiResponse<School[]>> {
+    try {
+      const response = await this.client.get<ApiResponse<School[]>>('/schools/search', {
+        params: { q: query },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al buscar colegios' };
+    }
+  }
+
+  async getSchoolByCode(code: string): Promise<ApiResponse<School>> {
+    try {
+      const response = await this.client.get<ApiResponse<School>>(`/schools/${code}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener colegio' };
+    }
+  }
+
+  async getAllSchools(): Promise<ApiResponse<School[]>> {
+    try {
+      const response = await this.client.get<ApiResponse<School[]>>('/schools');
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al listar colegios' };
+    }
+  }
+
+
+// Guardian endpoints - added to existing ApiService class
+
+  // Guardian endpoints
+  async updatePreferredSchool(schoolId: string, accessToken: string): Promise<ApiResponse<{ preferredSchool: School }>> {
+    try {
+      const response = await this.client.put<ApiResponse<{ preferredSchool: School }>>(
+        '/guardians/preferred-school',
+        { schoolId },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al actualizar colegio preferido' };
+    }
+  }
+
+  async getGuardianProfile(accessToken: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.client.get<ApiResponse<any>>('/guardians/profile', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener perfil' };
+    }
   }
 }
 
