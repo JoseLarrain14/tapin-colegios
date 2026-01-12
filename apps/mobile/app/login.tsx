@@ -131,9 +131,11 @@ export default function LoginScreen() {
               )}
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Olvidaste tu contrasena?</Text>
-            </TouchableOpacity>
+            <Link href="/forgot-password" asChild>
+              <TouchableOpacity style={styles.forgotPassword}>
+                <Text style={styles.forgotPasswordText}>Olvidaste tu contrasena?</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
 
           {/* Login Button */}

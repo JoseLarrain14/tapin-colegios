@@ -140,4 +140,113 @@ export async function schoolsRoutes(app: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * GET /api/v1/schools/:id/cafeterias
+   * Get all cafeterias for a school
+   */
+  app.get('/:id/cafeterias', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    try {
+      const { id } = request.params;
+
+      const school = await prisma.school.findUnique({
+        where: { id },
+        include: {
+          cafeterias: {
+            where: { active: true },
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              config: true,
+            },
+          },
+        },
+      });
+
+      if (!school) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Colegio no encontrado',
+        });
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          school: {
+            id: school.id,
+            name: school.name,
+          },
+          cafeterias: school.cafeterias,
+        },
+      });
+    } catch (error) {
+      console.error('Get school cafeterias error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener cafeterias del colegio',
+      });
+    }
+  });
+
+  /**
+   * POST /api/v1/schools/:id/cafeterias
+   * Create a cafeteria for a school (for testing)
+   */
+  app.post('/:id/cafeterias', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    try {
+      const { id } = request.params;
+      const body = z.object({
+        name: z.string().min(1, 'Nombre requerido'),
+        description: z.string().optional(),
+      }).parse(request.body);
+
+      const school = await prisma.school.findUnique({
+        where: { id },
+      });
+
+      if (!school) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Colegio no encontrado',
+        });
+      }
+
+      const cafeteria = await prisma.cafeteria.create({
+        data: {
+          schoolId: id,
+          name: body.name,
+          description: body.description,
+        },
+      });
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Cafeteria creada exitosamente',
+        data: {
+          id: cafeteria.id,
+          name: cafeteria.name,
+          description: cafeteria.description,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Datos invalidos',
+          errors: error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+
+      console.error('Create cafeteria error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al crear cafeteria',
+      });
+    }
+  });
 }

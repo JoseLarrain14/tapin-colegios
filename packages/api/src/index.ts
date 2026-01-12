@@ -14,6 +14,8 @@ import { studentsRoutes } from './routes/students.routes.js';
 import { uploadsRoutes } from './routes/uploads.routes.js';
 import { walletsRoutes } from './routes/wallets.routes.js';
 import { menuRoutes } from './routes/menu.routes.js';
+import { paymentsRoutes } from './routes/payments.routes.js';
+import { ordersRoutes } from './routes/orders.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,6 +102,8 @@ async function registerRoutes() {
   await app.register(uploadsRoutes, { prefix: '/api/v1/uploads' });
   await app.register(walletsRoutes, { prefix: '/api/v1/wallets' });
   await app.register(menuRoutes, { prefix: '/api/v1/menu' });
+  await app.register(paymentsRoutes, { prefix: '/api/v1/payments' });
+  await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
 }
 
 // Start server

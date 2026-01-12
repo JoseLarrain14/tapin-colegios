@@ -1,13 +1,48 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Surface, Avatar, FAB } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Text, Button, Surface, Avatar, IconButton, ActivityIndicator } from 'react-native-paper';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
+import { apiService, Student } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, accessToken } = useAuthStore();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadStudents = async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    try {
+      const response = await apiService.getStudents(accessToken);
+      if (response.success && response.data) {
+        setStudents(response.data);
+        // Auto-select first student if none selected
+        if (response.data.length > 0 && !selectedStudent) {
+          setSelectedStudent(response.data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading students:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudents();
+  }, [accessToken]);
+
+  // Reload when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadStudents();
+    }, [accessToken])
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -18,6 +53,10 @@ export default function HomeScreen() {
     router.push('/add-student');
   };
 
+  const handleViewStudents = () => {
+    router.push('/students');
+  };
+
   const getInitials = () => {
     if (!user?.guardian) return '?';
     const first = user.guardian.firstName?.charAt(0) || '';
@@ -25,9 +64,33 @@ export default function HomeScreen() {
     return `${first}${last}`.toUpperCase();
   };
 
+  const getStudentInitials = (student: Student) => {
+    return `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const formatCLP = (amount: number) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const hasStudents = students.length > 0;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -44,67 +107,232 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Welcome Card */}
-        <Surface style={styles.welcomeCard} elevation={2}>
-          <Text style={styles.welcomeTitle}>Bienvenido a Tap In Colegios</Text>
-          <Text style={styles.welcomeText}>
-            Tu registro fue exitoso. Ahora puedes agregar a tus hijos y comenzar a gestionar sus almuerzos escolares.
-          </Text>
-        </Surface>
+        {hasStudents ? (
+          <>
+            {/* Student Selector - Horizontal scrollable */}
+            <View style={styles.studentSelectorContainer}>
+              <Text style={styles.sectionTitle}>Mis Hijos</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.studentSelectorContent}
+              >
+                {students.map((student) => (
+                  <TouchableOpacity
+                    key={student.id}
+                    onPress={() => setSelectedStudent(student)}
+                    style={[
+                      styles.studentAvatarContainer,
+                      selectedStudent?.id === student.id && styles.studentAvatarSelected,
+                    ]}
+                  >
+                    {student.photoUrl ? (
+                      <Image
+                        source={{ uri: student.photoUrl }}
+                        style={styles.studentAvatarImage}
+                      />
+                    ) : (
+                      <Avatar.Text
+                        size={56}
+                        label={getStudentInitials(student)}
+                        style={[
+                          styles.studentAvatar,
+                          selectedStudent?.id === student.id && styles.studentAvatarActiveStyle,
+                        ]}
+                        labelStyle={styles.studentAvatarLabel}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.studentAvatarName,
+                        selectedStudent?.id === student.id && styles.studentAvatarNameSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {student.firstName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {/* Add Student Button */}
+                <TouchableOpacity
+                  onPress={handleAddStudent}
+                  style={styles.addStudentAvatarContainer}
+                >
+                  <View style={styles.addStudentCircle}>
+                    <Text style={styles.addStudentPlus}>+</Text>
+                  </View>
+                  <Text style={styles.addStudentText}>Agregar</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
 
-        {/* User Info */}
-        <Surface style={styles.infoCard} elevation={1}>
-          <Text style={styles.infoTitle}>Informacion de la cuenta</Text>
+            {/* Selected Student Balance Card */}
+            {selectedStudent && (
+              <Surface style={styles.balanceCard} elevation={2}>
+                <View style={styles.balanceHeader}>
+                  <View>
+                    <Text style={styles.balanceStudentName}>
+                      {selectedStudent.firstName} {selectedStudent.lastName}
+                    </Text>
+                    <Text style={styles.balanceSchool}>{selectedStudent.school.name}</Text>
+                  </View>
+                </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Correo:</Text>
-            <Text style={styles.infoValue}>{user?.email}</Text>
-          </View>
+                <View style={styles.balanceAmountContainer}>
+                  <Text style={styles.balanceLabel}>Saldo disponible</Text>
+                  <Text style={[
+                    styles.balanceAmount,
+                    selectedStudent.balance > 0 ? styles.positiveBalance : styles.zeroBalance
+                  ]}>
+                    {formatCLP(selectedStudent.balance)}
+                  </Text>
+                </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Rol:</Text>
-            <Text style={styles.infoValue}>
-              {user?.role === 'guardian' ? 'Apoderado' : user?.role}
-            </Text>
-          </View>
+                {selectedStudent.dailyLimit > 0 && (
+                  <View style={styles.limitContainer}>
+                    <Text style={styles.limitLabel}>Limite diario:</Text>
+                    <Text style={styles.limitValue}>{formatCLP(selectedStudent.dailyLimit)}</Text>
+                  </View>
+                )}
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Relacion:</Text>
-            <Text style={styles.infoValue}>
-              {user?.guardian?.relationship === 'father' ? 'Padre' :
-               user?.guardian?.relationship === 'mother' ? 'Madre' :
-               user?.guardian?.relationship === 'guardian' ? 'Apoderado/Tutor' :
-               user?.guardian?.relationship === 'other' ? 'Otro' :
-               user?.guardian?.relationship}
-            </Text>
-          </View>
-        </Surface>
+                {selectedStudent.tickets && selectedStudent.tickets.length > 0 && (
+                  <View style={styles.ticketsContainer}>
+                    <Text style={styles.ticketsLabel}>Tickets disponibles:</Text>
+                    <View style={styles.ticketsList}>
+                      {selectedStudent.tickets.map((ticket, index) => (
+                        <View key={index} style={styles.ticketBadge}>
+                          <Text style={styles.ticketText}>
+                            {ticket.quantity}x {ticket.type}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
 
-        {/* Placeholder for next steps */}
-        <Surface style={styles.nextStepsCard} elevation={1}>
-          <Text style={styles.nextStepsTitle}>Proximos pasos</Text>
-          <Text style={styles.nextStepsText}>
-            1. Agrega a tus hijos desde el menu de estudiantes
-          </Text>
-          <Text style={styles.nextStepsText}>
-            2. Selecciona el colegio de cada estudiante
-          </Text>
-          <Text style={styles.nextStepsText}>
-            3. Carga saldo o compra tickets de almuerzo
-          </Text>
-        </Surface>
+                <View style={styles.balanceActions}>
+                  <Button
+                    mode="contained"
+                    onPress={() => {}}
+                    style={styles.rechargeButton}
+                    icon="cash-plus"
+                  >
+                    Recargar
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={handleViewStudents}
+                    style={styles.detailsButton}
+                    icon="eye"
+                  >
+                    Ver detalles
+                  </Button>
+                </View>
+              </Surface>
+            )}
 
-        {/* Add Student Button */}
-        <Button
-          mode="contained"
-          onPress={handleAddStudent}
-          style={styles.addStudentButton}
-          contentStyle={styles.addStudentButtonContent}
-          labelStyle={styles.addStudentButtonLabel}
-          icon="plus"
-        >
-          Agregar Estudiante
-        </Button>
+            {/* Quick Actions */}
+            <Surface style={styles.quickActionsCard} elevation={1}>
+              <Text style={styles.sectionTitle}>Acciones rapidas</Text>
+              <View style={styles.quickActionsRow}>
+                <TouchableOpacity style={styles.quickActionItem} onPress={handleViewStudents}>
+                  <View style={styles.quickActionIcon}>
+                    <Text style={styles.quickActionIconText}>👨‍👩‍👧‍👦</Text>
+                  </View>
+                  <Text style={styles.quickActionLabel}>Estudiantes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickActionItem}>
+                  <View style={styles.quickActionIcon}>
+                    <Text style={styles.quickActionIconText}>📜</Text>
+                  </View>
+                  <Text style={styles.quickActionLabel}>Historial</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickActionItem}>
+                  <View style={styles.quickActionIcon}>
+                    <Text style={styles.quickActionIconText}>🍽️</Text>
+                  </View>
+                  <Text style={styles.quickActionLabel}>Menu</Text>
+                </TouchableOpacity>
+              </View>
+            </Surface>
+          </>
+        ) : (
+          <>
+            {/* Welcome Card - Only show when no students */}
+            <Surface style={styles.welcomeCard} elevation={2}>
+              <Text style={styles.welcomeTitle}>Bienvenido a Tap In Colegios</Text>
+              <Text style={styles.welcomeText}>
+                Tu registro fue exitoso. Ahora puedes agregar a tus hijos y comenzar a gestionar sus almuerzos escolares.
+              </Text>
+            </Surface>
+
+            {/* User Info */}
+            <Surface style={styles.infoCard} elevation={1}>
+              <Text style={styles.infoTitle}>Informacion de la cuenta</Text>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Correo:</Text>
+                <Text style={styles.infoValue}>{user?.email}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Rol:</Text>
+                <Text style={styles.infoValue}>
+                  {user?.role === 'guardian' ? 'Apoderado' : user?.role}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Relacion:</Text>
+                <Text style={styles.infoValue}>
+                  {user?.guardian?.relationship === 'father' ? 'Padre' :
+                   user?.guardian?.relationship === 'mother' ? 'Madre' :
+                   user?.guardian?.relationship === 'guardian' ? 'Apoderado/Tutor' :
+                   user?.guardian?.relationship === 'other' ? 'Otro' :
+                   user?.guardian?.relationship}
+                </Text>
+              </View>
+            </Surface>
+
+            {/* Placeholder for next steps */}
+            <Surface style={styles.nextStepsCard} elevation={1}>
+              <Text style={styles.nextStepsTitle}>Proximos pasos</Text>
+              <Text style={styles.nextStepsText}>
+                1. Agrega a tus hijos desde el menu de estudiantes
+              </Text>
+              <Text style={styles.nextStepsText}>
+                2. Selecciona el colegio de cada estudiante
+              </Text>
+              <Text style={styles.nextStepsText}>
+                3. Carga saldo o compra tickets de almuerzo
+              </Text>
+            </Surface>
+
+            {/* View Students Button */}
+            <Button
+              mode="outlined"
+              onPress={handleViewStudents}
+              style={styles.viewStudentsButton}
+              contentStyle={styles.viewStudentsButtonContent}
+              labelStyle={styles.viewStudentsButtonLabel}
+              icon="account-group"
+            >
+              Ver Mis Estudiantes
+            </Button>
+
+            {/* Add Student Button */}
+            <Button
+              mode="contained"
+              onPress={handleAddStudent}
+              style={styles.addStudentButton}
+              contentStyle={styles.addStudentButtonContent}
+              labelStyle={styles.addStudentButtonLabel}
+              icon="plus"
+            >
+              Agregar Estudiante
+            </Button>
+          </>
+        )}
 
         {/* Logout Button */}
         <Button
@@ -115,7 +343,7 @@ export default function HomeScreen() {
         >
           Cerrar Sesion
         </Button>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -124,6 +352,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   content: {
     flex: 1,
@@ -214,6 +454,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 24,
   },
+  viewStudentsButton: {
+    borderColor: colors.primary,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
+  },
+  viewStudentsButtonContent: {
+    height: 52,
+  },
+  viewStudentsButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   addStudentButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
@@ -230,8 +483,215 @@ const styles = StyleSheet.create({
   logoutButton: {
     borderColor: colors.error,
     borderRadius: borderRadius.lg,
+    marginTop: spacing.lg,
   },
   logoutButtonLabel: {
     color: colors.error,
+  },
+  // Student Selector Styles
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  studentSelectorContainer: {
+    marginBottom: spacing.lg,
+  },
+  studentSelectorContent: {
+    paddingRight: spacing.lg,
+    gap: spacing.md,
+  },
+  studentAvatarContainer: {
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.lg,
+    minWidth: 72,
+  },
+  studentAvatarSelected: {
+    backgroundColor: colors.primaryLight,
+  },
+  studentAvatar: {
+    backgroundColor: colors.textSecondary,
+  },
+  studentAvatarActiveStyle: {
+    backgroundColor: colors.primary,
+  },
+  studentAvatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  studentAvatarLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  studentAvatarName: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+    maxWidth: 64,
+  },
+  studentAvatarNameSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  addStudentAvatarContainer: {
+    alignItems: 'center',
+    padding: spacing.sm,
+    minWidth: 72,
+  },
+  addStudentCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  addStudentPlus: {
+    fontSize: 24,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  addStudentText: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  // Balance Card Styles
+  balanceCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    marginBottom: spacing.lg,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  balanceStudentName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  balanceSchool: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  balanceAmountContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+  },
+  positiveBalance: {
+    color: colors.success,
+  },
+  zeroBalance: {
+    color: colors.textSecondary,
+  },
+  limitContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  limitLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  limitValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  ticketsContainer: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  ticketsLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  ticketsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  ticketBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  ticketText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  balanceActions: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    gap: spacing.md,
+  },
+  rechargeButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+  },
+  detailsButton: {
+    flex: 1,
+    borderColor: colors.primary,
+  },
+  // Quick Actions Styles
+  quickActionsCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    marginBottom: spacing.lg,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  quickActionItem: {
+    alignItems: 'center',
+    padding: spacing.sm,
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  quickActionIconText: {
+    fontSize: 24,
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
