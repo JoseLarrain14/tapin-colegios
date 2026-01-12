@@ -279,6 +279,25 @@ class ApiService {
     }
   }
 
+  async updateGuardianProfile(
+    data: { firstName?: string; lastName?: string; phone?: string; rut?: string },
+    accessToken: string
+  ): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.client.put<ApiResponse<any>>('/guardians/profile', data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al actualizar perfil' };
+    }
+  }
+
   // Password reset endpoints
   async forgotPassword(email: string): Promise<ApiResponse<void>> {
     try {

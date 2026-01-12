@@ -12,6 +12,8 @@ import { schoolsRoutes } from './routes/schools.routes.js';
 import { guardiansRoutes } from './routes/guardians.routes.js';
 import { studentsRoutes } from './routes/students.routes.js';
 import { uploadsRoutes } from './routes/uploads.routes.js';
+import { walletsRoutes } from './routes/wallets.routes.js';
+import { menuRoutes } from './routes/menu.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,6 +98,8 @@ async function registerRoutes() {
   await app.register(guardiansRoutes, { prefix: '/api/v1/guardians' });
   await app.register(studentsRoutes, { prefix: '/api/v1/students' });
   await app.register(uploadsRoutes, { prefix: '/api/v1/uploads' });
+  await app.register(walletsRoutes, { prefix: '/api/v1/wallets' });
+  await app.register(menuRoutes, { prefix: '/api/v1/menu' });
 }
 
 // Start server
