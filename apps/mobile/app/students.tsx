@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native';
 import { Text, Surface, IconButton, FAB, Avatar, ActivityIndicator, Button } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -155,12 +155,19 @@ export default function StudentsScreen() {
           <Surface key={student.id} style={styles.studentCard} elevation={1}>
             <View style={styles.studentHeader}>
               <View style={styles.studentInfo}>
-                <Avatar.Text
-                  size={48}
-                  label={getInitials(student.firstName, student.lastName)}
-                  style={styles.avatar}
-                  labelStyle={styles.avatarLabel}
-                />
+                {student.photoUrl ? (
+                  <Image
+                    source={{ uri: student.photoUrl }}
+                    style={styles.studentPhoto}
+                  />
+                ) : (
+                  <Avatar.Text
+                    size={48}
+                    label={getInitials(student.firstName, student.lastName)}
+                    style={styles.avatar}
+                    labelStyle={styles.avatarLabel}
+                  />
+                )}
                 <View style={styles.studentDetails}>
                   <Text style={styles.studentName}>
                     {student.firstName} {student.lastName}
@@ -322,6 +329,11 @@ const styles = StyleSheet.create({
   },
   avatar: {
     backgroundColor: colors.primary,
+  },
+  studentPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarLabel: {
     fontSize: 18,

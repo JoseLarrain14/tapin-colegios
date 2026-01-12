@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Image, TouchableOpacity } from 'react-native';
+import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Avatar } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student, School } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
@@ -112,6 +113,9 @@ export default function EditStudentScreen() {
   const [section, setSection] = useState('');
   const [dailyLimit, setDailyLimit] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Original data for comparison
   const [originalStudent, setOriginalStudent] = useState<Student | null>(null);
@@ -155,6 +159,7 @@ export default function EditStudentScreen() {
         setGrade(student.grade || '');
         setSection(student.section || '');
         setDailyLimit(student.dailyLimit > 0 ? String(student.dailyLimit) : '');
+        setPhotoUrl(student.photoUrl || null);
 
         // Set selected school
         if (schoolsResponse.success && schoolsResponse.data) {
@@ -190,6 +195,57 @@ export default function EditStudentScreen() {
       const formatted = formatRut(rut);
       setRut(formatted);
     }
+  };
+
+  const pickImage = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso Denegado', 'Se necesita acceso a la galeria para seleccionar una foto.');
+      return;
+    }
+
+    // Launch image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const selectedImage = result.assets[0];
+      setLocalPhotoUri(selectedImage.uri);
+
+      // Upload the image
+      await uploadPhoto(selectedImage.uri);
+    }
+  };
+
+  const uploadPhoto = async (uri: string) => {
+    if (!accessToken) return;
+
+    setUploadingPhoto(true);
+    try {
+      const response = await apiService.uploadImage(uri, accessToken);
+      if (response.success && response.data) {
+        setPhotoUrl(response.data.url);
+        // Clear local URI once uploaded
+        setLocalPhotoUri(null);
+      } else {
+        Alert.alert('Error', response.message || 'No se pudo subir la imagen');
+        setLocalPhotoUri(null);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error al subir la imagen');
+      setLocalPhotoUri(null);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const getInitials = (first: string, last: string) => {
+    return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   };
 
   const validateForm = (): boolean => {
@@ -244,6 +300,7 @@ export default function EditStudentScreen() {
           grade: grade || undefined,
           section: section || undefined,
           dailyLimit: dailyLimit ? Number(dailyLimit) : 0,
+          photoUrl: photoUrl || undefined,
         },
         accessToken
       );
@@ -359,6 +416,42 @@ export default function EditStudentScreen() {
 
           {/* Form */}
           <Surface style={styles.formCard} elevation={1}>
+            {/* Photo Upload */}
+            <View style={styles.photoSection}>
+              <TouchableOpacity onPress={pickImage} disabled={uploadingPhoto}>
+                <View style={styles.photoContainer}>
+                  {uploadingPhoto ? (
+                    <View style={styles.photoPlaceholder}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.photoPlaceholderText}>Subiendo...</Text>
+                    </View>
+                  ) : localPhotoUri || photoUrl ? (
+                    <Image
+                      source={{ uri: localPhotoUri || photoUrl || '' }}
+                      style={styles.photo}
+                    />
+                  ) : (
+                    <Avatar.Text
+                      size={100}
+                      label={getInitials(firstName || 'E', lastName || 'S')}
+                      style={styles.avatarPlaceholder}
+                    />
+                  )}
+                  <View style={styles.photoEditBadge}>
+                    <IconButton
+                      icon="camera"
+                      size={16}
+                      iconColor={colors.card}
+                      style={styles.photoEditIcon}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.photoHint}>Toca para cambiar la foto</Text>
+            </View>
+
+            <Divider style={styles.divider} />
+
             <Text style={styles.sectionTitle}>Datos del Estudiante</Text>
 
             {/* First Name */}
@@ -653,6 +746,57 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: colors.card,
     marginBottom: spacing.lg,
+  },
+  photoSection: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  photoContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'visible',
+  },
+  photo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  photoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: 4,
+  },
+  avatarPlaceholder: {
+    backgroundColor: colors.primary,
+  },
+  photoEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoEditIcon: {
+    margin: 0,
+  },
+  photoHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
   },
   sectionTitle: {
     fontSize: 16,

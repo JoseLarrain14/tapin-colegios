@@ -3,11 +3,18 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import staticFiles from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config/env.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { schoolsRoutes } from './routes/schools.routes.js';
 import { guardiansRoutes } from './routes/guardians.routes.js';
 import { studentsRoutes } from './routes/students.routes.js';
+import { uploadsRoutes } from './routes/uploads.routes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = Fastify({
   logger: {
@@ -20,6 +27,7 @@ async function registerPlugins() {
   // Security
   await app.register(helmet, {
     contentSecurityPolicy: false, // Disable for development
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images to be loaded cross-origin
   });
 
   await app.register(cors, {
@@ -58,6 +66,13 @@ async function registerPlugins() {
   await app.register(swaggerUi, {
     routePrefix: '/documentation',
   });
+
+  // Static file serving for uploaded images
+  await app.register(staticFiles, {
+    root: path.join(__dirname, '..', 'uploads'),
+    prefix: '/uploads/',
+    decorateReply: false, // Avoid conflict with other static plugins
+  });
 }
 
 // Health check route
@@ -80,6 +95,7 @@ async function registerRoutes() {
   await app.register(schoolsRoutes, { prefix: '/api/v1/schools' });
   await app.register(guardiansRoutes, { prefix: '/api/v1/guardians' });
   await app.register(studentsRoutes, { prefix: '/api/v1/students' });
+  await app.register(uploadsRoutes, { prefix: '/api/v1/uploads' });
 }
 
 // Start server

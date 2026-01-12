@@ -415,6 +415,37 @@ class ApiService {
       return { success: false, message: 'Error al restablecer contrasena' };
     }
   }
+
+  async uploadImage(uri: string, accessToken: string): Promise<ApiResponse<{ filename: string; url: string }>> {
+    try {
+      const formData = new FormData();
+
+      // Get filename and type from URI
+      const filename = uri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      // Append the file to FormData
+      formData.append('file', {
+        uri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await this.client.post<ApiResponse<{ filename: string; url: string }>>('/uploads/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al subir imagen' };
+    }
+  }
 }
 
 export const apiService = new ApiService();
