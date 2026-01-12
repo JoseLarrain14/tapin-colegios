@@ -94,6 +94,116 @@ export interface UpdateStudentData {
   dailyLimit?: number;
 }
 
+export interface RechargePackage {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  type: 'ticket' | 'balance';
+  ticketCount?: number;
+  ticketType?: string;
+  createdAt: string;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  gateway: string;
+  gatewayTxId?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+  student?: { id: string; firstName: string; lastName: string };
+  package?: { id: string; name: string; type: string; price?: number };
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface PaymentResult {
+  payment: {
+    id: string;
+    amount: number;
+    status: string;
+    gateway: string;
+    gatewayTxId: string;
+    createdAt: string;
+    completedAt: string;
+  };
+  wallet: {
+    id: string;
+    newBalance: number;
+  };
+  walletLog: {
+    id: string;
+    type: string;
+    amount: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    description: string;
+    createdAt: string;
+  };
+}
+
+export interface WalletDetails {
+  id: string;
+  studentId: string;
+  balance: number;
+  calculatedBalance: number;
+  balanceMatches: boolean;
+  recentLogs: WalletLog[];
+}
+
+export interface WalletLog {
+  id: string;
+  type: 'deposit' | 'purchase' | 'refund' | 'adjustment';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  description?: string;
+  createdAt: string;
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  category?: string;
+  imageUrl?: string;
+  available: boolean;
+  availableDays: number[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CartItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  student: { id: string; firstName: string; lastName: string };
+  cafeteria: { id: string; name: string };
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  pickupDate: string;
+  pickupTime?: string;
+  items: CartItem[];
+  total: number;
+  comments?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderData {
+  studentId: string;
+  cafeteriaId: string;
+  pickupDate: string;
+  pickupTime?: string;
+  items: CartItem[];
+  comments?: string;
+}
+
 
 class ApiService {
   private client: AxiosInstance;
@@ -463,6 +573,260 @@ class ApiService {
         return { success: false, message: error.message };
       }
       return { success: false, message: 'Error al subir imagen' };
+    }
+  }
+
+  // Recharge packages endpoints
+  async getRechargePackages(cafeteriaId: string, accessToken: string): Promise<ApiResponse<{
+    cafeteria: { id: string; name: string; schoolName: string };
+    packages: RechargePackage[];
+    totalPackages: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        cafeteria: { id: string; name: string; schoolName: string };
+        packages: RechargePackage[];
+        totalPackages: number;
+      }>>(`/payments/packages/${cafeteriaId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener paquetes de recarga' };
+    }
+  }
+
+  // Payment endpoints
+  async initPayment(data: {
+    studentId: string;
+    amount: number;
+    packageId?: string;
+    paymentMethod?: 'credit_card' | 'debit_card' | 'transfer';
+  }, accessToken: string): Promise<ApiResponse<PaymentResult>> {
+    try {
+      const response = await this.client.post<ApiResponse<PaymentResult>>('/payments/init', data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al procesar pago' };
+    }
+  }
+
+  async getPayments(accessToken: string): Promise<ApiResponse<{
+    payments: Payment[];
+    totalPayments: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        payments: Payment[];
+        totalPayments: number;
+      }>>('/payments', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener historial de pagos' };
+    }
+  }
+
+  async getPayment(paymentId: string, accessToken: string): Promise<ApiResponse<Payment>> {
+    try {
+      const response = await this.client.get<ApiResponse<Payment>>(`/payments/${paymentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener pago' };
+    }
+  }
+
+  // Wallet endpoints
+  async getWallet(studentId: string, accessToken: string): Promise<ApiResponse<WalletDetails>> {
+    try {
+      const response = await this.client.get<ApiResponse<WalletDetails>>(`/wallets/${studentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener billetera' };
+    }
+  }
+
+  async getWalletLogs(studentId: string, accessToken: string): Promise<ApiResponse<{
+    logs: WalletLog[];
+    totalCount: number;
+    sumOfAmounts: number;
+    currentBalance: number;
+    balanceMatches: boolean;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        logs: WalletLog[];
+        totalCount: number;
+        sumOfAmounts: number;
+        currentBalance: number;
+        balanceMatches: boolean;
+      }>>(`/wallets/${studentId}/logs`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener historial de billetera' };
+    }
+  }
+
+  // Menu endpoints
+  async getMenu(cafeteriaId: string, accessToken: string): Promise<ApiResponse<{
+    cafeteria: { id: string; name: string; schoolName: string };
+    items: MenuItem[];
+    totalItems: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        cafeteria: { id: string; name: string; schoolName: string };
+        items: MenuItem[];
+        totalItems: number;
+      }>>(`/menu/${cafeteriaId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener menu' };
+    }
+  }
+
+  async getMenuByDay(cafeteriaId: string, dayOfWeek: number, accessToken: string): Promise<ApiResponse<{
+    cafeteria: { id: string; name: string; schoolName: string };
+    dayOfWeek: number;
+    dayName: string;
+    items: MenuItem[];
+    totalItems: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        cafeteria: { id: string; name: string; schoolName: string };
+        dayOfWeek: number;
+        dayName: string;
+        items: MenuItem[];
+        totalItems: number;
+      }>>(`/menu/${cafeteriaId}/day/${dayOfWeek}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener menu del dia' };
+    }
+  }
+
+  // Order endpoints
+  async getOrders(accessToken: string): Promise<ApiResponse<{
+    orders: Order[];
+    totalOrders: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        orders: Order[];
+        totalOrders: number;
+      }>>('/orders', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener pedidos' };
+    }
+  }
+
+  async getOrder(orderId: string, accessToken: string): Promise<ApiResponse<Order>> {
+    try {
+      const response = await this.client.get<ApiResponse<Order>>(`/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener pedido' };
+    }
+  }
+
+  async createOrder(data: CreateOrderData, accessToken: string): Promise<ApiResponse<Order>> {
+    try {
+      const response = await this.client.post<ApiResponse<Order>>('/orders', data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al crear pedido' };
+    }
+  }
+
+  async cancelOrder(orderId: string, accessToken: string): Promise<ApiResponse<Order>> {
+    try {
+      const response = await this.client.put<ApiResponse<Order>>(`/orders/${orderId}/cancel`, {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al cancelar pedido' };
     }
   }
 }

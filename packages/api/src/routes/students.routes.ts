@@ -411,6 +411,13 @@ export async function studentsRoutes(app: FastifyInstance) {
                   code: true,
                   city: true,
                   region: true,
+                  cafeterias: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                    take: 1,
+                  },
                 },
               },
               wallet: true,
@@ -428,6 +435,7 @@ export async function studentsRoutes(app: FastifyInstance) {
       }
 
       const student = guardianStudent.student;
+      const cafeteria = (student.school as any).cafeterias?.[0] || null;
 
       return reply.send({
         success: true,
@@ -440,7 +448,14 @@ export async function studentsRoutes(app: FastifyInstance) {
           section: student.section,
           photoUrl: student.photoUrl,
           dailyLimit: student.dailyLimit,
-          school: student.school,
+          school: {
+            id: student.school.id,
+            name: student.school.name,
+            code: student.school.code,
+            city: student.school.city,
+            region: student.school.region,
+          },
+          cafeteria: cafeteria,
           balance: student.wallet?.balance || 0,
           tickets: student.tickets.map((t) => ({
             type: t.ticketType,

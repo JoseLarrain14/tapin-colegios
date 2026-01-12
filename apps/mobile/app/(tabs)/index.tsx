@@ -210,7 +210,7 @@ export default function HomeTab() {
                 <View style={styles.balanceActions}>
                   <Button
                     mode="contained"
-                    onPress={() => {}}
+                    onPress={() => router.push(`/recharge?studentId=${selectedStudent.id}`)}
                     style={styles.rechargeButton}
                     icon="cash-plus"
                   >
