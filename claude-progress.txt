@@ -146,13 +146,39 @@ Console Output Shows:
 - packages/api/src/services/auth.service.ts - Already had password reset logic
 - packages/api/prisma/schema.prisma - Added PasswordResetToken model
 
+### 4. Feature #7: Reset Password - Valid Token (PASSING)
+
+Created reset-password.tsx screen with:
+- Token verification on mount (shows loading state)
+- Invalid/expired token error state with link to request new reset
+- Password reset form with confirmation field
+- Success state with link to login
+
+Verification Steps Completed:
+1. Used token from Feature #6 to navigate to reset-password
+2. Entered new password "NewPassword456!"
+3. Confirmed password
+4. Submitted reset - success message shown
+5. Logged in with new password - SUCCESS!
+
+### 5. Feature #9: Session Persistence (PASSING)
+
+Verified that user session persists across app restarts:
+1. Logged in as TestRegression user
+2. Closed browser completely
+3. Reopened browser and navigated to app
+4. App automatically loaded home screen with user data
+5. No re-authentication required
+
+Note: Feature #8 (Token Refresh - Automatic) was skipped for now as it requires more complex implementation with interceptors/timers.
+
 ## Feature Statistics
 
 ```
 Total Features: 180
-Passing: 6
+Passing: 8
 In Progress: 0
-Percentage Complete: 3.33%
+Percentage Complete: 4.4%
 ```
 
 ## Passing Features Summary
@@ -162,6 +188,8 @@ Percentage Complete: 3.33%
 - Feature #4: Login Error Display
 - Feature #5: User Logout
 - Feature #6: Forgot Password - Request Reset
+- Feature #7: Reset Password - Valid Token
+- Feature #9: Session Persistence
 
 ## Servers Running
 
@@ -171,21 +199,29 @@ Percentage Complete: 3.33%
 ## Screenshots Captured
 
 - forgot-password-success.png - Success state after submitting reset request
+- reset-password-success.png - Success after password reset
+- reset-password-login-success.png - Successful login with new password
+- session-persistence-verified.png - Session persisted after browser restart
 
 ## Next Steps for Future Agents
 
 1. Get next feature with feature_get_next tool
-2. Likely Feature #7 will be password reset completion (using the token to set new password)
-3. Then continue with student management features
-4. Build wallet/balance features
+2. Continue with student management features (add student, view students, etc.)
+3. Build wallet/balance features
+4. Implement menu viewing and ordering
+5. Feature #8 (Token Refresh) was skipped - implement later
 
 ## Session End State
 
-- Feature #6 is passing
-- All code committed to Git (commit 9e17228)
+- Features #6, #7, #9 are passing (3 new features this session)
+- All code committed to Git
 - Servers running in background
 - App in working state
+- Total: 8/180 features passing (4.4%)
 
 ## Git Commits This Session
 
 1. 9e17228 - Add forgot password request reset flow - Feature #6 passing
+2. 8057d7a - Update progress notes for Session 4
+3. 47ee58a - Add reset password flow - Feature #7 passing
+4. e6e532c - Verify session persistence - Feature #9 passing
