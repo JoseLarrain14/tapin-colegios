@@ -231,26 +231,72 @@ export async function ordersRoutes(app: FastifyInstance) {
       // Calculate total
       const total = body.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-      const order = await prisma.order.create({
-        data: {
-          guardianId: guardian.id,
-          studentId: body.studentId,
-          cafeteriaId: body.cafeteriaId,
-          pickupDate: body.pickupDate,
-          pickupTime: body.pickupTime,
-          items: JSON.stringify(body.items),
-          total,
-          comments: body.comments,
-          status: 'pending',
-        },
-        include: {
-          student: {
-            select: { id: true, firstName: true, lastName: true },
+      // Get student's wallet and check balance
+      const wallet = await prisma.wallet.findUnique({
+        where: { studentId: body.studentId },
+      });
+
+      if (!wallet) {
+        return reply.status(400).send({
+          success: false,
+          message: 'El estudiante no tiene una billetera activa',
+        });
+      }
+
+      if (wallet.balance < total) {
+        return reply.status(400).send({
+          success: false,
+          message: `Saldo insuficiente. Saldo disponible: $${wallet.balance.toLocaleString('es-CL')}, Total del pedido: $${total.toLocaleString('es-CL')}`,
+        });
+      }
+
+      // Create order and deduct balance in a transaction
+      const order = await prisma.$transaction(async (tx) => {
+        // Create the order
+        const newOrder = await tx.order.create({
+          data: {
+            guardianId: guardian.id,
+            studentId: body.studentId,
+            cafeteriaId: body.cafeteriaId,
+            pickupDate: body.pickupDate,
+            pickupTime: body.pickupTime,
+            items: JSON.stringify(body.items),
+            total,
+            comments: body.comments,
+            status: 'pending',
           },
-          cafeteria: {
-            select: { id: true, name: true },
+          include: {
+            student: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+            cafeteria: {
+              select: { id: true, name: true },
+            },
           },
-        },
+        });
+
+        // Deduct balance from wallet
+        await tx.wallet.update({
+          where: { studentId: body.studentId },
+          data: {
+            balance: { decrement: total },
+          },
+        });
+
+        // Create wallet log entry
+        await tx.walletLog.create({
+          data: {
+            walletId: wallet.id,
+            type: 'purchase',
+            amount: -total,
+            balanceBefore: wallet.balance,
+            balanceAfter: wallet.balance - total,
+            description: `Pedido #${newOrder.id.slice(0, 8)} - ${body.items.length} item(s)`,
+            referenceId: newOrder.id,
+          },
+        });
+
+        return newOrder;
       });
 
       return reply.status(201).send({
@@ -413,17 +459,56 @@ export async function ordersRoutes(app: FastifyInstance) {
         });
       }
 
-      const order = await prisma.order.update({
-        where: { id },
-        data: { status: 'cancelled' },
-        include: {
-          student: {
-            select: { id: true, firstName: true, lastName: true },
+      // Get student's wallet for refund
+      const wallet = await prisma.wallet.findUnique({
+        where: { studentId: existingOrder.studentId },
+      });
+
+      if (!wallet) {
+        return reply.status(400).send({
+          success: false,
+          message: 'No se puede procesar el reembolso: billetera no encontrada',
+        });
+      }
+
+      // Cancel order and refund balance in a transaction
+      const order = await prisma.$transaction(async (tx) => {
+        // Update order status
+        const cancelledOrder = await tx.order.update({
+          where: { id },
+          data: { status: 'cancelled' },
+          include: {
+            student: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+            cafeteria: {
+              select: { id: true, name: true },
+            },
           },
-          cafeteria: {
-            select: { id: true, name: true },
+        });
+
+        // Refund balance to wallet
+        await tx.wallet.update({
+          where: { studentId: existingOrder.studentId },
+          data: {
+            balance: { increment: existingOrder.total },
           },
-        },
+        });
+
+        // Create wallet log entry for refund
+        await tx.walletLog.create({
+          data: {
+            walletId: wallet.id,
+            type: 'refund',
+            amount: existingOrder.total,
+            balanceBefore: wallet.balance,
+            balanceAfter: wallet.balance + existingOrder.total,
+            description: `Reembolso pedido #${existingOrder.id.slice(0, 8)} cancelado`,
+            referenceId: existingOrder.id,
+          },
+        });
+
+        return cancelledOrder;
       });
 
       return reply.send({
