@@ -759,3 +759,109 @@ This session completed 9 features:
 - App in working state
 - Total: 45/180 features passing (25.0%)
 
+---
+
+# Session 9 - Coding Agent
+# Date: 2026-01-12
+
+## Summary
+
+Implemented workflow features including order cancellation refunds, ticket purchase/usage system, and multi-school support.
+
+## Completed Features This Session
+
+### Feature #86: Order Cancellation Refund (PASSING)
+
+Implementation:
+- Fixed referenceType field error in walletLog.create calls
+- Order cancellation now properly refunds balance to student wallet
+- Creates refund entry in wallet_logs with type "refund"
+- Verified balance restoration after cancellation
+
+Verification:
+1. Created order that deducts balance ($10,000 -> $6,500)
+2. Cancelled the order
+3. Balance restored to $10,000
+4. wallet_log shows refund entry (amount: +3500)
+5. Order status is 'cancelled'
+
+### Feature #87: Ticket Purchase and Usage (PASSING)
+
+Implementation:
+- Added ticketsUsed field to Order model in Prisma schema
+- Added GET /wallets/:studentId/tickets endpoint
+- Updated order creation to support useTickets parameter
+- Tickets are deducted when order is created with useTickets
+- Payment init creates student_tickets when buying ticket packages
+
+Verification:
+1. Created ticket package (5 "almuerzo" tickets)
+2. Bought package via payment/init
+3. Verified tickets added to student_tickets (5 tickets)
+4. Created order using 2 tickets
+5. Verified tickets deducted (5 -> 3 tickets)
+6. Order shows ticketsUsed field
+
+### Feature #88: Multiple Students Different Schools (PASSING)
+
+Verification:
+1. Guardian has students at 2 schools (San Ignacio, Instituto Nacional)
+2. Created cafeteria for Instituto Nacional
+3. Added school-specific menu items
+4. Verified each cafeteria shows correct menu
+5. Added balance to student A at School A
+6. Created order for student B at School B
+7. All operations work independently per student/school
+
+## New Files Created
+
+None - all modifications to existing files
+
+## Modified Files
+
+- packages/api/prisma/schema.prisma - Added ticketsUsed field to Order
+- packages/api/src/routes/orders.routes.ts - Added ticket support and fixed refund logic
+- packages/api/src/routes/wallets.routes.ts - Added /tickets endpoint
+
+## Feature Statistics
+
+```
+Total Features: 180
+Passing: 51
+In Progress: 0
+Percentage Complete: 28.3%
+```
+
+## Git Commits This Session
+
+1. 9ebbb85 - feat: Fix order cancellation refund - Feature #86 passing
+2. e8e613c - feat: Implement ticket purchase and usage workflow - Feature #87 passing
+3. 982a1a7 - feat: Verify multiple students at different schools - Feature #88 passing
+
+## Servers Running
+
+- API Server: http://localhost:3000 (Fastify backend)
+- Mobile Web: http://localhost:8081 (Expo web)
+
+## API Endpoints Added/Modified
+
+- GET /api/v1/wallets/:studentId/tickets - Get student's tickets
+- POST /api/v1/orders - Now supports useTickets parameter
+- PUT /api/v1/orders/:id/cancel - Now correctly refunds balance
+
+## Next Steps for Future Agents
+
+1. Get next feature with feature_get_next tool
+2. Continue with remaining workflow features
+3. Build UI for ticket management
+4. Add more comprehensive testing
+5. Implement notification features
+
+## Session End State
+
+- 3 new features passing this session (from 48 to 51)
+- All code committed to Git
+- Servers running in background
+- App in working state
+- Total: 51/180 features passing (28.3%)
+
