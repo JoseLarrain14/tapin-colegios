@@ -20,6 +20,19 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const verifyResetTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
 export async function authRoutes(app: FastifyInstance) {
   /**
    * POST /api/v1/auth/register
@@ -170,6 +183,102 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({
         success: false,
         message: 'No autorizado',
+      });
+    }
+  });
+
+  /**
+   * POST /api/v1/auth/forgot-password
+   * Request password reset email
+   */
+  app.post('/forgot-password', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = forgotPasswordSchema.parse(request.body);
+      const result = await authService.requestPasswordReset(body.email);
+
+      return reply.send({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Correo electrónico inválido',
+          errors: error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+
+      // Always return success for security (don't reveal if email exists)
+      return reply.send({
+        success: true,
+        message: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña',
+      });
+    }
+  });
+
+  /**
+   * POST /api/v1/auth/reset-password
+   * Reset password with token
+   */
+  app.post('/reset-password', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = resetPasswordSchema.parse(request.body);
+      const result = await authService.resetPassword(body.token, body.password);
+
+      return reply.send({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Datos inválidos',
+          errors: error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+
+      const message = error instanceof Error ? error.message : 'Error al restablecer contraseña';
+      return reply.status(400).send({
+        success: false,
+        message,
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/auth/verify-reset-token
+   * Verify if a password reset token is valid
+   */
+  app.get('/verify-reset-token', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { token } = request.query as { token?: string };
+
+      if (!token) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Token es requerido',
+        });
+      }
+
+      const result = await authService.verifyResetToken(token);
+
+      return reply.send({
+        success: true,
+        data: { valid: result.valid },
+      });
+    } catch (error) {
+      return reply.status(400).send({
+        success: false,
+        message: 'Token inválido o expirado',
+        data: { valid: false },
       });
     }
   });

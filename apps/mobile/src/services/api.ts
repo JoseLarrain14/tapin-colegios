@@ -235,6 +235,45 @@ class ApiService {
       return { success: false, message: 'Error al obtener perfil' };
     }
   }
+
+  // Password reset endpoints
+  async forgotPassword(email: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.post<ApiResponse<void>>('/auth/forgot-password', {
+        email,
+      });
+      return response.data;
+    } catch (error) {
+      // Always return success for security (don't reveal if email exists)
+      return { success: true, message: 'Si el correo existe, recibiras un enlace para restablecer tu contrasena' };
+    }
+  }
+
+  async verifyResetToken(token: string): Promise<ApiResponse<{ valid: boolean }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{ valid: boolean }>>('/auth/verify-reset-token', {
+        params: { token },
+      });
+      return response.data;
+    } catch (error) {
+      return { success: false, message: 'Token invalido o expirado', data: { valid: false } };
+    }
+  }
+
+  async resetPassword(token: string, password: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.post<ApiResponse<void>>('/auth/reset-password', {
+        token,
+        password,
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al restablecer contrasena' };
+    }
+  }
 }
 
 export const apiService = new ApiService();

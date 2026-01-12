@@ -55,6 +55,7 @@ model User {
   notifications         Notification[]
   schoolAdmin           SchoolAdmin?
   operatedTransactions  Transaction[]
+  passwordResetTokens   PasswordResetToken[]
 
   @@index([email])
   @@map("users")
@@ -365,4 +366,17 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
