@@ -448,6 +448,8 @@ export async function studentsRoutes(app: FastifyInstance) {
             expiresAt: t.expiresAt,
           })),
           isPrimary: guardianStudent.isPrimary,
+          createdAt: student.createdAt,
+          updatedAt: student.updatedAt,
         },
       });
     } catch (error) {
