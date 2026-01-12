@@ -221,13 +221,33 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError<ApiResponse<unknown>>) => {
+        // Handle server response errors
         if (error.response?.data?.message) {
           throw new Error(error.response.data.message);
         }
-        if (error.message === 'Network Error') {
+
+        // Handle network/connection errors
+        if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
           throw new Error('Error de conexion. Verifica tu internet.');
         }
-        throw error;
+
+        // Handle timeout errors
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          throw new Error('La conexion tardo demasiado. Intenta de nuevo.');
+        }
+
+        // Handle connection refused (server down)
+        if (error.code === 'ERR_CONNECTION_REFUSED' || error.message?.includes('ECONNREFUSED')) {
+          throw new Error('No se pudo conectar al servidor. Intenta mas tarde.');
+        }
+
+        // Handle DNS resolution errors
+        if (error.code === 'ENOTFOUND' || error.message?.includes('ENOTFOUND')) {
+          throw new Error('No se pudo conectar. Verifica tu conexion a internet.');
+        }
+
+        // Generic error fallback
+        throw new Error('Error de conexion. Por favor intenta de nuevo.');
       }
     );
   }

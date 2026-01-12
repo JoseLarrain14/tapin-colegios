@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { apiService, MenuItem, CartItem, Student } from '../../src/services/api';
+import { NetworkError } from '../../src/components/NetworkError';
 
 interface Cafeteria {
   id: string;
@@ -29,6 +30,8 @@ export default function CafeteriaTab() {
   const [showCart, setShowCart] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const dayNames = ['', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
   const fullDayNames = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
@@ -45,53 +48,82 @@ export default function CafeteriaTab() {
   }, []);
 
   // Load students and find cafeteria
-  useEffect(() => {
-    const loadData = async () => {
-      if (!accessToken) return;
+  const loadData = useCallback(async () => {
+    if (!accessToken) return;
 
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
+      setNetworkError(null);
 
-        // Get students
-        const studentsResponse = await apiService.getStudents(accessToken);
-        if (studentsResponse.success && studentsResponse.data) {
-          const studentList = Array.isArray(studentsResponse.data)
-            ? studentsResponse.data
-            : (studentsResponse.data as any).students || [];
-          setStudents(studentList);
+      // Get students
+      const studentsResponse = await apiService.getStudents(accessToken);
+      if (!studentsResponse.success) {
+        const errorMsg = studentsResponse.message || 'Error al cargar datos';
+        if (errorMsg.toLowerCase().includes('conexion') ||
+            errorMsg.toLowerCase().includes('network') ||
+            errorMsg.toLowerCase().includes('internet') ||
+            errorMsg.toLowerCase().includes('timeout') ||
+            errorMsg.toLowerCase().includes('servidor')) {
+          setNetworkError(errorMsg);
+          return;
+        }
+      }
 
-          if (studentList.length > 0) {
-            setSelectedStudent(studentList[0]);
+      if (studentsResponse.success && studentsResponse.data) {
+        const studentList = Array.isArray(studentsResponse.data)
+          ? studentsResponse.data
+          : (studentsResponse.data as any).students || [];
+        setStudents(studentList);
 
-            // Get student details to find cafeteria
-            const studentResponse = await apiService.getStudent(studentList[0].id, accessToken);
-            if (studentResponse.success && studentResponse.data) {
-              const student = studentResponse.data;
-              const studentData = student as any;
+        if (studentList.length > 0) {
+          setSelectedStudent(studentList[0]);
 
-              // Find cafeteria from student's school
-              if (studentData.cafeteria) {
-                setCafeteria({
-                  id: studentData.cafeteria.id,
-                  name: studentData.cafeteria.name,
-                  schoolName: student.school.name,
-                });
+          // Get student details to find cafeteria
+          const studentResponse = await apiService.getStudent(studentList[0].id, accessToken);
+          if (studentResponse.success && studentResponse.data) {
+            const student = studentResponse.data;
+            const studentData = student as any;
 
-                // Load menu for selected day
-                await loadMenuForDay(studentData.cafeteria.id, selectedDay);
-              }
+            // Find cafeteria from student's school
+            if (studentData.cafeteria) {
+              setCafeteria({
+                id: studentData.cafeteria.id,
+                name: studentData.cafeteria.name,
+                schoolName: student.school.name,
+              });
+
+              // Load menu for selected day
+              await loadMenuForDay(studentData.cafeteria.id, selectedDay);
             }
           }
         }
-      } catch (error) {
-        console.error('Load data error:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Load data error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Error de conexion';
+      if (errorMsg.toLowerCase().includes('conexion') ||
+          errorMsg.toLowerCase().includes('network') ||
+          errorMsg.toLowerCase().includes('internet') ||
+          errorMsg.toLowerCase().includes('timeout') ||
+          errorMsg.toLowerCase().includes('servidor')) {
+        setNetworkError(errorMsg);
+      } else {
+        setNetworkError('Error de conexion. Verifica tu internet.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, selectedDay]);
 
+  const handleRetry = async () => {
+    setRetrying(true);
+    await loadData();
+    setRetrying(false);
+  };
+
+  useEffect(() => {
     loadData();
-  }, [accessToken]);
+  }, [loadData]);
 
   const loadMenuForDay = async (cafeteriaId: string, day: number) => {
     if (!accessToken) return;
@@ -354,6 +386,19 @@ export default function CafeteriaTab() {
             Confirmar pedido
           </Button>
         </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Network error state
+  if (networkError) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <NetworkError
+          message={networkError}
+          onRetry={handleRetry}
+          retrying={retrying}
+        />
       </SafeAreaView>
     );
   }
