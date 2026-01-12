@@ -1,5 +1,5 @@
-import { View, StyleSheet } from 'react-native';
-import { Text, Button, Surface, Avatar } from 'react-native-paper';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Text, Button, Surface, Avatar, FAB } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
@@ -12,6 +12,10 @@ export default function HomeScreen() {
   const handleLogout = async () => {
     await logout();
     router.replace('/');
+  };
+
+  const handleAddStudent = () => {
+    router.push('/add-student');
   };
 
   const getInitials = () => {
@@ -197,6 +201,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 24,
+  },
+  addStudentButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
+  },
+  addStudentButtonContent: {
+    height: 52,
+  },
+  addStudentButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textOnPrimary,
   },
   logoutButton: {
     borderColor: colors.error,

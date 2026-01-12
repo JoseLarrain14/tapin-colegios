@@ -51,6 +51,49 @@ export interface School {
   region?: string;
   logoUrl?: string;
 }
+export interface Student {
+  id: string;
+  firstName: string;
+  lastName: string;
+  rut: string;
+  grade?: string;
+  section?: string;
+  photoUrl?: string;
+  dailyLimit: number;
+  school: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  balance: number;
+  tickets?: Array<{
+    type: string;
+    quantity: number;
+    expiresAt?: string;
+  }>;
+  isPrimary?: boolean;
+}
+
+export interface CreateStudentData {
+  firstName: string;
+  lastName: string;
+  rut: string;
+  schoolId: string;
+  grade?: string;
+  section?: string;
+  photoUrl?: string;
+  dailyLimit?: number;
+}
+
+export interface UpdateStudentData {
+  firstName?: string;
+  lastName?: string;
+  grade?: string;
+  section?: string;
+  photoUrl?: string;
+  dailyLimit?: number;
+}
+
 
 class ApiService {
   private client: AxiosInstance;
@@ -257,6 +300,104 @@ class ApiService {
       return response.data;
     } catch (error) {
       return { success: false, message: 'Token invalido o expirado', data: { valid: false } };
+    }
+  }
+
+
+  // Student endpoints
+  async createStudent(data: CreateStudentData, accessToken: string): Promise<ApiResponse<Student>> {
+    try {
+      const response = await this.client.post<ApiResponse<Student>>('/students', data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al crear estudiante' };
+    }
+  }
+
+  async getStudents(accessToken: string): Promise<ApiResponse<Student[]>> {
+    try {
+      const response = await this.client.get<ApiResponse<Student[]>>('/students', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al listar estudiantes' };
+    }
+  }
+
+  async getStudent(studentId: string, accessToken: string): Promise<ApiResponse<Student>> {
+    try {
+      const response = await this.client.get<ApiResponse<Student>>(`/students/${studentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener estudiante' };
+    }
+  }
+
+  async updateStudent(studentId: string, data: UpdateStudentData, accessToken: string): Promise<ApiResponse<Student>> {
+    try {
+      const response = await this.client.put<ApiResponse<Student>>(`/students/${studentId}`, data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al actualizar estudiante' };
+    }
+  }
+
+  async deleteStudent(studentId: string, accessToken: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.delete<ApiResponse<void>>(`/students/${studentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al eliminar estudiante' };
+    }
+  }
+
+  async updateStudentLimit(studentId: string, dailyLimit: number, accessToken: string): Promise<ApiResponse<{ dailyLimit: number }>> {
+    try {
+      const response = await this.client.put<ApiResponse<{ dailyLimit: number }>>(`/students/${studentId}/limit`, { dailyLimit }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al actualizar limite' };
     }
   }
 
