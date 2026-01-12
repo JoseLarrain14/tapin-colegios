@@ -282,6 +282,7 @@ model Order {
   items       String   // JSON string
   total       Int
   comments    String?
+  ticketsUsed String?  @map("tickets_used") // JSON string: {ticketType, quantity}
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

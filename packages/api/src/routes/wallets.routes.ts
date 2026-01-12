@@ -578,4 +578,70 @@ export async function walletsRoutes(app: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * GET /api/v1/wallets/:studentId/tickets
+   * Get all tickets for a student
+   */
+  app.get('/:studentId/tickets', async (request: FastifyRequest<{ Params: { studentId: string } }>, reply: FastifyReply) => {
+    try {
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      const { studentId } = request.params;
+
+      const guardian = await getGuardian(decoded.userId);
+      if (!guardian) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Perfil de apoderado no encontrado',
+        });
+      }
+
+      // Verify guardian has access to this student
+      const guardianStudent = await prisma.guardianStudent.findUnique({
+        where: {
+          guardianId_studentId: {
+            guardianId: guardian.id,
+            studentId: studentId,
+          },
+        },
+      });
+
+      if (!guardianStudent) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes acceso a este estudiante',
+        });
+      }
+
+      // Get all tickets for the student
+      const tickets = await prisma.studentTicket.findMany({
+        where: { studentId },
+        orderBy: { ticketType: 'asc' },
+      });
+
+      return reply.send({
+        success: true,
+        data: {
+          studentId,
+          tickets: tickets.map(ticket => ({
+            id: ticket.id,
+            ticketType: ticket.ticketType,
+            quantity: ticket.quantity,
+            expiresAt: ticket.expiresAt,
+            createdAt: ticket.createdAt,
+            updatedAt: ticket.updatedAt,
+          })),
+          totalTickets: tickets.reduce((sum, t) => sum + t.quantity, 0),
+        },
+      });
+    } catch (error) {
+      console.error('Get tickets error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener tickets',
+      });
+    }
+  });
 }

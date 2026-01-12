@@ -51,6 +51,11 @@ const createOrderSchema = z.object({
     quantity: z.number().int().positive(),
   })),
   comments: z.string().optional(),
+  // Ticket support
+  useTickets: z.object({
+    ticketType: z.string(),
+    quantity: z.number().int().positive(),
+  }).optional(),
 });
 
 const updateOrderSchema = z.object({
@@ -102,6 +107,7 @@ export async function ordersRoutes(app: FastifyInstance) {
             items: JSON.parse(order.items),
             total: order.total,
             comments: order.comments,
+            ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
           })),
@@ -167,6 +173,7 @@ export async function ordersRoutes(app: FastifyInstance) {
           items: JSON.parse(order.items),
           total: order.total,
           comments: order.comments,
+          ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
           createdAt: order.createdAt,
           updatedAt: order.updatedAt,
         },
@@ -231,26 +238,59 @@ export async function ordersRoutes(app: FastifyInstance) {
       // Calculate total
       const total = body.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-      // Get student's wallet and check balance
-      const wallet = await prisma.wallet.findUnique({
-        where: { studentId: body.studentId },
-      });
+      // Check if using tickets or balance
+      let ticketsUsed: any = null;
+      let studentTicket: any = null;
 
-      if (!wallet) {
-        return reply.status(400).send({
-          success: false,
-          message: 'El estudiante no tiene una billetera activa',
+      if (body.useTickets) {
+        // Using tickets - verify student has enough tickets
+        studentTicket = await prisma.studentTicket.findFirst({
+          where: {
+            studentId: body.studentId,
+            ticketType: body.useTickets.ticketType,
+          },
         });
+
+        if (!studentTicket) {
+          return reply.status(400).send({
+            success: false,
+            message: `El estudiante no tiene tickets de tipo '${body.useTickets.ticketType}'`,
+          });
+        }
+
+        if (studentTicket.quantity < body.useTickets.quantity) {
+          return reply.status(400).send({
+            success: false,
+            message: `Tickets insuficientes. Disponibles: ${studentTicket.quantity}, Requeridos: ${body.useTickets.quantity}`,
+          });
+        }
+
+        ticketsUsed = {
+          ticketType: body.useTickets.ticketType,
+          quantity: body.useTickets.quantity,
+        };
+      } else {
+        // Using balance - check wallet
+        const wallet = await prisma.wallet.findUnique({
+          where: { studentId: body.studentId },
+        });
+
+        if (!wallet) {
+          return reply.status(400).send({
+            success: false,
+            message: 'El estudiante no tiene una billetera activa',
+          });
+        }
+
+        if (wallet.balance < total) {
+          return reply.status(400).send({
+            success: false,
+            message: `Saldo insuficiente. Saldo disponible: $${wallet.balance.toLocaleString('es-CL')}, Total del pedido: $${total.toLocaleString('es-CL')}`,
+          });
+        }
       }
 
-      if (wallet.balance < total) {
-        return reply.status(400).send({
-          success: false,
-          message: `Saldo insuficiente. Saldo disponible: $${wallet.balance.toLocaleString('es-CL')}, Total del pedido: $${total.toLocaleString('es-CL')}`,
-        });
-      }
-
-      // Create order and deduct balance in a transaction
+      // Create order and deduct balance/tickets in a transaction
       const order = await prisma.$transaction(async (tx) => {
         // Create the order
         const newOrder = await tx.order.create({
@@ -264,6 +304,7 @@ export async function ordersRoutes(app: FastifyInstance) {
             total,
             comments: body.comments,
             status: 'pending',
+            ticketsUsed: ticketsUsed ? JSON.stringify(ticketsUsed) : null,
           },
           include: {
             student: {
@@ -275,26 +316,40 @@ export async function ordersRoutes(app: FastifyInstance) {
           },
         });
 
-        // Deduct balance from wallet
-        await tx.wallet.update({
-          where: { studentId: body.studentId },
-          data: {
-            balance: { decrement: total },
-          },
-        });
+        if (body.useTickets && studentTicket) {
+          // Deduct tickets
+          await tx.studentTicket.update({
+            where: { id: studentTicket.id },
+            data: {
+              quantity: studentTicket.quantity - body.useTickets.quantity,
+            },
+          });
+        } else {
+          // Deduct balance from wallet
+          const wallet = await tx.wallet.findUnique({
+            where: { studentId: body.studentId },
+          });
 
-        // Create wallet log entry
-        await tx.walletLog.create({
-          data: {
-            walletId: wallet.id,
-            type: 'purchase',
-            amount: -total,
-            balanceBefore: wallet.balance,
-            balanceAfter: wallet.balance - total,
-            description: `Pedido #${newOrder.id.slice(0, 8)} - ${body.items.length} item(s)`,
-            referenceId: newOrder.id,
-          },
-        });
+          await tx.wallet.update({
+            where: { studentId: body.studentId },
+            data: {
+              balance: { decrement: total },
+            },
+          });
+
+          // Create wallet log entry
+          await tx.walletLog.create({
+            data: {
+              walletId: wallet!.id,
+              type: 'purchase',
+              amount: -total,
+              balanceBefore: wallet!.balance,
+              balanceAfter: wallet!.balance - total,
+              description: `Pedido #${newOrder.id.slice(0, 8)} - ${body.items.length} item(s)`,
+              referenceId: newOrder.id,
+            },
+          });
+        }
 
         return newOrder;
       });
@@ -312,6 +367,7 @@ export async function ordersRoutes(app: FastifyInstance) {
           items: JSON.parse(order.items),
           total: order.total,
           comments: order.comments,
+          ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
           createdAt: order.createdAt,
         },
       });
