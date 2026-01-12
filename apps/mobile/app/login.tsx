@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -36,12 +37,14 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
+    setLoginError(null);  // Clear any previous error
+
     try {
       await login(email.trim().toLowerCase(), password);
       router.replace('/home');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesion';
-      Alert.alert('Error', message);
+      setLoginError(message);
     }
   };
 
@@ -63,6 +66,13 @@ export default function LoginScreen() {
               Ingresa con tu correo y contrasena
             </Text>
           </View>
+
+          {/* Error Message */}
+          {loginError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{loginError}</Text>
+            </View>
+          )}
 
           {/* Form */}
           <View style={styles.formContainer}>
@@ -181,6 +191,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     lineHeight: 24,
+  },
+  errorBanner: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    textAlign: 'center',
   },
   formContainer: {
     marginBottom: spacing.xl,
