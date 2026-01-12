@@ -51,13 +51,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialized) return;
 
     const inAuthGroup = segments[0] === 'register' || segments[0] === 'login';
+    const isPublicRoute = segments[0] === 'forgot-password' || segments[0] === 'reset-password';
     const isRoot = segments.length === 0 || (segments.length === 1 && segments[0] === '');
 
+    // Protected routes that require authentication
+    const protectedRoutes = ['home', 'profile', 'edit-profile', 'students', 'add-student', 'edit-student', 'cafeteria', '(tabs)'];
+    const isProtectedRoute = protectedRoutes.includes(segments[0] as string);
+    const isInTabs = segments[0] === '(tabs)';
+
     if (isAuthenticated && (inAuthGroup || isRoot)) {
-      // Redirect authenticated users to home
-      router.replace('/home');
-    } else if (!isAuthenticated && !inAuthGroup && !isRoot && segments[0] === 'home') {
-      // Redirect unauthenticated users to splash
+      // Redirect authenticated users to tabs (home)
+      router.replace('/(tabs)');
+    } else if (!isAuthenticated && (isProtectedRoute || isInTabs)) {
+      // Redirect unauthenticated users to splash for protected routes
       router.replace('/');
     }
   }, [isAuthenticated, segments, isInitialized]);
