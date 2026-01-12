@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
@@ -127,6 +127,17 @@ export default function AddStudentScreen() {
   // Error state
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Snackbar state
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarType, setSnackbarType] = useState<'success' | 'error'>('error');
+
+  const showSnackbar = (message: string, type: 'success' | 'error' = 'error') => {
+    setSnackbarMessage(message);
+    setSnackbarType(type);
+    setSnackbarVisible(true);
+  };
+
   useEffect(() => {
     loadSchools();
   }, []);
@@ -201,7 +212,7 @@ export default function AddStudentScreen() {
     }
 
     if (!accessToken) {
-      Alert.alert('Error', 'Debes iniciar sesion para agregar un estudiante');
+      showSnackbar('Debes iniciar sesion para agregar un estudiante', 'error');
       router.replace('/login');
       return;
     }
@@ -223,21 +234,15 @@ export default function AddStudentScreen() {
       );
 
       if (response.success) {
-        Alert.alert(
-          'Estudiante Agregado',
-          `${firstName} ${lastName} ha sido agregado exitosamente.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        showSnackbar(`${firstName} ${lastName} ha sido agregado exitosamente.`, 'success');
+        // Navigate back after a short delay so the user sees the success message
+        setTimeout(() => router.back(), 1500);
       } else {
-        Alert.alert('Error', response.message || 'No se pudo agregar el estudiante');
+        showSnackbar(response.message || 'No se pudo agregar el estudiante', 'error');
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrio un error al agregar el estudiante');
+      const errorMessage = error instanceof Error ? error.message : 'Ocurrio un error al agregar el estudiante';
+      showSnackbar(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -518,6 +523,23 @@ export default function AddStudentScreen() {
           </Button>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Snackbar for feedback messages */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={snackbarType === 'success' ? 1500 : 4000}
+        style={[
+          styles.snackbar,
+          snackbarType === 'success' ? styles.snackbarSuccess : styles.snackbarError,
+        ]}
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </SafeAreaView>
   );
 }
@@ -623,5 +645,14 @@ const styles = StyleSheet.create({
   submitButtonLabel: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  snackbar: {
+    marginBottom: spacing.lg,
+  },
+  snackbarSuccess: {
+    backgroundColor: colors.success,
+  },
+  snackbarError: {
+    backgroundColor: colors.error,
   },
 });

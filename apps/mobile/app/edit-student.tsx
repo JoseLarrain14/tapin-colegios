@@ -197,6 +197,8 @@ export default function EditStudentScreen() {
     }
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max file size
+
   const pickImage = async () => {
     // Request permission
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -215,6 +217,17 @@ export default function EditStudentScreen() {
 
     if (!result.canceled && result.assets[0]) {
       const selectedImage = result.assets[0];
+
+      // Check file size if available
+      if (selectedImage.fileSize && selectedImage.fileSize > MAX_FILE_SIZE) {
+        Alert.alert(
+          'Archivo muy grande',
+          'La imagen seleccionada supera el limite de 5MB. Por favor selecciona una imagen mas pequena.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       setLocalPhotoUri(selectedImage.uri);
 
       // Upload the image
@@ -233,11 +246,22 @@ export default function EditStudentScreen() {
         // Clear local URI once uploaded
         setLocalPhotoUri(null);
       } else {
-        Alert.alert('Error', response.message || 'No se pudo subir la imagen');
+        // Handle specific error messages
+        let errorMessage = response.message || 'No se pudo subir la imagen';
+        if (errorMessage.toLowerCase().includes('size') || errorMessage.toLowerCase().includes('large')) {
+          errorMessage = 'La imagen es muy grande. El limite es 5MB.';
+        }
+        Alert.alert('Error', errorMessage);
         setLocalPhotoUri(null);
       }
     } catch (error) {
-      Alert.alert('Error', 'Error al subir la imagen');
+      const errorMessage = error instanceof Error ? error.message : 'Error al subir la imagen';
+      // Check for file size related errors
+      if (errorMessage.toLowerCase().includes('size') || errorMessage.toLowerCase().includes('large') || errorMessage.toLowerCase().includes('limit')) {
+        Alert.alert('Archivo muy grande', 'La imagen supera el limite de 5MB. Por favor selecciona una imagen mas pequena.');
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
       setLocalPhotoUri(null);
     } finally {
       setUploadingPhoto(false);
