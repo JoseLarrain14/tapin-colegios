@@ -270,18 +270,28 @@ export default function EditStudentScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Eliminar Estudiante',
-      `¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: confirmDelete,
-        },
-      ]
-    );
+    // Use window.confirm for web compatibility
+    if (typeof window !== 'undefined' && window.confirm) {
+      const confirmed = window.confirm(
+        `¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`
+      );
+      if (confirmed) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Eliminar Estudiante',
+        `¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: confirmDelete,
+          },
+        ]
+      );
+    }
   };
 
   const confirmDelete = async () => {
