@@ -94,6 +94,18 @@ export default function HomeScreen() {
           </Text>
         </Surface>
 
+        {/* Add Student Button */}
+        <Button
+          mode="contained"
+          onPress={handleAddStudent}
+          style={styles.addStudentButton}
+          contentStyle={styles.addStudentButtonContent}
+          labelStyle={styles.addStudentButtonLabel}
+          icon="plus"
+        >
+          Agregar Estudiante
+        </Button>
+
         {/* Logout Button */}
         <Button
           mode="outlined"

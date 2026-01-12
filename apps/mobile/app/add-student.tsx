@@ -29,30 +29,44 @@ function calculateVerificationDigit(rutNumber: string): string {
   return String(remainder);
 }
 
-function validateRut(rut: string): boolean {
-  if (!rut || typeof rut !== 'string') {
-    return false;
+type RutValidationResult = {
+  valid: boolean;
+  error?: 'empty' | 'format' | 'digit';
+  message?: string;
+};
+
+function validateRutDetailed(rut: string): RutValidationResult {
+  if (!rut || typeof rut !== 'string' || rut.trim().length === 0) {
+    return { valid: false, error: 'empty', message: 'El RUT es requerido' };
   }
 
   const cleanedRut = cleanRut(rut);
 
   if (cleanedRut.length < 8 || cleanedRut.length > 9) {
-    return false;
+    return { valid: false, error: 'format', message: 'El RUT debe tener entre 8 y 9 caracteres' };
   }
 
   const rutNumber = cleanedRut.slice(0, -1);
   const providedDigit = cleanedRut.slice(-1);
 
   if (!/^\d+$/.test(rutNumber)) {
-    return false;
+    return { valid: false, error: 'format', message: 'El RUT contiene caracteres invalidos' };
   }
 
   if (!/^[0-9K]$/.test(providedDigit)) {
-    return false;
+    return { valid: false, error: 'format', message: 'El digito verificador debe ser un numero o K' };
   }
 
   const calculatedDigit = calculateVerificationDigit(rutNumber);
-  return providedDigit === calculatedDigit;
+  if (providedDigit !== calculatedDigit) {
+    return { valid: false, error: 'digit', message: 'El digito verificador es incorrecto (deberia ser ' + calculatedDigit + ')' };
+  }
+
+  return { valid: true };
+}
+
+function validateRut(rut: string): boolean {
+  return validateRutDetailed(rut).valid;
 }
 
 function formatRut(rut: string): string {
@@ -164,10 +178,9 @@ export default function AddStudentScreen() {
       newErrors.lastName = 'El apellido es requerido';
     }
 
-    if (!rut.trim()) {
-      newErrors.rut = 'El RUT es requerido';
-    } else if (!validateRut(rut)) {
-      newErrors.rut = 'El RUT no es valido';
+    const rutValidation = validateRutDetailed(rut);
+    if (!rutValidation.valid) {
+      newErrors.rut = rutValidation.message || 'El RUT no es valido';
     }
 
     if (!selectedSchool) {
