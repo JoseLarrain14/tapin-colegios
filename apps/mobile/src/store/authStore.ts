@@ -179,6 +179,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       // Ignore logout errors
     } finally {
+      // Clear auth token from API client headers
+      apiService.clearAuthToken();
       get().clearAuth();
     }
   },
