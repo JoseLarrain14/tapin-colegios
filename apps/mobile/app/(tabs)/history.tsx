@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { Text, Surface, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, Linking } from 'react-native';
+import { Text, Surface, ActivityIndicator, Button, Dialog, Portal, Paragraph } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
@@ -30,6 +30,12 @@ export default function HistoryTab() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [exporting, setExporting] = useState(false);
+
+  // Cancel order state
+  const [cancelDialogVisible, setCancelDialogVisible] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<TransactionItem | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -130,6 +136,117 @@ export default function HistoryTab() {
     loadData();
   };
 
+  // Cancel order functions
+  const canCancelOrder = (transaction: TransactionItem) => {
+    // Only orders can be cancelled
+    if (transaction.type !== 'order') return false;
+    // Only pending, confirmed, or preparing orders can be cancelled
+    return ['pending', 'confirmed', 'preparing'].includes(transaction.status || '');
+  };
+
+  const handleCancelPress = (transaction: TransactionItem) => {
+    setOrderToCancel(transaction);
+    setCancelDialogVisible(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!orderToCancel || !accessToken) return;
+
+    setCancelling(true);
+    try {
+      const response = await apiService.cancelOrder(orderToCancel.id, accessToken);
+
+      if (response.success) {
+        Alert.alert(
+          'Pedido cancelado',
+          'Tu pedido ha sido cancelado y el saldo ha sido reembolsado.',
+          [{ text: 'OK' }]
+        );
+        // Reload data to get updated balances and statuses
+        loadData();
+      } else {
+        Alert.alert(
+          'Error',
+          response.message || 'No se pudo cancelar el pedido',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Cancel order error:', error);
+      Alert.alert(
+        'Error',
+        'Ocurrio un error al cancelar el pedido. Por favor, intenta de nuevo.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setCancelling(false);
+      setCancelDialogVisible(false);
+      setOrderToCancel(null);
+    }
+  };
+
+  const handleCancelDismiss = () => {
+    setCancelDialogVisible(false);
+    setOrderToCancel(null);
+  };
+
+  const handleExport = async () => {
+    if (!accessToken) return;
+
+    setExporting(true);
+    try {
+      // Pass selectedStudent's ID to filter the export
+      const result = await apiService.exportTransactionsCsv(accessToken, selectedStudent?.id);
+      if (result.success && result.url) {
+        // For web, open the URL with auth header via fetch and download
+        if (Platform.OS === 'web') {
+          try {
+            const response = await fetch(result.url, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error('Error al descargar el archivo');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transacciones_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            Alert.alert('Exito', 'Archivo CSV descargado correctamente');
+          } catch (fetchError) {
+            console.error('Download error:', fetchError);
+            Alert.alert('Error', 'No se pudo descargar el archivo');
+          }
+        } else {
+          // For native, use Linking to open the URL
+          const supported = await Linking.canOpenURL(result.url);
+          if (supported) {
+            await Linking.openURL(result.url);
+          } else {
+            Alert.alert('Error', 'No se puede abrir el enlace de descarga');
+          }
+        }
+      } else {
+        Alert.alert('Error', result.message || 'Error al exportar transacciones');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Error al exportar transacciones');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Filter transactions by selected student
   const filteredTransactions = selectedStudent
     ? transactions.filter(t => !t.studentName || t.studentName.includes(selectedStudent.firstName))
@@ -205,6 +322,38 @@ export default function HistoryTab() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Cancel Confirmation Dialog */}
+      <Portal>
+        <Dialog visible={cancelDialogVisible} onDismiss={handleCancelDismiss}>
+          <Dialog.Title>Cancelar pedido</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>
+              ¿Estas seguro que deseas cancelar este pedido? El saldo sera reembolsado a tu cuenta.
+            </Paragraph>
+            {orderToCancel && (
+              <View style={styles.cancelDialogDetails}>
+                <Text style={styles.cancelDialogAmount}>
+                  Monto a reembolsar: {formatCLP(orderToCancel.amount)}
+                </Text>
+              </View>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleCancelDismiss} disabled={cancelling}>
+              No, mantener
+            </Button>
+            <Button
+              onPress={handleCancelConfirm}
+              loading={cancelling}
+              disabled={cancelling}
+              textColor={colors.error}
+            >
+              Si, cancelar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -278,6 +427,23 @@ export default function HistoryTab() {
           </View>
         </Surface>
 
+        {/* Export button */}
+        {transactions.length > 0 && (
+          <Button
+            mode="outlined"
+            onPress={handleExport}
+            loading={exporting}
+            disabled={exporting}
+            icon="download"
+            style={styles.exportButton}
+            contentStyle={styles.exportButtonContent}
+            labelStyle={styles.exportButtonLabel}
+            testID="export-button"
+          >
+            {exporting ? 'Exportando...' : 'Exportar a CSV'}
+          </Button>
+        )}
+
         {/* Transactions list */}
         {filteredTransactions.length > 0 ? (
           <View style={styles.transactionsSection}>
@@ -312,12 +478,26 @@ export default function HistoryTab() {
                   </View>
                 </View>
                 <View style={styles.transactionFooter}>
-                  <Text style={styles.timestampText}>
-                    {formatDateTime(transaction.timestamp)}
-                  </Text>
-                  <Text style={styles.relativeTimeText}>
-                    ({formatRelativeTime(transaction.timestamp)})
-                  </Text>
+                  <View style={styles.timestampContainer}>
+                    <Text style={styles.timestampText}>
+                      {formatDateTime(transaction.timestamp)}
+                    </Text>
+                    <Text style={styles.relativeTimeText}>
+                      ({formatRelativeTime(transaction.timestamp)})
+                    </Text>
+                  </View>
+                  {/* Cancel button for cancellable orders */}
+                  {canCancelOrder(transaction) && (
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => handleCancelPress(transaction)}
+                      testID={`cancel-order-${transaction.id}`}
+                      accessibilityLabel="Cancelar pedido"
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.cancelButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </Surface>
             ))}
@@ -407,7 +587,19 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.card,
+    marginBottom: spacing.md,
+  },
+  exportButton: {
     marginBottom: spacing.lg,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  exportButtonContent: {
+    paddingVertical: spacing.xs,
+  },
+  exportButtonLabel: {
+    color: colors.primary,
+    fontSize: 14,
   },
   summaryTitle: {
     fontSize: 16,
@@ -506,10 +698,16 @@ const styles = StyleSheet.create({
   transactionFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   timestampText: {
     fontSize: 12,
@@ -519,6 +717,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginLeft: spacing.sm,
+  },
+  cancelButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.errorLight,
+    marginLeft: spacing.sm,
+  },
+  cancelButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  cancelDialogDetails: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+  },
+  cancelDialogAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   emptyCard: {
     padding: spacing.xl,
