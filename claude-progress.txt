@@ -1301,3 +1301,125 @@ In Progress: 0
 Percentage Complete: 77.2%
 ```
 
+
+---
+
+# Session 15 - January 13, 2026
+
+## Session Goals
+- Continue feature implementation
+- Verify concurrent edit handling
+
+## Features Completed
+
+### Feature #152: Concurrent Edits Handled - PASSING
+
+**Implementation**: Optimistic locking via `updatedAt` timestamp
+
+**Backend (students.routes.ts)**:
+- `updateStudentSchema` accepts optional `updatedAt` field
+- When `updatedAt` is provided, checks if record was modified since that time
+- Returns 409 Conflict with `code: 'CONCURRENT_MODIFICATION'` if modified
+
+**Frontend (edit-student.tsx)**:
+- Stores `lastUpdatedAt` timestamp when loading student data
+- Sends `updatedAt` in update request for concurrency check
+- Handles 409 conflict response
+
+**Verification**:
+1. Opened student edit form (Session 1)
+2. Simulated concurrent edit via API (Session 2)
+3. Session 2's save succeeded
+4. Session 1's save returned 409 Conflict
+5. After reload, form shows latest data
+6. Normal saves (without concurrent modification) succeed with 200 OK
+
+## Feature Statistics
+
+```
+Total Features: 180
+Passing: 145
+In Progress: 0
+Percentage Complete: 80.6%
+```
+
+## Git Commits This Session
+
+1. d557b0c - feat: Verify concurrent edits handling - Feature #152
+
+## Servers Running
+
+- API Server: http://localhost:3000 (Fastify backend)
+- Mobile Web: http://localhost:8081 (Expo web)
+
+## Next Steps for Future Agents
+
+1. Get next feature with feature_get_next tool
+2. Continue with remaining features
+3. Total: 145/180 features passing (80.6%)
+
+
+
+---
+
+# Session 16 - January 13, 2026
+
+## Summary
+
+Completed 4 features this session, advancing from 146 to 150 passing features (83.3%).
+
+## Completed Features
+
+### Feature #156: Export Filtered Transactions (PASSING)
+- Verified that export CSV respects current student filter
+- Tested with multiple students, each export only includes filtered student's data
+- API endpoint: GET /api/v1/orders/export/csv?studentId=<id>
+- Frontend passes selectedStudent?.id to filter export
+
+### Feature #170: School Business Model - Balance Only (PASSING)
+- Created balance_only school configuration (Colegio San Francisco de Asis)
+- Verified balance shown (not tickets) on home screen
+- Verified recharge shows amount options (quick amounts, custom amounts)
+- Verified orders deduct from balance correctly
+
+### Feature #171: School Business Model - Mixed (PASSING)
+- Tested with mixed model school (Colegio San Ignacio)
+- Verified both balance AND tickets shown when student has tickets
+- Verified can use tickets for orders (useTickets param)
+- Verified can use balance for orders (no useTickets param)
+- Both payment methods work independently
+
+### Feature #19: View Wallet History (PASSING)
+- Created new wallet-history.tsx screen
+- Shows current balance at top
+- Lists all wallet log entries with type, amount, balance change, description, timestamp
+- Added Ver historial button on home screen balance card
+- Only shows for non-tickets_only schools
+
+## Files Created
+- apps/mobile/app/wallet-history.tsx - New wallet history screen
+
+## Files Modified
+- apps/mobile/app/(tabs)/index.tsx - Added Ver historial button and style
+
+## Git Commits
+1. 30fb7cf - feat: Add wallet history screen and navigation - Feature #19
+
+## Feature Statistics
+Total Features: 180
+Passing: 150
+In Progress: 0
+Percentage Complete: 83.3%
+
+## Session End State
+- 4 new features passing this session (from 146 to 150)
+- All code committed to Git
+- Servers running in background
+- App in working state
+- Total: 150/180 features passing (83.3%)
+
+## Next Steps for Future Agents
+1. Get next feature with feature_get_next tool
+2. Continue with remaining features (30 remaining)
+3. Focus on completing feature verification through UI testing
+
