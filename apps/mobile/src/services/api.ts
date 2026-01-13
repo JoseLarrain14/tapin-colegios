@@ -64,6 +64,8 @@ export interface Student {
     id: string;
     name: string;
     code: string;
+    businessModel?: 'tickets_only' | 'balance_only' | 'mixed';
+    allowNegativeBalance?: boolean;
   };
   balance: number;
   tickets?: Array<{

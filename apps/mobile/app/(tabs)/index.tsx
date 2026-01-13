@@ -215,34 +215,44 @@ export default function HomeTab() {
                   </View>
                 </View>
 
-                <View style={styles.balanceAmountContainer}>
-                  <Text style={styles.balanceLabel}>Saldo disponible</Text>
-                  <Text style={[
-                    styles.balanceAmount,
-                    selectedStudent.balance > 0 ? styles.positiveBalance : selectedStudent.balance < 0 ? styles.negativeBalance : styles.zeroBalance
-                  ]}>
-                    {formatCLP(selectedStudent.balance)}
-                  </Text>
-                </View>
+                {/* Show balance only if not tickets_only mode */}
+                {selectedStudent.school.businessModel !== 'tickets_only' && (
+                  <View style={styles.balanceAmountContainer}>
+                    <Text style={styles.balanceLabel}>Saldo disponible</Text>
+                    <Text style={[
+                      styles.balanceAmount,
+                      selectedStudent.balance > 0 ? styles.positiveBalance : selectedStudent.balance < 0 ? styles.negativeBalance : styles.zeroBalance
+                    ]}>
+                      {formatCLP(selectedStudent.balance)}
+                    </Text>
+                  </View>
+                )}
 
-                {selectedStudent.dailyLimit > 0 && (
+                {selectedStudent.dailyLimit > 0 && selectedStudent.school.businessModel !== 'tickets_only' && (
                   <View style={styles.limitContainer}>
                     <Text style={styles.limitLabel}>Limite diario:</Text>
                     <Text style={styles.limitValue}>{formatCLP(selectedStudent.dailyLimit)}</Text>
                   </View>
                 )}
 
-                {selectedStudent.tickets && selectedStudent.tickets.length > 0 && (
+                {/* Show tickets if available or if tickets_only mode */}
+                {((selectedStudent.tickets && selectedStudent.tickets.length > 0) || selectedStudent.school.businessModel === 'tickets_only') && (
                   <View style={styles.ticketsContainer}>
-                    <Text style={styles.ticketsLabel}>Tickets disponibles:</Text>
+                    <Text style={styles.ticketsLabel}>
+                      {selectedStudent.school.businessModel === 'tickets_only' ? 'Tickets:' : 'Tickets disponibles:'}
+                    </Text>
                     <View style={styles.ticketsList}>
-                      {selectedStudent.tickets.map((ticket, index) => (
-                        <View key={index} style={styles.ticketBadge}>
-                          <Text style={styles.ticketText}>
-                            {ticket.quantity}x {ticket.type}
-                          </Text>
-                        </View>
-                      ))}
+                      {selectedStudent.tickets && selectedStudent.tickets.length > 0 ? (
+                        selectedStudent.tickets.map((ticket, index) => (
+                          <View key={index} style={styles.ticketBadge}>
+                            <Text style={styles.ticketText}>
+                              {ticket.quantity}x {ticket.type}
+                            </Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.noTicketsText}>Sin tickets disponibles</Text>
+                      )}
                     </View>
                   </View>
                 )}
@@ -669,6 +679,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+  },
+  noTicketsText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   balanceActions: {
     flexDirection: 'row',

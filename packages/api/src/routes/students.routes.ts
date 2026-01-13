@@ -332,6 +332,7 @@ export async function studentsRoutes(app: FastifyInstance) {
                   id: true,
                   name: true,
                   code: true,
+                  config: true,
                 },
               },
               wallet: true,
@@ -342,24 +343,40 @@ export async function studentsRoutes(app: FastifyInstance) {
         orderBy: { createdAt: 'asc' },
       });
 
-      const students = guardianStudents.map((gs) => ({
-        id: gs.student.id,
-        firstName: gs.student.firstName,
-        lastName: gs.student.lastName,
-        rut: gs.student.rut,
-        grade: gs.student.grade,
-        section: gs.student.section,
-        photoUrl: gs.student.photoUrl,
-        dailyLimit: gs.student.dailyLimit,
-        school: gs.student.school,
-        balance: gs.student.wallet?.balance || 0,
-        tickets: gs.student.tickets.map((t) => ({
-          type: t.ticketType,
-          quantity: t.quantity,
-          expiresAt: t.expiresAt,
-        })),
-        isPrimary: gs.isPrimary,
-      }));
+      const students = guardianStudents.map((gs) => {
+        // Parse school config
+        let schoolConfig: any = {};
+        try {
+          schoolConfig = JSON.parse(gs.student.school.config || '{}');
+        } catch {
+          schoolConfig = {};
+        }
+
+        return {
+          id: gs.student.id,
+          firstName: gs.student.firstName,
+          lastName: gs.student.lastName,
+          rut: gs.student.rut,
+          grade: gs.student.grade,
+          section: gs.student.section,
+          photoUrl: gs.student.photoUrl,
+          dailyLimit: gs.student.dailyLimit,
+          school: {
+            id: gs.student.school.id,
+            name: gs.student.school.name,
+            code: gs.student.school.code,
+            businessModel: schoolConfig.businessModel || 'mixed', // 'tickets_only', 'balance_only', or 'mixed'
+            allowNegativeBalance: schoolConfig.allowNegativeBalance || false,
+          },
+          balance: gs.student.wallet?.balance || 0,
+          tickets: gs.student.tickets.map((t) => ({
+            type: t.ticketType,
+            quantity: t.quantity,
+            expiresAt: t.expiresAt,
+          })),
+          isPrimary: gs.isPrimary,
+        };
+      });
 
       return reply.send({
         success: true,
