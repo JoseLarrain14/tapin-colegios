@@ -280,6 +280,19 @@ export default function HelpCenterScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.articleContent}>
+          {/* Breadcrumbs */}
+          <View style={styles.breadcrumbs}>
+            <TouchableOpacity onPress={() => { setSelectedCategory(null); setSelectedArticle(null); }}>
+              <Text style={styles.breadcrumbLink}>Centro de Ayuda</Text>
+            </TouchableOpacity>
+            <Text style={styles.breadcrumbSeparator}> › </Text>
+            <TouchableOpacity onPress={() => setSelectedArticle(null)}>
+              <Text style={styles.breadcrumbLink}>{selectedCategory?.name}</Text>
+            </TouchableOpacity>
+            <Text style={styles.breadcrumbSeparator}> › </Text>
+            <Text style={styles.breadcrumbCurrent} numberOfLines={1}>{selectedArticle.title}</Text>
+          </View>
+
           <Text style={styles.articleTitle}>{selectedArticle.title}</Text>
           <Text style={styles.articleBody}>{selectedArticle.content}</Text>
         </ScrollView>
@@ -304,6 +317,15 @@ export default function HelpCenterScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Breadcrumbs */}
+          <View style={styles.breadcrumbs}>
+            <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+              <Text style={styles.breadcrumbLink}>Centro de Ayuda</Text>
+            </TouchableOpacity>
+            <Text style={styles.breadcrumbSeparator}> › </Text>
+            <Text style={styles.breadcrumbCurrent}>{selectedCategory.name}</Text>
+          </View>
+
           {selectedCategory.articles.map(article => (
             <TouchableOpacity
               key={article.id}
@@ -605,5 +627,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.primary,
     fontWeight: '600',
+  },
+  breadcrumbs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  breadcrumbLink: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  breadcrumbSeparator: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  breadcrumbCurrent: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    flex: 1,
   },
 });
