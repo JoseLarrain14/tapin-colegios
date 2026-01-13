@@ -26,6 +26,8 @@ interface TransactionItem {
   timestamp: string;
   status?: string;
   studentName?: string;
+  // Source indication: 'app' for in-app orders, 'casino' for POS purchases
+  source?: 'app' | 'casino';
   // Order-specific fields for detail view
   orderItems?: OrderItem[];
   cafeteriaName?: string;
@@ -96,6 +98,7 @@ export default function HistoryTab() {
         timestamp: order.createdAt,
         status: order.status,
         studentName: `${order.student.firstName} ${order.student.lastName}`,
+        source: 'app' as const, // Orders made through the app
         // Include order details for detail view
         orderItems: order.items,
         cafeteriaName: order.cafeteria.name,
@@ -571,7 +574,17 @@ export default function HistoryTab() {
                       <Text style={styles.transactionIcon}>{getTypeIcon(transaction.type)}</Text>
                     </View>
                     <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                      <View style={styles.transactionTitleRow}>
+                        <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                        {/* Source indicator for orders */}
+                        {transaction.source && (
+                          <View style={[styles.sourceBadge, transaction.source === 'app' ? styles.sourceApp : styles.sourceCasino]}>
+                            <Text style={styles.sourceText}>
+                              {transaction.source === 'app' ? 'Via App' : 'En cafeteria'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.transactionDescription}>{transaction.description}</Text>
                       {transaction.studentName && (
                         <Text style={styles.transactionStudent}>{transaction.studentName}</Text>
@@ -961,5 +974,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  transactionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  sourceBadge: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  sourceApp: {
+    backgroundColor: colors.primaryLight,
+  },
+  sourceCasino: {
+    backgroundColor: colors.warningLight || '#FEF3CD',
+  },
+  sourceText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });
