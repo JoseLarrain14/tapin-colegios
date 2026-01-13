@@ -929,6 +929,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     backgroundColor: colors.primary,
     paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
   },
   // Success view styles
   successContainer: {
@@ -979,9 +980,11 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: spacing.md,
     backgroundColor: colors.primary,
+    borderRadius: borderRadius.lg,
   },
   successButtonOutlined: {
     width: '100%',
     borderColor: colors.primary,
+    borderRadius: borderRadius.lg,
   },
 });
