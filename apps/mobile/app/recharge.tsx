@@ -250,58 +250,76 @@ export default function RechargeScreen() {
                     <Text style={styles.studentSchool}>{student.school.name}</Text>
                   </View>
                 </View>
-                <View style={styles.currentBalance}>
-                  <Text style={styles.currentBalanceLabel}>Saldo actual</Text>
-                  <Text style={styles.currentBalanceValue}>{formatCLP(student.balance)}</Text>
+                {/* Show balance only for non tickets_only schools */}
+                {student.school.businessModel !== 'tickets_only' && (
+                  <View style={styles.currentBalance}>
+                    <Text style={styles.currentBalanceLabel}>Saldo actual</Text>
+                    <Text style={styles.currentBalanceValue}>{formatCLP(student.balance)}</Text>
+                  </View>
+                )}
+                {/* Show tickets for tickets_only schools */}
+                {student.school.businessModel === 'tickets_only' && student.tickets && student.tickets.length > 0 && (
+                  <View style={styles.currentBalance}>
+                    <Text style={styles.currentBalanceLabel}>Tickets actuales</Text>
+                    {student.tickets.map((ticket, idx) => (
+                      <Text key={idx} style={styles.currentBalanceValue}>{ticket.quantity}x {ticket.type}</Text>
+                    ))}
+                  </View>
+                )}
+              </Surface>
+            )}
+
+            {/* Quick Amount Selection - hide for tickets_only schools */}
+            {student?.school.businessModel !== 'tickets_only' && (
+              <Surface style={styles.section} elevation={1}>
+                <Text style={styles.sectionTitle}>Selecciona un monto</Text>
+                <View style={styles.quickAmountsGrid}>
+                  {quickAmounts.map((amount) => (
+                    <TouchableOpacity
+                      key={amount}
+                      style={[
+                        styles.quickAmountButton,
+                        useCustomAmount && customAmount === amount.toString() && styles.quickAmountSelected,
+                      ]}
+                      onPress={() => handleQuickAmountSelect(amount)}
+                    >
+                      <Text style={[
+                        styles.quickAmountText,
+                        useCustomAmount && customAmount === amount.toString() && styles.quickAmountTextSelected,
+                      ]}>
+                        {formatCLP(amount)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </Surface>
             )}
 
-            {/* Quick Amount Selection */}
-            <Surface style={styles.section} elevation={1}>
-              <Text style={styles.sectionTitle}>Selecciona un monto</Text>
-              <View style={styles.quickAmountsGrid}>
-                {quickAmounts.map((amount) => (
-                  <TouchableOpacity
-                    key={amount}
-                    style={[
-                      styles.quickAmountButton,
-                      useCustomAmount && customAmount === amount.toString() && styles.quickAmountSelected,
-                    ]}
-                    onPress={() => handleQuickAmountSelect(amount)}
-                  >
-                    <Text style={[
-                      styles.quickAmountText,
-                      useCustomAmount && customAmount === amount.toString() && styles.quickAmountTextSelected,
-                    ]}>
-                      {formatCLP(amount)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Surface>
-
-            {/* Custom Amount */}
-            <Surface style={styles.section} elevation={1}>
-              <Text style={styles.sectionTitle}>O ingresa otro monto</Text>
-              <TextInput
-                mode="outlined"
-                label="Monto personalizado"
-                value={customAmount ? formatCLP(parseInt(customAmount, 10)) : ''}
-                onChangeText={handleAmountChange}
-                keyboardType="numeric"
-                left={<TextInput.Icon icon="currency-usd" />}
-                style={styles.customAmountInput}
-                outlineColor={colors.border}
-                activeOutlineColor={colors.primary}
-              />
-              <Text style={styles.minAmountHint}>Monto minimo: $1.000</Text>
-            </Surface>
+            {/* Custom Amount - hide for tickets_only schools */}
+            {student?.school.businessModel !== 'tickets_only' && (
+              <Surface style={styles.section} elevation={1}>
+                <Text style={styles.sectionTitle}>O ingresa otro monto</Text>
+                <TextInput
+                  mode="outlined"
+                  label="Monto personalizado"
+                  value={customAmount ? formatCLP(parseInt(customAmount, 10)) : ''}
+                  onChangeText={handleAmountChange}
+                  keyboardType="numeric"
+                  left={<TextInput.Icon icon="currency-usd" />}
+                  style={styles.customAmountInput}
+                  outlineColor={colors.border}
+                  activeOutlineColor={colors.primary}
+                />
+                <Text style={styles.minAmountHint}>Monto minimo: $1.000</Text>
+              </Surface>
+            )}
 
             {/* Packages Section (if available) */}
             {packages.length > 0 && (
               <Surface style={styles.section} elevation={1}>
-                <Text style={styles.sectionTitle}>Paquetes disponibles</Text>
+                <Text style={styles.sectionTitle}>
+                  {student?.school.businessModel === 'tickets_only' ? 'Paquetes de tickets' : 'Paquetes disponibles'}
+                </Text>
                 {packages.map((pkg) => (
                   <TouchableOpacity
                     key={pkg.id}
