@@ -39,7 +39,12 @@ interface TransactionItem {
 export default function HistoryTab() {
   const { accessToken } = useAuthStore();
   const router = useRouter();
-  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
+  const { orderId, studentId, month, page } = useLocalSearchParams<{
+    orderId?: string;
+    studentId?: string;
+    month?: string;
+    page?: string;
+  }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
@@ -63,6 +68,10 @@ export default function HistoryTab() {
 
   // Quick date filter state ('today', 'week', 'month', or null for all)
   const [quickDateFilter, setQuickDateFilter] = useState<'today' | 'week' | 'month' | null>(null);
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -165,6 +174,37 @@ export default function HistoryTab() {
       }
     }
   }, [orderId, transactions, loading, router]);
+
+  // URL param: Set student filter from URL
+  useEffect(() => {
+    if (studentId && students.length > 0 && !loading) {
+      const targetStudent = students.find(s => s.id === studentId);
+      if (targetStudent) {
+        setSelectedStudent(targetStudent);
+      }
+    }
+  }, [studentId, students, loading]);
+
+  // URL param: Set month filter from URL (format: YYYY-MM, e.g., "2026-03" for March 2026)
+  useEffect(() => {
+    if (month && !loading) {
+      const [year, monthNum] = month.split('-').map(Number);
+      if (!isNaN(year) && !isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        setSelectedMonth(new Date(year, monthNum - 1, 1));
+        setQuickDateFilter(null); // Clear quick filter when month is set
+      }
+    }
+  }, [month, loading]);
+
+  // URL param: Set page from URL
+  useEffect(() => {
+    if (page && !loading) {
+      const pageNum = parseInt(page, 10);
+      if (!isNaN(pageNum) && pageNum >= 1) {
+        setCurrentPage(pageNum);
+      }
+    }
+  }, [page, loading]);
 
   // Reload when screen gains focus
   useFocusEffect(
@@ -387,6 +427,17 @@ export default function HistoryTab() {
     }
     return true;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStudent, selectedMonth, quickDateFilter]);
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -816,8 +867,13 @@ export default function HistoryTab() {
         {/* Transactions list */}
         {filteredTransactions.length > 0 ? (
           <View style={styles.transactionsSection}>
-            <Text style={styles.sectionTitle}>Movimientos recientes</Text>
-            {filteredTransactions.map(transaction => (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Movimientos recientes</Text>
+              <Text style={styles.paginationInfo}>
+                {startIndex + 1}-{Math.min(endIndex, filteredTransactions.length)} de {filteredTransactions.length}
+              </Text>
+            </View>
+            {paginatedTransactions.map(transaction => (
               <TouchableOpacity
                 key={transaction.id}
                 onPress={() => handleOrderPress(transaction)}
@@ -893,6 +949,82 @@ export default function HistoryTab() {
                 </Surface>
               </TouchableOpacity>
             ))}
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  testID="pagination-first"
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
+                    «
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  testID="pagination-prev"
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
+                    ‹
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.paginationPages}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show pages near current page (within 2 positions)
+                      return Math.abs(page - currentPage) <= 2 || page === 1 || page === totalPages;
+                    })
+                    .map((page, index, array) => {
+                      // Add ellipsis
+                      const prevPage = array[index - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+                      return (
+                        <View key={page} style={styles.paginationPageWrapper}>
+                          {showEllipsis && (
+                            <Text style={styles.paginationEllipsis}>...</Text>
+                          )}
+                          <TouchableOpacity
+                            style={[styles.paginationPage, currentPage === page && styles.paginationPageActive]}
+                            onPress={() => setCurrentPage(page)}
+                            testID={`pagination-page-${page}`}
+                          >
+                            <Text style={[styles.paginationPageText, currentPage === page && styles.paginationPageTextActive]}>
+                              {page}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  testID="pagination-next"
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === totalPages && styles.paginationButtonTextDisabled]}>
+                    ›
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  testID="pagination-last"
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === totalPages && styles.paginationButtonTextDisabled]}>
+                    »
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ) : (
           <Surface style={styles.emptyCard} elevation={1}>
@@ -1262,5 +1394,79 @@ const styles = StyleSheet.create({
   resetFiltersLabel: {
     fontSize: 14,
     color: colors.primary,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  paginationInfo: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    gap: spacing.xs,
+  },
+  paginationButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationButtonDisabled: {
+    opacity: 0.5,
+  },
+  paginationButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  paginationButtonTextDisabled: {
+    color: colors.textMuted,
+  },
+  paginationPages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.sm,
+  },
+  paginationPageWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paginationPage: {
+    minWidth: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  paginationPageActive: {
+    backgroundColor: colors.primary,
+  },
+  paginationPageText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  paginationPageTextActive: {
+    color: colors.textOnPrimary,
+  },
+  paginationEllipsis: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginRight: spacing.xs,
   },
 });
