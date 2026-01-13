@@ -9,6 +9,13 @@ import { apiService, Student, Order, WalletLog, Payment } from '../../src/servic
 import { formatDateTime, formatRelativeTime, formatCLP, formatShortDate } from '../../src/utils/dateFormat';
 import { NetworkError } from '../../src/components/NetworkError';
 
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 interface TransactionItem {
   id: string;
   type: 'order' | 'payment' | 'wallet_log';
@@ -19,6 +26,12 @@ interface TransactionItem {
   timestamp: string;
   status?: string;
   studentName?: string;
+  // Order-specific fields for detail view
+  orderItems?: OrderItem[];
+  cafeteriaName?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  comments?: string;
 }
 
 export default function HistoryTab() {
@@ -36,6 +49,10 @@ export default function HistoryTab() {
   const [cancelDialogVisible, setCancelDialogVisible] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<TransactionItem | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  // Order detail state
+  const [detailDialogVisible, setDetailDialogVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<TransactionItem | null>(null);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -79,6 +96,12 @@ export default function HistoryTab() {
         timestamp: order.createdAt,
         status: order.status,
         studentName: `${order.student.firstName} ${order.student.lastName}`,
+        // Include order details for detail view
+        orderItems: order.items,
+        cafeteriaName: order.cafeteria.name,
+        pickupDate: order.pickupDate,
+        pickupTime: order.pickupTime,
+        comments: order.comments,
       }));
 
       // Transform payments to transaction items
@@ -188,6 +211,19 @@ export default function HistoryTab() {
   const handleCancelDismiss = () => {
     setCancelDialogVisible(false);
     setOrderToCancel(null);
+  };
+
+  // Order detail handlers
+  const handleOrderPress = (transaction: TransactionItem) => {
+    if (transaction.type === 'order') {
+      setSelectedOrder(transaction);
+      setDetailDialogVisible(true);
+    }
+  };
+
+  const handleDetailDismiss = () => {
+    setDetailDialogVisible(false);
+    setSelectedOrder(null);
   };
 
   const handleExport = async () => {
@@ -354,6 +390,78 @@ export default function HistoryTab() {
         </Dialog>
       </Portal>
 
+      {/* Order Detail Dialog */}
+      <Portal>
+        <Dialog visible={detailDialogVisible} onDismiss={handleDetailDismiss}>
+          <Dialog.Title>Detalle del pedido</Dialog.Title>
+          <Dialog.Content>
+            {selectedOrder && (
+              <View>
+                {/* Status */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Estado:</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedOrder.status) + '20' }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(selectedOrder.status) }]}>
+                      {getStatusText(selectedOrder.status)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Cafeteria */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Cafeteria:</Text>
+                  <Text style={styles.detailValue}>{selectedOrder.cafeteriaName}</Text>
+                </View>
+
+                {/* Student */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Estudiante:</Text>
+                  <Text style={styles.detailValue}>{selectedOrder.studentName}</Text>
+                </View>
+
+                {/* Pickup */}
+                {selectedOrder.pickupDate && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Retiro:</Text>
+                    <Text style={styles.detailValue}>
+                      {formatShortDate(selectedOrder.pickupDate)} {selectedOrder.pickupTime || ''}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Items section */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>Items del pedido</Text>
+                  {selectedOrder.orderItems && selectedOrder.orderItems.map((item, index) => (
+                    <View key={index} style={styles.orderItemRow}>
+                      <Text style={styles.orderItemName}>{item.quantity}x {item.name}</Text>
+                      <Text style={styles.orderItemPrice}>{formatCLP(item.price * item.quantity)}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Total */}
+                <View style={styles.detailTotalRow}>
+                  <Text style={styles.detailTotalLabel}>Total:</Text>
+                  <Text style={styles.detailTotalValue}>{formatCLP(selectedOrder.amount)}</Text>
+                </View>
+
+                {/* Comments */}
+                {selectedOrder.comments && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>Comentarios</Text>
+                    <Text style={styles.detailComments}>{selectedOrder.comments}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleDetailDismiss}>Cerrar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -449,57 +557,70 @@ export default function HistoryTab() {
           <View style={styles.transactionsSection}>
             <Text style={styles.sectionTitle}>Movimientos recientes</Text>
             {filteredTransactions.map(transaction => (
-              <Surface key={transaction.id} style={styles.transactionCard} elevation={1}>
-                <View style={styles.transactionHeader}>
-                  <View style={styles.transactionIconContainer}>
-                    <Text style={styles.transactionIcon}>{getTypeIcon(transaction.type)}</Text>
+              <TouchableOpacity
+                key={transaction.id}
+                onPress={() => handleOrderPress(transaction)}
+                activeOpacity={transaction.type === 'order' ? 0.7 : 1}
+                disabled={transaction.type !== 'order'}
+                testID={`transaction-${transaction.id}`}
+                accessibilityLabel={transaction.type === 'order' ? 'Ver detalles del pedido' : undefined}
+              >
+                <Surface style={styles.transactionCard} elevation={1}>
+                  <View style={styles.transactionHeader}>
+                    <View style={styles.transactionIconContainer}>
+                      <Text style={styles.transactionIcon}>{getTypeIcon(transaction.type)}</Text>
+                    </View>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                      <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                      {transaction.studentName && (
+                        <Text style={styles.transactionStudent}>{transaction.studentName}</Text>
+                      )}
+                    </View>
+                    <View style={styles.transactionAmount}>
+                      <Text style={[
+                        styles.amountText,
+                        transaction.isPositive ? styles.amountPositive : styles.amountNegative,
+                      ]}>
+                        {transaction.isPositive ? '+' : '-'}{formatCLP(transaction.amount)}
+                      </Text>
+                      {transaction.status && (
+                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(transaction.status) + '20' }]}>
+                          <Text style={[styles.statusText, { color: getStatusColor(transaction.status) }]}>
+                            {getStatusText(transaction.status)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>{transaction.title}</Text>
-                    <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                    {transaction.studentName && (
-                      <Text style={styles.transactionStudent}>{transaction.studentName}</Text>
+                  <View style={styles.transactionFooter}>
+                    <View style={styles.timestampContainer}>
+                      <Text style={styles.timestampText}>
+                        {formatDateTime(transaction.timestamp)}
+                      </Text>
+                      <Text style={styles.relativeTimeText}>
+                        ({formatRelativeTime(transaction.timestamp)})
+                      </Text>
+                    </View>
+                    {/* Cancel button for cancellable orders */}
+                    {canCancelOrder(transaction) && (
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => handleCancelPress(transaction)}
+                        testID={`cancel-order-${transaction.id}`}
+                        accessibilityLabel="Cancelar pedido"
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  <View style={styles.transactionAmount}>
-                    <Text style={[
-                      styles.amountText,
-                      transaction.isPositive ? styles.amountPositive : styles.amountNegative,
-                    ]}>
-                      {transaction.isPositive ? '+' : '-'}{formatCLP(transaction.amount)}
-                    </Text>
-                    {transaction.status && (
-                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(transaction.status) + '20' }]}>
-                        <Text style={[styles.statusText, { color: getStatusColor(transaction.status) }]}>
-                          {getStatusText(transaction.status)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <View style={styles.transactionFooter}>
-                  <View style={styles.timestampContainer}>
-                    <Text style={styles.timestampText}>
-                      {formatDateTime(transaction.timestamp)}
-                    </Text>
-                    <Text style={styles.relativeTimeText}>
-                      ({formatRelativeTime(transaction.timestamp)})
-                    </Text>
-                  </View>
-                  {/* Cancel button for cancellable orders */}
-                  {canCancelOrder(transaction) && (
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => handleCancelPress(transaction)}
-                      testID={`cancel-order-${transaction.id}`}
-                      accessibilityLabel="Cancelar pedido"
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.cancelButtonText}>Cancelar</Text>
-                    </TouchableOpacity>
+                  {/* Tap hint for orders */}
+                  {transaction.type === 'order' && (
+                    <Text style={styles.tapHint}>Toca para ver detalles</Text>
                   )}
-                </View>
-              </Surface>
+                </Surface>
+              </TouchableOpacity>
             ))}
           </View>
         ) : (
@@ -762,5 +883,83 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  tapHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
+  },
+  // Order detail dialog styles
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  detailSection: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  detailSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  orderItemName: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  orderItemPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginLeft: spacing.md,
+  },
+  detailTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 2,
+    borderTopColor: colors.primary,
+  },
+  detailTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  detailTotalValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  detailComments: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
