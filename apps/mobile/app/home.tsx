@@ -57,6 +57,12 @@ export default function HomeScreen() {
     router.push('/students');
   };
 
+  const handleRecharge = () => {
+    if (selectedStudent) {
+      router.push(`/recharge?studentId=${selectedStudent.id}`);
+    }
+  };
+
   const getInitials = () => {
     if (!user?.guardian) return '?';
     const first = user.guardian.firstName?.charAt(0) || '';
@@ -99,12 +105,21 @@ export default function HomeScreen() {
               {user?.guardian?.firstName || 'Usuario'}
             </Text>
           </View>
-          <Avatar.Text
-            size={48}
-            label={getInitials()}
-            style={styles.avatar}
-            labelStyle={styles.avatarLabel}
-          />
+          <View style={styles.headerRight}>
+            <IconButton
+              icon="bell"
+              onPress={() => router.push('/notifications')}
+              iconColor={colors.textPrimary}
+              size={24}
+              style={styles.notificationIcon}
+            />
+            <Avatar.Text
+              size={48}
+              label={getInitials()}
+              style={styles.avatar}
+              labelStyle={styles.avatarLabel}
+            />
+          </View>
         </View>
 
         {hasStudents ? (
@@ -213,7 +228,7 @@ export default function HomeScreen() {
                 <View style={styles.balanceActions}>
                   <Button
                     mode="contained"
-                    onPress={() => {}}
+                    onPress={handleRecharge}
                     style={styles.rechargeButton}
                     icon="cash-plus"
                   >
@@ -384,6 +399,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notificationIcon: {
+    marginRight: spacing.xs,
   },
   avatar: {
     backgroundColor: colors.primary,
