@@ -629,6 +629,7 @@ class ApiService {
     amount: number;
     packageId?: string;
     paymentMethod?: 'credit_card' | 'debit_card' | 'transfer';
+    simulateFailure?: boolean; // For testing payment failures
   }, accessToken: string): Promise<ApiResponse<PaymentResult>> {
     try {
       const response = await this.client.post<ApiResponse<PaymentResult>>('/payments/init', data, {
@@ -638,6 +639,10 @@ class ApiService {
       });
       return response.data;
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        // Return the API error response for failed payments
+        return error.response.data as ApiResponse<PaymentResult>;
+      }
       if (error instanceof Error) {
         return { success: false, message: error.message };
       }
@@ -851,6 +856,101 @@ class ApiService {
       return { success: false, message: 'Error al cancelar pedido' };
     }
   }
+
+  // Push notification endpoints
+  async registerPushToken(token: string, platform: 'ios' | 'android' | 'web', accessToken: string): Promise<ApiResponse<{ tokenId: string }>> {
+    try {
+      const response = await this.client.post<ApiResponse<{ tokenId: string }>>('/notifications/token', {
+        token,
+        platform,
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al registrar token' };
+    }
+  }
+
+  async deletePushToken(token: string, accessToken: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.delete<ApiResponse<void>>('/notifications/token', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        data: { token },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al eliminar token' };
+    }
+  }
+
+  async getNotifications(accessToken: string): Promise<ApiResponse<Notification[]>> {
+    try {
+      const response = await this.client.get<ApiResponse<Notification[]>>('/notifications', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener notificaciones' };
+    }
+  }
+
+  async markNotificationRead(notificationId: string, accessToken: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.put<ApiResponse<void>>(`/notifications/${notificationId}/read`, {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al marcar notificacion' };
+    }
+  }
+
+  async markAllNotificationsRead(accessToken: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.client.put<ApiResponse<void>>('/notifications/read-all', {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al marcar notificaciones' };
+    }
+  }
+}
+
+// Notification interface
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  read: boolean;
+  createdAt: string;
 }
 
 export const apiService = new ApiService();

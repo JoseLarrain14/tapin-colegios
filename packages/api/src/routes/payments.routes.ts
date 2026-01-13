@@ -323,6 +323,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
         amount: z.number().int().positive('El monto debe ser positivo'),
         packageId: z.string().uuid().optional(),
         paymentMethod: z.enum(['credit_card', 'debit_card', 'transfer']).default('credit_card'),
+        simulateFailure: z.boolean().optional().default(false), // For testing payment failures
       });
 
       const body = initPaymentSchema.parse(request.body);
@@ -396,6 +397,45 @@ export async function paymentsRoutes(app: FastifyInstance) {
           data: {
             studentId: body.studentId,
             balance: 0,
+          },
+        });
+      }
+
+      // Handle simulated payment failure (for testing)
+      if (body.simulateFailure) {
+        // Create a failed payment record
+        const failedPayment = await prisma.payment.create({
+          data: {
+            guardianId: guardian.id,
+            studentId: body.studentId,
+            walletId: wallet!.id,
+            rechargePackageId: body.packageId || null,
+            amount: body.amount,
+            gateway: 'mock',
+            status: 'failed',
+            errorMessage: 'Pago rechazado por la entidad bancaria (simulacion de prueba)',
+            metadata: JSON.stringify({
+              paymentMethod: body.paymentMethod,
+              initiatedAt: new Date().toISOString(),
+              failedAt: new Date().toISOString(),
+              simulatedFailure: true,
+              gatewayResponse: { success: false, error: 'DECLINED', code: 'INSUFFICIENT_FUNDS' },
+            }),
+          },
+        });
+
+        return reply.status(400).send({
+          success: false,
+          message: 'El pago fue rechazado. Por favor, intenta con otro metodo de pago.',
+          data: {
+            payment: {
+              id: failedPayment.id,
+              amount: failedPayment.amount,
+              status: failedPayment.status,
+              gateway: failedPayment.gateway,
+              errorMessage: failedPayment.errorMessage,
+              createdAt: failedPayment.createdAt,
+            },
           },
         });
       }
