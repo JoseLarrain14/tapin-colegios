@@ -120,6 +120,8 @@ export default function EditStudentScreen() {
 
   // Original data for comparison
   const [originalStudent, setOriginalStudent] = useState<Student | null>(null);
+  // Timestamp for optimistic concurrency control
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -138,6 +140,38 @@ export default function EditStudentScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = (): boolean => {
+    if (!originalStudent) return false;
+    return (
+      firstName !== originalStudent.firstName ||
+      lastName !== originalStudent.lastName ||
+      rut !== originalStudent.rut ||
+      grade !== originalStudent.grade ||
+      section !== (originalStudent.section || '') ||
+      dailyLimit !== String(originalStudent.dailyLimit || 0) ||
+      selectedSchool?.id !== originalStudent.school?.id ||
+      localPhotoUri !== null // New photo selected
+    );
+  };
+
+  // Handle back navigation with unsaved changes check
+  const handleBack = () => {
+    if (hasUnsavedChanges()) {
+      setShowUnsavedModal(true);
+    } else {
+      router.back();
+    }
+  };
+
+  // Confirm leave without saving
+  const confirmLeave = () => {
+    setShowUnsavedModal(false);
+    router.back();
+  };
 
   useEffect(() => {
     loadData();
@@ -168,6 +202,10 @@ export default function EditStudentScreen() {
         setSection(student.section || '');
         setDailyLimit(student.dailyLimit > 0 ? String(student.dailyLimit) : '');
         setPhotoUrl(student.photoUrl || null);
+        // Store the updatedAt timestamp for optimistic concurrency control
+        if (student.updatedAt) {
+          setLastUpdatedAt(student.updatedAt);
+        }
 
         // Set selected school
         if (schoolsResponse.success && schoolsResponse.data) {
@@ -333,11 +371,17 @@ export default function EditStudentScreen() {
           section: section || undefined,
           dailyLimit: dailyLimit ? Number(dailyLimit) : 0,
           photoUrl: photoUrl || undefined,
+          // Include updatedAt for optimistic concurrency control
+          updatedAt: lastUpdatedAt || undefined,
         },
         accessToken
       );
 
       if (response.success) {
+        // Update the lastUpdatedAt with the new value from the server
+        if (response.data?.updatedAt) {
+          setLastUpdatedAt(response.data.updatedAt);
+        }
         Alert.alert(
           'Estudiante Actualizado',
           `Los datos de ${firstName} ${lastName} han sido actualizados.`,
@@ -349,10 +393,20 @@ export default function EditStudentScreen() {
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'No se pudo actualizar el estudiante');
+        // Check for concurrent modification conflict
+        if ((response as any).code === 'CONCURRENT_MODIFICATION') {
+          setShowConflictModal(true);
+        } else {
+          Alert.alert('Error', response.message || 'No se pudo actualizar el estudiante');
+        }
       }
-    } catch (error) {
-      Alert.alert('Error', 'Ocurrio un error al actualizar el estudiante');
+    } catch (error: any) {
+      // Handle 409 conflict error from axios
+      if (error?.response?.status === 409 || error?.response?.data?.code === 'CONCURRENT_MODIFICATION') {
+        setShowConflictModal(true);
+      } else {
+        Alert.alert('Error', 'Ocurrio un error al actualizar el estudiante');
+      }
     } finally {
       setSaving(false);
     }
@@ -408,7 +462,7 @@ export default function EditStudentScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <IconButton icon="arrow-left" size={24} onPress={() => router.back()} />
+          <IconButton icon="arrow-left" size={24} onPress={handleBack} />
           <Text style={styles.title}>Editar Estudiante</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -436,7 +490,7 @@ export default function EditStudentScreen() {
             <IconButton
               icon="arrow-left"
               size={24}
-              onPress={() => router.back()}
+              onPress={handleBack}
               style={styles.backButton}
             />
             <Text style={styles.title}>Editar Estudiante</Text>
@@ -758,6 +812,32 @@ export default function EditStudentScreen() {
         message={successMessage}
         buttonText="Aceptar"
         type="success"
+      />
+
+      {/* Concurrent Modification Conflict Modal */}
+      <AlertModal
+        visible={showConflictModal}
+        onClose={() => {
+          setShowConflictModal(false);
+          // Reload the data to get the latest version
+          loadData();
+        }}
+        title="Conflicto de Edicion"
+        message="Este estudiante ha sido modificado por otro usuario mientras editabas. Se recargaran los datos mas recientes para que puedas intentar de nuevo."
+        buttonText="Recargar Datos"
+        type="warning"
+      />
+
+      {/* Unsaved Changes Warning Modal */}
+      <ConfirmModal
+        visible={showUnsavedModal}
+        onClose={() => setShowUnsavedModal(false)}
+        onConfirm={confirmLeave}
+        title="Cambios sin guardar"
+        message="Tienes cambios sin guardar. ¿Estas seguro de que deseas salir? Los cambios se perderan."
+        confirmText="Salir"
+        cancelText="Quedarse"
+        confirmDestructive={true}
       />
     </SafeAreaView>
   );
