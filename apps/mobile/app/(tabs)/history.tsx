@@ -453,6 +453,12 @@ export default function HistoryTab() {
                   </View>
                 </View>
 
+                {/* Date/Time of transaction */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Fecha y hora:</Text>
+                  <Text style={styles.detailValue}>{formatDateTime(selectedOrder.timestamp)}</Text>
+                </View>
+
                 {/* Cafeteria */}
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Cafeteria:</Text>
@@ -463,6 +469,14 @@ export default function HistoryTab() {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Estudiante:</Text>
                   <Text style={styles.detailValue}>{selectedOrder.studentName}</Text>
+                </View>
+
+                {/* Validation method */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Metodo de validacion:</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedOrder.source === 'app' ? 'App movil' : 'Punto de venta'}
+                  </Text>
                 </View>
 
                 {/* Pickup */}
