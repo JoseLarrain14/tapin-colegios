@@ -70,9 +70,12 @@ export default function NotificationsScreen() {
 
     // Navigate based on notification type
     if (notification.data?.type === 'purchase_alert' && notification.data.orderId) {
-      router.push('/(tabs)/history');
+      // Deep link to history with order ID to auto-open detail
+      router.push(`/(tabs)/history?orderId=${notification.data.orderId}`);
     } else if (notification.data?.type === 'low_balance_alert') {
       router.push('/(tabs)');
+    } else if (notification.data?.type === 'order_status_update' && notification.data.orderId) {
+      router.push(`/(tabs)/history?orderId=${notification.data.orderId}`);
     }
   };
 

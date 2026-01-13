@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, Linking } from 'react-native';
 import { Text, Surface, ActivityIndicator, Button, Dialog, Portal, Paragraph } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { apiService, Student, Order, WalletLog, Payment } from '../../src/services/api';
@@ -38,6 +38,8 @@ interface TransactionItem {
 
 export default function HistoryTab() {
   const { accessToken } = useAuthStore();
+  const router = useRouter();
+  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
@@ -147,6 +149,19 @@ export default function HistoryTab() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Deep link: Auto-open order detail when orderId is passed via URL
+  useEffect(() => {
+    if (orderId && transactions.length > 0 && !loading) {
+      const targetOrder = transactions.find(t => t.id === orderId && t.type === 'order');
+      if (targetOrder) {
+        setSelectedOrder(targetOrder);
+        setDetailDialogVisible(true);
+        // Clear the URL parameter to prevent re-opening on subsequent renders
+        router.setParams({ orderId: undefined });
+      }
+    }
+  }, [orderId, transactions, loading, router]);
 
   // Reload when screen gains focus
   useFocusEffect(
