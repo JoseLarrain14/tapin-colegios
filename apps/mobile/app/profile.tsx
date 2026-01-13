@@ -284,6 +284,30 @@ export default function ProfileScreen() {
               )}
             </Surface>
 
+            {/* Coupons Section */}
+            <Surface style={styles.couponsCard} elevation={1}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Cupones y Descuentos</Text>
+              </View>
+              <View style={styles.couponsPlaceholder}>
+                <Text style={styles.couponsIcon}>🎟️</Text>
+                <View style={styles.couponsTextContainer}>
+                  <Text style={styles.couponsTitle}>Proximamente</Text>
+                  <Text style={styles.couponsDescription}>
+                    Sistema de cupones y descuentos en desarrollo
+                  </Text>
+                </View>
+              </View>
+              <Button
+                mode="text"
+                onPress={() => router.push('/coupons')}
+                compact
+                labelStyle={styles.viewAllLabel}
+              >
+                Ver mas
+              </Button>
+            </Surface>
+
             {/* Actions */}
             <View style={styles.actionsContainer}>
               <Button
@@ -302,6 +326,15 @@ export default function ProfileScreen() {
                 icon="account-group"
               >
                 Ver Estudiantes
+              </Button>
+
+              <Button
+                mode="outlined"
+                onPress={() => router.push('/coupons')}
+                style={styles.actionButton}
+                icon="ticket-percent"
+              >
+                Mis Cupones
               </Button>
 
               <Button
@@ -519,5 +552,34 @@ const styles = StyleSheet.create({
   },
   logoutLabel: {
     color: colors.error,
+  },
+  couponsCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    marginBottom: spacing.lg,
+  },
+  couponsPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  couponsIcon: {
+    fontSize: 32,
+    marginRight: spacing.md,
+  },
+  couponsTextContainer: {
+    flex: 1,
+  },
+  couponsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  couponsDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });
