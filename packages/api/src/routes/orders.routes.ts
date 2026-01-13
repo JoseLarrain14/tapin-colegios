@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
+import { notificationService } from '../services/notification.service.js';
 
 // Helper to verify auth token
 async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -372,6 +373,16 @@ export async function ordersRoutes(app: FastifyInstance) {
         return newOrder;
       });
 
+      // Send push notification to guardian about the purchase
+      // Don't await to avoid delaying the response
+      notificationService.sendPurchaseAlert({
+        guardianId: decoded.userId,
+        studentName: `${order.student.firstName} ${order.student.lastName}`,
+        amount: total,
+        cafeteriaName: order.cafeteria.name,
+        orderId: order.id,
+      }).catch(err => console.error('Failed to send purchase notification:', err));
+
       return reply.status(201).send({
         success: true,
         message: 'Pedido creado exitosamente',
@@ -490,6 +501,171 @@ export async function ordersRoutes(app: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         message: 'Error al actualizar pedido',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/orders/export/csv
+   * Export all transactions (orders and payments) as CSV
+   * Query params:
+   *   - studentId: Optional filter by student ID
+   */
+  app.get('/export/csv', async (request: FastifyRequest<{ Querystring: { studentId?: string } }>, reply: FastifyReply) => {
+    try {
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      const { studentId } = request.query;
+
+      const guardian = await getGuardian(decoded.userId);
+      if (!guardian) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Perfil de apoderado no encontrado',
+        });
+      }
+
+      // If studentId provided, verify guardian has access
+      if (studentId) {
+        const guardianStudent = await prisma.guardianStudent.findUnique({
+          where: {
+            guardianId_studentId: {
+              guardianId: guardian.id,
+              studentId: studentId,
+            },
+          },
+        });
+
+        if (!guardianStudent) {
+          return reply.status(403).send({
+            success: false,
+            message: 'No tienes acceso a este estudiante',
+          });
+        }
+      }
+
+      // Build order query with optional student filter
+      const orderWhere: any = { guardianId: guardian.id };
+      if (studentId) {
+        orderWhere.studentId = studentId;
+      }
+
+      // Get orders for the guardian (optionally filtered by student)
+      const orders = await prisma.order.findMany({
+        where: orderWhere,
+        include: {
+          student: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          cafeteria: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Build payment query with optional student filter
+      const paymentWhere: any = { guardianId: guardian.id };
+      if (studentId) {
+        paymentWhere.studentId = studentId;
+      }
+
+      // Get payments for the guardian (optionally filtered by student)
+      const payments = await prisma.payment.findMany({
+        where: paymentWhere,
+        include: {
+          student: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          rechargePackage: {
+            select: { id: true, name: true, type: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Combine and sort by timestamp
+      interface TransactionExport {
+        type: string;
+        date: string;
+        description: string;
+        studentName: string;
+        amount: number;
+        status: string;
+        id: string;
+      }
+
+      const transactions: TransactionExport[] = [];
+
+      // Add orders
+      orders.forEach(order => {
+        const items = JSON.parse(order.items);
+        const itemCount = items.length;
+        transactions.push({
+          type: 'Pedido',
+          date: order.createdAt.toISOString(),
+          description: `${itemCount} item${itemCount !== 1 ? 's' : ''} - ${order.cafeteria.name}`,
+          studentName: `${order.student.firstName} ${order.student.lastName}`,
+          amount: -order.total, // Negative for expenses
+          status: order.status,
+          id: order.id,
+        });
+      });
+
+      // Add payments
+      payments.forEach(payment => {
+        transactions.push({
+          type: 'Recarga',
+          date: payment.createdAt.toISOString(),
+          description: payment.rechargePackage ? `Paquete: ${payment.rechargePackage.name}` : 'Recarga de saldo',
+          studentName: payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : 'N/A',
+          amount: payment.amount, // Positive for deposits
+          status: payment.status,
+          id: payment.id,
+        });
+      });
+
+      // Sort by date (most recent first)
+      transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // Generate CSV
+      const csvHeaders = ['Fecha', 'Tipo', 'Descripcion', 'Estudiante', 'Monto', 'Estado', 'ID'];
+      const csvRows = transactions.map(t => {
+        const formattedDate = new Date(t.date).toLocaleString('es-CL', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const formattedAmount = t.amount >= 0 ? `+$${t.amount.toLocaleString('es-CL')}` : `-$${Math.abs(t.amount).toLocaleString('es-CL')}`;
+        return [
+          formattedDate,
+          t.type,
+          `"${t.description.replace(/"/g, '""')}"`, // Escape quotes in CSV
+          `"${t.studentName}"`,
+          formattedAmount,
+          t.status,
+          t.id,
+        ].join(',');
+      });
+
+      const csv = [csvHeaders.join(','), ...csvRows].join('\n');
+
+      // Add BOM for Excel UTF-8 compatibility
+      const csvWithBom = '\uFEFF' + csv;
+
+      // Set headers for CSV download
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', `attachment; filename="transacciones_${new Date().toISOString().split('T')[0]}.csv"`);
+
+      return reply.send(csvWithBom);
+    } catch (error) {
+      console.error('Export CSV error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al exportar transacciones',
       });
     }
   });
