@@ -219,7 +219,7 @@ export default function HomeTab() {
                   <Text style={styles.balanceLabel}>Saldo disponible</Text>
                   <Text style={[
                     styles.balanceAmount,
-                    selectedStudent.balance > 0 ? styles.positiveBalance : styles.zeroBalance
+                    selectedStudent.balance > 0 ? styles.positiveBalance : selectedStudent.balance < 0 ? styles.negativeBalance : styles.zeroBalance
                   ]}>
                     {formatCLP(selectedStudent.balance)}
                   </Text>
@@ -619,6 +619,12 @@ const styles = StyleSheet.create({
     color: colors.success,
   },
   zeroBalance: {
+    color: colors.textSecondary,
+  },
+  negativeBalance: {
+    color: colors.error,
+  },
+  limitContainer: {
     color: colors.textSecondary,
   },
   limitContainer: {

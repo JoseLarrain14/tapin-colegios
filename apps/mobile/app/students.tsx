@@ -197,7 +197,8 @@ export default function StudentsScreen() {
                 <Text style={styles.metaLabel}>Saldo</Text>
                 <Text style={[
                   styles.metaValue,
-                  student.balance > 0 ? styles.positiveBalance : styles.zeroBalance
+                  student.balance > 0 ? styles.positiveBalance :
+                  student.balance < 0 ? styles.negativeBalance : styles.zeroBalance
                 ]}>
                   {formatCLP(student.balance)}
                 </Text>
@@ -388,6 +389,9 @@ const styles = StyleSheet.create({
   },
   zeroBalance: {
     color: colors.textSecondary,
+  },
+  negativeBalance: {
+    color: colors.error,
   },
   ticketsContainer: {
     marginTop: spacing.md,
