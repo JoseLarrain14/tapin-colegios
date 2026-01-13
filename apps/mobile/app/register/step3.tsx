@@ -105,6 +105,7 @@ export default function RegisterStep3() {
                   <TextInput.Icon
                     icon={showPassword ? 'eye-off' : 'eye'}
                     onPress={() => setShowPassword(!showPassword)}
+                    accessibilityLabel={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
                   />
                 }
               />
@@ -157,6 +158,7 @@ export default function RegisterStep3() {
                   <TextInput.Icon
                     icon={showConfirmPassword ? 'eye-off' : 'eye'}
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    accessibilityLabel={showConfirmPassword ? 'Ocultar confirmacion de contrasena' : 'Mostrar confirmacion de contrasena'}
                   />
                 }
               />

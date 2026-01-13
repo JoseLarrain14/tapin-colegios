@@ -121,6 +121,7 @@ export default function LoginScreen() {
                   <TextInput.Icon
                     icon={showPassword ? 'eye-off' : 'eye'}
                     onPress={() => setShowPassword(!showPassword)}
+                    accessibilityLabel={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
                   />
                 }
               />
