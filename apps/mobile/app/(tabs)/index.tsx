@@ -274,6 +274,16 @@ export default function HomeTab() {
                   >
                     Ver detalles
                   </Button>
+                  {selectedStudent.school.businessModel !== 'tickets_only' && (
+                    <Button
+                      mode="text"
+                      onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
+                      style={styles.historyButton}
+                      icon="history"
+                    >
+                      Ver historial
+                    </Button>
+                  )}
                 </View>
               </Surface>
             )}
@@ -697,6 +707,9 @@ const styles = StyleSheet.create({
   detailsButton: {
     flex: 1,
     borderColor: colors.primary,
+  },
+  historyButton: {
+    marginTop: spacing.sm,
   },
   // Quick Actions Styles
   quickActionsCard: {
