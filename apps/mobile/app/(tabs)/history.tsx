@@ -56,6 +56,9 @@ export default function HistoryTab() {
   const [detailDialogVisible, setDetailDialogVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<TransactionItem | null>(null);
 
+  // Month filter state
+  const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
+
   const loadData = useCallback(async () => {
     if (!accessToken) return;
 
@@ -287,9 +290,49 @@ export default function HistoryTab() {
   };
 
   // Filter transactions by selected student
-  const filteredTransactions = selectedStudent
-    ? transactions.filter(t => !t.studentName || t.studentName.includes(selectedStudent.firstName))
-    : transactions;
+  // Helper to get available months from transactions
+  const getAvailableMonths = () => {
+    const monthsSet = new Set<string>();
+    transactions.forEach(t => {
+      const date = new Date(t.timestamp);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthsSet.add(monthKey);
+    });
+    return Array.from(monthsSet).sort().reverse().map(key => {
+      const [year, month] = key.split('-').map(Number);
+      return new Date(year, month - 1, 1);
+    });
+  };
+
+  const availableMonths = getAvailableMonths();
+
+  // Format month for display
+  const formatMonth = (date: Date) => {
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return `${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  // Check if transaction is in selected month
+  const isInSelectedMonth = (timestamp: string) => {
+    if (!selectedMonth) return true;
+    const date = new Date(timestamp);
+    return date.getMonth() === selectedMonth.getMonth() &&
+           date.getFullYear() === selectedMonth.getFullYear();
+  };
+
+  // Filter transactions by student and month
+  const filteredTransactions = transactions.filter(t => {
+    // Student filter
+    if (selectedStudent && t.studentName && !t.studentName.includes(selectedStudent.firstName)) {
+      return false;
+    }
+    // Month filter
+    if (!isInSelectedMonth(t.timestamp)) {
+      return false;
+    }
+    return true;
+  });
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -525,12 +568,60 @@ export default function HistoryTab() {
           </Surface>
         )}
 
+        {/* Month filter */}
+        {availableMonths.length > 0 && (
+          <Surface style={styles.filterCard} elevation={1}>
+            <Text style={styles.filterTitle}>Filtrar por mes</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.filterRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    !selectedMonth && styles.filterChipActive,
+                  ]}
+                  onPress={() => setSelectedMonth(null)}
+                  testID="month-filter-all"
+                >
+                  <Text style={[
+                    styles.filterChipText,
+                    !selectedMonth && styles.filterChipTextActive,
+                  ]}>
+                    Todo
+                  </Text>
+                </TouchableOpacity>
+                {availableMonths.map((month, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.filterChip,
+                      selectedMonth?.getTime() === month.getTime() && styles.filterChipActive,
+                    ]}
+                    onPress={() => setSelectedMonth(month)}
+                    testID={`month-filter-${month.getMonth()}-${month.getFullYear()}`}
+                  >
+                    <Text style={[
+                      styles.filterChipText,
+                      selectedMonth?.getTime() === month.getTime() && styles.filterChipTextActive,
+                    ]}>
+                      {formatMonth(month)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </Surface>
+        )}
+
         {/* Summary card */}
         <Surface style={styles.summaryCard} elevation={1}>
-          <Text style={styles.summaryTitle}>Resumen</Text>
+          <Text style={styles.summaryTitle}>
+            Resumen{selectedMonth ? ` - ${formatMonth(selectedMonth)}` : ''}
+          </Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total gastado:</Text>
-            <Text style={styles.summaryValue}>{formatCLP(totalSpent)}</Text>
+            <Text style={styles.summaryValue}>
+              {formatCLP(filteredTransactions.filter(t => !t.isPositive).reduce((sum, t) => sum + t.amount, 0))}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Transacciones:</Text>
