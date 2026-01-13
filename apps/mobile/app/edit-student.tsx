@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Image, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Avatar } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student, School } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
+import { ConfirmModal, AlertModal } from '../src/components';
 
 // RUT validation utilities (same as add-student)
 function cleanRut(rut: string): string {
@@ -123,6 +124,8 @@ export default function EditStudentScreen() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const isDeletingRef = useRef(false); // Ref guard against rapid delete clicks
   const [schools, setSchools] = useState<School[]>([]);
   const [schoolMenuVisible, setSchoolMenuVisible] = useState(false);
   const [gradeMenuVisible, setGradeMenuVisible] = useState(false);
@@ -130,6 +133,11 @@ export default function EditStudentScreen() {
 
   // Error state
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadData();
@@ -351,47 +359,49 @@ export default function EditStudentScreen() {
   };
 
   const handleDelete = () => {
-    // Use window.confirm for web compatibility
-    if (typeof window !== 'undefined' && window.confirm) {
-      const confirmed = window.confirm(
-        `¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`
-      );
-      if (confirmed) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Eliminar Estudiante',
-        `¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: confirmDelete,
-          },
-        ]
-      );
+    // Ref-based guard to prevent rapid delete clicks
+    if (isDeletingRef.current || deleting) {
+      return;
     }
+
+    // Show custom modal instead of window.confirm for better responsiveness
+    setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
     if (!accessToken || !studentId) return;
 
+    // Set ref guard immediately (synchronous, before any async operations)
+    if (isDeletingRef.current) return;
+    isDeletingRef.current = true;
+
+    // Close the modal first
+    setShowDeleteModal(false);
+    setDeleting(true);
     setSaving(true);
     try {
       const response = await apiService.deleteStudent(studentId, accessToken);
       if (response.success) {
-        Alert.alert('Estudiante Eliminado', 'El estudiante ha sido eliminado.');
-        router.back();
+        setSuccessMessage('El estudiante ha sido eliminado.');
+        setShowSuccessModal(true);
       } else {
         Alert.alert('Error', response.message || 'No se pudo eliminar el estudiante');
+        // Reset ref guard on failure to allow retry
+        isDeletingRef.current = false;
       }
     } catch (error) {
       Alert.alert('Error', 'Ocurrio un error al eliminar el estudiante');
+      // Reset ref guard on error to allow retry
+      isDeletingRef.current = false;
     } finally {
       setSaving(false);
+      setDeleting(false);
     }
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    router.back();
   };
 
   if (loading) {
@@ -435,6 +445,7 @@ export default function EditStudentScreen() {
               size={24}
               onPress={handleDelete}
               iconColor={colors.error}
+              disabled={deleting || saving}
             />
           </View>
 
@@ -719,6 +730,29 @@ export default function EditStudentScreen() {
           </Button>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Eliminar Estudiante"
+        message={`¿Estas seguro de que deseas eliminar a ${originalStudent?.firstName} ${originalStudent?.lastName}? Esta accion no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmDestructive={true}
+        loading={deleting}
+      />
+
+      {/* Success Modal */}
+      <AlertModal
+        visible={showSuccessModal}
+        onClose={handleSuccessClose}
+        title="Estudiante Eliminado"
+        message={successMessage}
+        buttonText="Aceptar"
+        type="success"
+      />
     </SafeAreaView>
   );
 }
