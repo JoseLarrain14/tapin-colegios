@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
 import { apiService, Student } from '../../src/services/api';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
+import { NetworkError } from '../../src/components/NetworkError';
 
 export default function HomeTab() {
   const router = useRouter();
@@ -13,10 +14,13 @@ export default function HomeTab() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const loadStudents = async () => {
     if (!accessToken) return;
     setLoading(true);
+    setError(null);
     try {
       const response = await apiService.getStudents(accessToken);
       if (response.success && response.data) {
@@ -25,12 +29,36 @@ export default function HomeTab() {
         if (response.data.length > 0 && !selectedStudent) {
           setSelectedStudent(response.data[0]);
         }
+        setError(null);
+      } else if (!response.success) {
+        // Check if it's a network error
+        const errorMsg = response.message || 'Error al cargar datos';
+        if (errorMsg.toLowerCase().includes('conexion') ||
+            errorMsg.toLowerCase().includes('network') ||
+            errorMsg.toLowerCase().includes('internet')) {
+          setError(errorMsg);
+        }
       }
     } catch (err) {
       console.error('Error loading students:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Error de conexion';
+      if (errorMsg.toLowerCase().includes('conexion') ||
+          errorMsg.toLowerCase().includes('network') ||
+          errorMsg.toLowerCase().includes('internet') ||
+          errorMsg.toLowerCase().includes('timeout')) {
+        setError(errorMsg);
+      } else {
+        setError('Error de conexion. Verifica tu internet.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await loadStudents();
+    setRetrying(false);
   };
 
   useEffect(() => {
@@ -79,6 +107,18 @@ export default function HomeTab() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <NetworkError
+          message={error}
+          onRetry={handleRetry}
+          retrying={retrying}
+        />
       </SafeAreaView>
     );
   }
