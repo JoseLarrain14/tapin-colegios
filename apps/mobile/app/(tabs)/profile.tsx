@@ -306,6 +306,24 @@ export default function ProfileTab() {
 
               <Button
                 mode="outlined"
+                onPress={() => router.push('/payment-history')}
+                style={styles.actionButton}
+                icon="credit-card-clock"
+              >
+                Historial de Pagos
+              </Button>
+
+              <Button
+                mode="outlined"
+                onPress={() => router.push('/help')}
+                style={styles.actionButton}
+                icon="help-circle"
+              >
+                Centro de Ayuda
+              </Button>
+
+              <Button
+                mode="outlined"
                 onPress={handleLogout}
                 style={[styles.actionButton, styles.logoutButton]}
                 labelStyle={styles.logoutLabel}
