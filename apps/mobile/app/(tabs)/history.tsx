@@ -555,6 +555,23 @@ export default function HistoryTab() {
           <Text style={styles.subtitle}>Transacciones y movimientos</Text>
         </View>
 
+        {/* Reset filters button - show when any filter is active */}
+        {(selectedStudent || selectedMonth) && (
+          <Button
+            mode="text"
+            onPress={() => {
+              setSelectedStudent(null);
+              setSelectedMonth(null);
+            }}
+            icon="filter-remove"
+            style={styles.resetFiltersButton}
+            labelStyle={styles.resetFiltersLabel}
+            testID="reset-filters-button"
+          >
+            Restablecer filtros
+          </Button>
+        )}
+
         {/* Student filter */}
         {students.length > 1 && (
           <Surface style={styles.filterCard} elevation={1}>
@@ -1115,6 +1132,14 @@ const styles = StyleSheet.create({
   sourceText: {
     fontSize: 9,
     fontWeight: '600',
+    color: colors.primary,
+  },
+  resetFiltersButton: {
+    marginBottom: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  resetFiltersLabel: {
+    fontSize: 14,
     color: colors.primary,
   },
 });
