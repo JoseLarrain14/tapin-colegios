@@ -61,6 +61,9 @@ export default function HistoryTab() {
   // Month filter state
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
 
+  // Quick date filter state ('today', 'week', 'month', or null for all)
+  const [quickDateFilter, setQuickDateFilter] = useState<'today' | 'week' | 'month' | null>(null);
+
   const loadData = useCallback(async () => {
     if (!accessToken) return;
 
@@ -336,14 +339,50 @@ export default function HistoryTab() {
            date.getFullYear() === selectedMonth.getFullYear();
   };
 
-  // Filter transactions by student and month
+  // Check if transaction matches quick date filter (uses local timezone)
+  const isInQuickDateFilter = (timestamp: string) => {
+    if (!quickDateFilter) return true;
+
+    const transactionDate = new Date(timestamp);
+    const now = new Date();
+
+    // Get start of today in local timezone
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    if (quickDateFilter === 'today') {
+      return transactionDate >= startOfToday && transactionDate <= endOfToday;
+    }
+
+    if (quickDateFilter === 'week') {
+      // Get start of week (Monday)
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday is 0
+      const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToMonday, 0, 0, 0, 0);
+      return transactionDate >= startOfWeek && transactionDate <= endOfToday;
+    }
+
+    if (quickDateFilter === 'month') {
+      // Current month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      return transactionDate >= startOfMonth && transactionDate <= endOfToday;
+    }
+
+    return true;
+  };
+
+  // Filter transactions by student, month, and quick date filter
   const filteredTransactions = transactions.filter(t => {
     // Student filter
     if (selectedStudent && t.studentName && !t.studentName.includes(selectedStudent.firstName)) {
       return false;
     }
-    // Month filter
-    if (!isInSelectedMonth(t.timestamp)) {
+    // Month filter (only apply if no quick date filter is active)
+    if (!quickDateFilter && !isInSelectedMonth(t.timestamp)) {
+      return false;
+    }
+    // Quick date filter (Today, This Week, This Month)
+    if (quickDateFilter && !isInQuickDateFilter(t.timestamp)) {
       return false;
     }
     return true;
@@ -556,12 +595,13 @@ export default function HistoryTab() {
         </View>
 
         {/* Reset filters button - show when any filter is active */}
-        {(selectedStudent || selectedMonth) && (
+        {(selectedStudent || selectedMonth || quickDateFilter) && (
           <Button
             mode="text"
             onPress={() => {
               setSelectedStudent(null);
               setSelectedMonth(null);
+              setQuickDateFilter(null);
             }}
             icon="filter-remove"
             style={styles.resetFiltersButton}
@@ -614,8 +654,89 @@ export default function HistoryTab() {
           </Surface>
         )}
 
+        {/* Quick date filter */}
+        <Surface style={styles.filterCard} elevation={1}>
+          <Text style={styles.filterTitle}>Periodo</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.filterRow}>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  !quickDateFilter && !selectedMonth && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setQuickDateFilter(null);
+                  setSelectedMonth(null);
+                }}
+                testID="date-filter-all"
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  !quickDateFilter && !selectedMonth && styles.filterChipTextActive,
+                ]}>
+                  Todo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  quickDateFilter === 'today' && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setQuickDateFilter('today');
+                  setSelectedMonth(null);
+                }}
+                testID="date-filter-today"
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  quickDateFilter === 'today' && styles.filterChipTextActive,
+                ]}>
+                  Hoy
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  quickDateFilter === 'week' && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setQuickDateFilter('week');
+                  setSelectedMonth(null);
+                }}
+                testID="date-filter-week"
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  quickDateFilter === 'week' && styles.filterChipTextActive,
+                ]}>
+                  Esta semana
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  quickDateFilter === 'month' && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setQuickDateFilter('month');
+                  setSelectedMonth(null);
+                }}
+                testID="date-filter-month"
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  quickDateFilter === 'month' && styles.filterChipTextActive,
+                ]}>
+                  Este mes
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </Surface>
+
         {/* Month filter */}
-        {availableMonths.length > 0 && (
+        {availableMonths.length > 0 && !quickDateFilter && (
           <Surface style={styles.filterCard} elevation={1}>
             <Text style={styles.filterTitle}>Filtrar por mes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -661,7 +782,7 @@ export default function HistoryTab() {
         {/* Summary card */}
         <Surface style={styles.summaryCard} elevation={1}>
           <Text style={styles.summaryTitle}>
-            Resumen{selectedMonth ? ` - ${formatMonth(selectedMonth)}` : ''}
+            Resumen{quickDateFilter === 'today' ? ' - Hoy' : quickDateFilter === 'week' ? ' - Esta semana' : quickDateFilter === 'month' ? ' - Este mes' : selectedMonth ? ` - ${formatMonth(selectedMonth)}` : ''}
           </Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total gastado:</Text>
