@@ -111,9 +111,11 @@ export default function ForgotPasswordScreen() {
                 autoFocus
               />
               {error && (
-                <HelperText type="error" visible={true}>
-                  {error}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  <HelperText type="error" visible={true}>
+                    {error}
+                  </HelperText>
+                </View>
               )}
             </View>
           </View>

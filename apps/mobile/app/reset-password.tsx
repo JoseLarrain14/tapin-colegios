@@ -217,9 +217,11 @@ export default function ResetPasswordScreen() {
 
             {/* Error message */}
             {error && (
-              <HelperText type="error" visible={true} style={styles.errorText}>
-                {error}
-              </HelperText>
+              <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                <HelperText type="error" visible={true} style={styles.errorText}>
+                  {error}
+                </HelperText>
+              </View>
             )}
           </View>
 

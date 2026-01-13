@@ -110,9 +110,11 @@ export default function RegisterStep3() {
                 }
               />
               {errors.password ? (
-                <HelperText type="error" visible={true}>
-                  {errors.password}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  <HelperText type="error" visible={true}>
+                    {errors.password}
+                  </HelperText>
+                </View>
               ) : localPassword ? (
                 <View style={styles.strengthContainer}>
                   <View style={styles.strengthBars}>
@@ -163,9 +165,11 @@ export default function RegisterStep3() {
                 }
               />
               {errors.confirmPassword && (
-                <HelperText type="error" visible={true}>
-                  {errors.confirmPassword}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.confirmPassword}
+                    </HelperText>
+                </View>
               )}
             </View>
           </View>

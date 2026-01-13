@@ -69,7 +69,11 @@ export default function LoginScreen() {
 
           {/* Error Message */}
           {loginError && (
-            <View style={styles.errorBanner}>
+            <View
+              style={styles.errorBanner}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+            >
               <Text style={styles.errorText}>{loginError}</Text>
             </View>
           )}
@@ -95,9 +99,11 @@ export default function LoginScreen() {
                 autoCorrect={false}
               />
               {errors.email && (
-                <HelperText type="error" visible={true}>
-                  {errors.email}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  <HelperText type="error" visible={true}>
+                    {errors.email}
+                  </HelperText>
+                </View>
               )}
             </View>
 
@@ -126,9 +132,11 @@ export default function LoginScreen() {
                 }
               />
               {errors.password && (
-                <HelperText type="error" visible={true}>
-                  {errors.password}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  <HelperText type="error" visible={true}>
+                    {errors.password}
+                  </HelperText>
+                </View>
               )}
             </View>
 

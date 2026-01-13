@@ -97,9 +97,11 @@ export default function RegisterStep2() {
                 autoCorrect={false}
               />
               {errors.firstName && (
-                <HelperText type="error" visible={true}>
-                  {errors.firstName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.firstName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -120,9 +122,11 @@ export default function RegisterStep2() {
                 autoCorrect={false}
               />
               {errors.lastName && (
-                <HelperText type="error" visible={true}>
-                  {errors.lastName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.lastName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -145,9 +149,11 @@ export default function RegisterStep2() {
                 autoCorrect={false}
               />
               {errors.email && (
-                <HelperText type="error" visible={true}>
-                  {errors.email}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.email}
+                    </HelperText>
+                </View>
               )}
             </View>
           </View>

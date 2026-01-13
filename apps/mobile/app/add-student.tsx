@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -118,6 +118,7 @@ export default function AddStudentScreen() {
 
   // UI state
   const [loading, setLoading] = useState(false);
+  const isSubmittingRef = useRef(false); // Ref guard against double-click
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [schools, setSchools] = useState<School[]>([]);
   const [schoolMenuVisible, setSchoolMenuVisible] = useState(false);
@@ -207,6 +208,11 @@ export default function AddStudentScreen() {
   };
 
   const handleSubmit = async () => {
+    // Ref-based guard to prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -217,6 +223,8 @@ export default function AddStudentScreen() {
       return;
     }
 
+    // Set ref guard immediately (synchronous, before any async operations)
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -239,10 +247,14 @@ export default function AddStudentScreen() {
         setTimeout(() => router.back(), 1500);
       } else {
         showSnackbar(response.message || 'No se pudo agregar el estudiante', 'error');
+        // Reset ref guard on failure to allow retry
+        isSubmittingRef.current = false;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ocurrio un error al agregar el estudiante';
       showSnackbar(errorMessage, 'error');
+      // Reset ref guard on error to allow retry
+      isSubmittingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -288,9 +300,11 @@ export default function AddStudentScreen() {
                 activeOutlineColor={colors.primary}
               />
               {errors.firstName && (
-                <HelperText type="error" visible={true}>
-                  {errors.firstName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.firstName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -307,9 +321,11 @@ export default function AddStudentScreen() {
                 activeOutlineColor={colors.primary}
               />
               {errors.lastName && (
-                <HelperText type="error" visible={true}>
-                  {errors.lastName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.lastName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -385,9 +401,11 @@ export default function AddStudentScreen() {
                 </Menu>
               )}
               {errors.school && (
-                <HelperText type="error" visible={true}>
-                  {errors.school}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.school}
+                    </HelperText>
+                </View>
               )}
             </View>
 

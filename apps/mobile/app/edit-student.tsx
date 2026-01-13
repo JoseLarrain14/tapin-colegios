@@ -502,9 +502,11 @@ export default function EditStudentScreen() {
                 activeOutlineColor={colors.primary}
               />
               {errors.firstName && (
-                <HelperText type="error" visible={true}>
-                  {errors.firstName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.firstName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -521,9 +523,11 @@ export default function EditStudentScreen() {
                 activeOutlineColor={colors.primary}
               />
               {errors.lastName && (
-                <HelperText type="error" visible={true}>
-                  {errors.lastName}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.lastName}
+                    </HelperText>
+                </View>
               )}
             </View>
 
@@ -592,9 +596,11 @@ export default function EditStudentScreen() {
                 ))}
               </Menu>
               {errors.school && (
-                <HelperText type="error" visible={true}>
-                  {errors.school}
-                </HelperText>
+                <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    <HelperText type="error" visible={true}>
+                      {errors.school}
+                    </HelperText>
+                </View>
               )}
             </View>
 
