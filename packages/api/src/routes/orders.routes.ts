@@ -282,7 +282,25 @@ export async function ordersRoutes(app: FastifyInstance) {
           });
         }
 
-        if (wallet.balance < total) {
+        // Get student's school to check if negative balance is allowed
+        const student = await prisma.student.findUnique({
+          where: { id: body.studentId },
+          include: { school: true },
+        });
+
+        // Parse school config to check allowNegativeBalance
+        let allowNegativeBalance = false;
+        if (student?.school?.config) {
+          try {
+            const schoolConfig = JSON.parse(student.school.config);
+            allowNegativeBalance = schoolConfig.allowNegativeBalance === true;
+          } catch {
+            // If config is invalid, default to not allowing negative balance
+          }
+        }
+
+        // Only check balance if school doesn't allow negative balance
+        if (!allowNegativeBalance && wallet.balance < total) {
           return reply.status(400).send({
             success: false,
             message: `Saldo insuficiente. Saldo disponible: $${wallet.balance.toLocaleString('es-CL')}, Total del pedido: $${total.toLocaleString('es-CL')}`,

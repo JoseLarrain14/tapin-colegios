@@ -191,6 +191,79 @@ export async function schoolsRoutes(app: FastifyInstance) {
   });
 
   /**
+   * PUT /api/v1/schools/:id/config
+   * Update school config (for testing negative balance feature)
+   */
+  app.put('/:id/config', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    try {
+      const { id } = request.params;
+      const body = z.object({
+        allowNegativeBalance: z.boolean().optional(),
+        businessModel: z.enum(['tickets_only', 'balance_only', 'mixed']).optional(),
+      }).parse(request.body);
+
+      const school = await prisma.school.findUnique({
+        where: { id },
+      });
+
+      if (!school) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Colegio no encontrado',
+        });
+      }
+
+      // Parse existing config and merge with new values
+      let existingConfig = {};
+      try {
+        existingConfig = JSON.parse(school.config || '{}');
+      } catch {
+        existingConfig = {};
+      }
+
+      const updatedConfig = {
+        ...existingConfig,
+        ...(body.allowNegativeBalance !== undefined && { allowNegativeBalance: body.allowNegativeBalance }),
+        ...(body.businessModel !== undefined && { businessModel: body.businessModel }),
+      };
+
+      const updatedSchool = await prisma.school.update({
+        where: { id },
+        data: {
+          config: JSON.stringify(updatedConfig),
+        },
+      });
+
+      return reply.send({
+        success: true,
+        message: 'Configuracion del colegio actualizada',
+        data: {
+          id: updatedSchool.id,
+          name: updatedSchool.name,
+          config: JSON.parse(updatedSchool.config),
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Datos invalidos',
+          errors: error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+
+      console.error('Update school config error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al actualizar configuracion del colegio',
+      });
+    }
+  });
+
+  /**
    * POST /api/v1/schools/:id/cafeterias
    * Create a cafeteria for a school (for testing)
    */
