@@ -383,6 +383,43 @@ export async function ordersRoutes(app: FastifyInstance) {
         orderId: order.id,
       }).catch(err => console.error('Failed to send purchase notification:', err));
 
+      // Check for low balance and send notification if below threshold
+      // Only for balance-based purchases (not ticket-based)
+      if (!body.useTickets) {
+        // Get updated wallet balance and school config
+        const updatedWallet = await prisma.wallet.findUnique({
+          where: { studentId: body.studentId },
+        });
+
+        const studentWithSchool = await prisma.student.findUnique({
+          where: { id: body.studentId },
+          include: { school: true },
+        });
+
+        if (updatedWallet && studentWithSchool?.school) {
+          // Get low balance threshold from school config (default: $5000 CLP)
+          let lowBalanceThreshold = 5000;
+          try {
+            const schoolConfig = JSON.parse(studentWithSchool.school.config || '{}');
+            if (schoolConfig.lowBalanceThreshold && typeof schoolConfig.lowBalanceThreshold === 'number') {
+              lowBalanceThreshold = schoolConfig.lowBalanceThreshold;
+            }
+          } catch {
+            // Use default threshold if config parsing fails
+          }
+
+          // Send low balance notification if balance is below threshold
+          if (updatedWallet.balance < lowBalanceThreshold) {
+            notificationService.sendLowBalanceAlert(
+              decoded.userId,
+              `${order.student.firstName} ${order.student.lastName}`,
+              updatedWallet.balance,
+              lowBalanceThreshold,
+            ).catch(err => console.error('Failed to send low balance notification:', err));
+          }
+        }
+      }
+
       return reply.status(201).send({
         success: true,
         message: 'Pedido creado exitosamente',
