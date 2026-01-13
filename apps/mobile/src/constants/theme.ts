@@ -2,10 +2,10 @@
 // Based on OrderEAT design reference
 
 export const colors = {
-  // Primary colors
-  primary: '#FF4D6D',
+  // Primary colors - #C9384E chosen for WCAG AA compliance (5.05:1 contrast with white)
+  primary: '#C9384E',
   primaryLight: '#FFE5EA',
-  primaryDark: '#E63950',
+  primaryDark: '#A62D40',
 
   // Background colors
   background: '#FFFFFF',
