@@ -86,6 +86,8 @@ const updateStudentSchema = z.object({
   section: z.string().optional(),
   photoUrl: z.string().url().optional().nullable(),
   dailyLimit: z.number().int().min(0).optional(),
+  // Optimistic concurrency control - if provided, will check for conflicts
+  updatedAt: z.string().datetime().optional(),
 });
 
 // Helper to verify auth token
@@ -530,9 +532,38 @@ export async function studentsRoutes(app: FastifyInstance) {
         });
       }
 
+      // Extract updatedAt for concurrency check, remove from update data
+      const { updatedAt: expectedUpdatedAt, ...updateData } = body;
+
+      // If updatedAt is provided, check for concurrent modifications (optimistic locking)
+      if (expectedUpdatedAt) {
+        const currentStudent = await prisma.student.findUnique({
+          where: { id },
+          select: { updatedAt: true },
+        });
+
+        if (currentStudent) {
+          const expectedTime = new Date(expectedUpdatedAt).getTime();
+          const currentTime = currentStudent.updatedAt.getTime();
+
+          // Allow small time differences (within 1 second) due to timestamp precision
+          if (Math.abs(currentTime - expectedTime) > 1000) {
+            return reply.status(409).send({
+              success: false,
+              message: 'El registro ha sido modificado por otro usuario. Por favor, recarga la pagina e intenta de nuevo.',
+              code: 'CONCURRENT_MODIFICATION',
+              data: {
+                expectedUpdatedAt: expectedUpdatedAt,
+                currentUpdatedAt: currentStudent.updatedAt.toISOString(),
+              },
+            });
+          }
+        }
+      }
+
       const updatedStudent = await prisma.student.update({
         where: { id },
-        data: body,
+        data: updateData,
         include: {
           school: {
             select: {
@@ -559,6 +590,7 @@ export async function studentsRoutes(app: FastifyInstance) {
           dailyLimit: updatedStudent.dailyLimit,
           school: updatedStudent.school,
           balance: updatedStudent.wallet?.balance || 0,
+          updatedAt: updatedStudent.updatedAt.toISOString(),
         },
       });
     } catch (error) {

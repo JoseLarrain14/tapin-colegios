@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { storage } from '../utils/storage';
 import { apiService } from '../services/api';
+import { pushNotificationService } from '../services/pushNotifications';
 
 interface Guardian {
   id: string;
@@ -132,6 +133,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         await storage.setItem(TOKEN_KEY, JSON.stringify({ accessToken, refreshToken }));
         await storage.setItem(USER_KEY, JSON.stringify(user));
+
+        // Register push notification token after successful login
+        try {
+          await pushNotificationService.registerForPushNotifications(accessToken);
+        } catch (pushError) {
+          // Don't fail login if push registration fails
+          console.warn('Push notification registration failed:', pushError);
+        }
       } else {
         throw new Error(response.message || 'Error al iniciar sesion');
       }
@@ -160,6 +169,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         await storage.setItem(TOKEN_KEY, JSON.stringify({ accessToken, refreshToken }));
         await storage.setItem(USER_KEY, JSON.stringify(user));
+
+        // Register push notification token after successful registration
+        try {
+          await pushNotificationService.registerForPushNotifications(accessToken);
+        } catch (pushError) {
+          // Don't fail registration if push registration fails
+          console.warn('Push notification registration failed:', pushError);
+        }
       } else {
         throw new Error(response.message || 'Error al registrar');
       }
@@ -172,7 +189,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      const { refreshToken } = get();
+      const { refreshToken, accessToken } = get();
+
+      // Unregister push notification token
+      if (accessToken) {
+        try {
+          await pushNotificationService.unregisterPushNotifications(accessToken);
+        } catch (pushError) {
+          console.warn('Push notification unregistration failed:', pushError);
+        }
+      }
+
       if (refreshToken) {
         await apiService.logout(refreshToken);
       }

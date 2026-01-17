@@ -117,19 +117,30 @@ export async function menuRoutes(app: FastifyInstance) {
   /**
    * GET /api/v1/menu/:cafeteriaId/day/:dayOfWeek
    * Get menu items available on a specific day
+   * Query params: timeSlot (breakfast, lunch, snack) - optional filter
    */
-  app.get('/:cafeteriaId/day/:dayOfWeek', async (request: FastifyRequest<{ Params: { cafeteriaId: string; dayOfWeek: string } }>, reply: FastifyReply) => {
+  app.get('/:cafeteriaId/day/:dayOfWeek', async (request: FastifyRequest<{ Params: { cafeteriaId: string; dayOfWeek: string }; Querystring: { timeSlot?: string } }>, reply: FastifyReply) => {
     try {
       const decoded = await verifyAuth(request, reply);
       if (!decoded) return;
 
       const { cafeteriaId, dayOfWeek } = request.params;
+      const { timeSlot } = request.query as { timeSlot?: string };
       const day = parseInt(dayOfWeek);
 
       if (isNaN(day) || day < 1 || day > 7) {
         return reply.status(400).send({
           success: false,
           message: 'Dia de la semana invalido (1-7)',
+        });
+      }
+
+      // Validate time slot if provided
+      const validTimeSlots = ['breakfast', 'lunch', 'snack'];
+      if (timeSlot && !validTimeSlots.includes(timeSlot)) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Horario invalido. Use: breakfast, lunch, o snack',
         });
       }
 
@@ -157,13 +168,31 @@ export async function menuRoutes(app: FastifyInstance) {
         ],
       });
 
-      // Filter by available days
+      // Filter by available days and time slot
       const availableItems = allMenuItems.filter(item => {
         const days = JSON.parse(item.availableDays) as number[];
-        return days.includes(day);
+        if (!days.includes(day)) return false;
+
+        // If time slot is specified, also filter by it
+        if (timeSlot) {
+          try {
+            const timeSlots = JSON.parse((item as any).availableTimeSlots || '["breakfast","lunch","snack"]') as string[];
+            return timeSlots.includes(timeSlot);
+          } catch {
+            // If parsing fails, include the item (backward compatibility)
+            return true;
+          }
+        }
+
+        return true;
       });
 
       const dayNames = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+      const timeSlotLabels: Record<string, string> = {
+        breakfast: 'Desayuno (7:00-9:00)',
+        lunch: 'Almuerzo (12:00-14:00)',
+        snack: 'Once (15:00-17:00)',
+      };
 
       return reply.send({
         success: true,
@@ -175,6 +204,12 @@ export async function menuRoutes(app: FastifyInstance) {
           },
           dayOfWeek: day,
           dayName: dayNames[day],
+          timeSlot: timeSlot || null,
+          timeSlotLabel: timeSlot ? timeSlotLabels[timeSlot] : null,
+          availableTimeSlots: validTimeSlots.map(slot => ({
+            value: slot,
+            label: timeSlotLabels[slot],
+          })),
           items: availableItems.map(item => ({
             id: item.id,
             name: item.name,
@@ -184,6 +219,13 @@ export async function menuRoutes(app: FastifyInstance) {
             imageUrl: item.imageUrl,
             available: item.available,
             availableDays: JSON.parse(item.availableDays),
+            availableTimeSlots: (() => {
+              try {
+                return JSON.parse((item as any).availableTimeSlots || '["breakfast","lunch","snack"]');
+              } catch {
+                return ['breakfast', 'lunch', 'snack'];
+              }
+            })(),
           })),
           totalItems: availableItems.length,
         },

@@ -351,6 +351,28 @@ export default function RechargeScreen() {
               </Surface>
             )}
 
+            {/* Coupon Section - Placeholder */}
+            <Surface style={styles.section} elevation={1}>
+              <View style={styles.couponHeader}>
+                <View style={styles.couponTitleRow}>
+                  <MaterialCommunityIcons name="ticket-percent" size={24} color={colors.textSecondary} />
+                  <Text style={styles.sectionTitle}>Cupones de descuento</Text>
+                </View>
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>Proximamente</Text>
+                </View>
+              </View>
+              <View style={styles.couponPlaceholder}>
+                <MaterialCommunityIcons name="ticket-percent-outline" size={48} color={colors.border} />
+                <Text style={styles.couponPlaceholderText}>
+                  Pronto podras aplicar cupones de descuento en tus recargas
+                </Text>
+                <Text style={styles.couponPlaceholderHint}>
+                  Mantente atento a las promociones de tu colegio
+                </Text>
+              </View>
+            </Surface>
+
             {/* Payment Method */}
             <Surface style={styles.section} elevation={1}>
               <Text style={styles.sectionTitle}>Metodo de pago</Text>
@@ -746,5 +768,51 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderRadius: borderRadius.lg,
     width: '100%',
+  },
+  couponHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  couponTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.primary,
+    textTransform: 'uppercase',
+  },
+  couponPlaceholder: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderStyle: 'dashed',
+  },
+  couponPlaceholderText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  couponPlaceholderHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
   },
 });

@@ -74,6 +74,7 @@ export interface Student {
     expiresAt?: string;
   }>;
   isPrimary?: boolean;
+  updatedAt?: string; // Used for optimistic concurrency control
 }
 
 export interface CreateStudentData {
@@ -94,6 +95,7 @@ export interface UpdateStudentData {
   section?: string;
   photoUrl?: string;
   dailyLimit?: number;
+  updatedAt?: string; // For optimistic concurrency control
 }
 
 export interface RechargePackage {
@@ -504,7 +506,7 @@ class ApiService {
     }
   }
 
-  async updateStudent(studentId: string, data: UpdateStudentData, accessToken: string): Promise<ApiResponse<Student>> {
+  async updateStudent(studentId: string, data: UpdateStudentData, accessToken: string): Promise<ApiResponse<Student> & { code?: string }> {
     try {
       const response = await this.client.put<ApiResponse<Student>>(`/students/${studentId}`, data, {
         headers: {
@@ -513,6 +515,15 @@ class ApiService {
       });
       return response.data;
     } catch (error) {
+      // Handle 409 Conflict (concurrent modification)
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        const responseData = error.response.data as any;
+        return {
+          success: false,
+          message: responseData.message || 'El registro ha sido modificado por otro usuario',
+          code: responseData.code || 'CONCURRENT_MODIFICATION',
+        };
+      }
       if (error instanceof Error) {
         return { success: false, message: error.message };
       }
@@ -733,6 +744,55 @@ class ApiService {
     }
   }
 
+
+
+  // Stats interface
+  async getWalletStats(studentId: string, period: 'daily' | 'weekly' | 'monthly', accessToken: string): Promise<ApiResponse<{
+    period: string;
+    startDate: string;
+    endDate: string;
+    summary: {
+      totalSpent: number;
+      transactionCount: number;
+      averagePerTransaction: number;
+      currentBalance: number;
+    };
+    chartData: Array<{
+      label: string;
+      spent: number;
+      count: number;
+    }>;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        period: string;
+        startDate: string;
+        endDate: string;
+        summary: {
+          totalSpent: number;
+          transactionCount: number;
+          averagePerTransaction: number;
+          currentBalance: number;
+        };
+        chartData: Array<{
+          label: string;
+          spent: number;
+          count: number;
+        }>;
+      }>>(`/wallets/${studentId}/stats?period=${period}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener estadisticas' };
+    }
+  }
+
   // Menu endpoints
   async getMenu(cafeteriaId: string, accessToken: string): Promise<ApiResponse<{
     cafeteria: { id: string; name: string; schoolName: string };
@@ -758,21 +818,35 @@ class ApiService {
     }
   }
 
-  async getMenuByDay(cafeteriaId: string, dayOfWeek: number, accessToken: string): Promise<ApiResponse<{
+  async getMenuByDay(
+    cafeteriaId: string,
+    dayOfWeek: number,
+    accessToken: string,
+    timeSlot?: 'breakfast' | 'lunch' | 'snack'
+  ): Promise<ApiResponse<{
     cafeteria: { id: string; name: string; schoolName: string };
     dayOfWeek: number;
     dayName: string;
+    timeSlot: string | null;
+    timeSlotLabel: string | null;
+    availableTimeSlots: Array<{ value: string; label: string }>;
     items: MenuItem[];
     totalItems: number;
   }>> {
     try {
+      const url = timeSlot
+        ? `/menu/${cafeteriaId}/day/${dayOfWeek}?timeSlot=${timeSlot}`
+        : `/menu/${cafeteriaId}/day/${dayOfWeek}`;
       const response = await this.client.get<ApiResponse<{
         cafeteria: { id: string; name: string; schoolName: string };
         dayOfWeek: number;
         dayName: string;
+        timeSlot: string | null;
+        timeSlotLabel: string | null;
+        availableTimeSlots: Array<{ value: string; label: string }>;
         items: MenuItem[];
         totalItems: number;
-      }>>(`/menu/${cafeteriaId}/day/${dayOfWeek}`, {
+      }>>(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -939,6 +1013,30 @@ class ApiService {
         return { success: false, message: error.message };
       }
       return { success: false, message: 'Error al marcar notificaciones' };
+    }
+  }
+
+  // Export transactions as CSV
+  async exportTransactionsCsv(accessToken: string, studentId?: string): Promise<{ success: boolean; url?: string; message?: string }> {
+    try {
+      // For web, we need to construct the URL for download
+      const baseUrl = this.client.defaults.baseURL || API_URL;
+      let exportUrl = `${baseUrl}/orders/export/csv`;
+
+      // Add studentId filter if provided
+      if (studentId) {
+        exportUrl += `?studentId=${studentId}`;
+      }
+
+      return {
+        success: true,
+        url: exportUrl,
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al exportar transacciones' };
     }
   }
 }

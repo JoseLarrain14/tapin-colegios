@@ -24,6 +24,8 @@ export default function CafeteriaTab() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay() || 7);
+  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, 1 = next week, etc.
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<'breakfast' | 'lunch' | 'snack' | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [comments, setComments] = useState('');
@@ -36,16 +38,58 @@ export default function CafeteriaTab() {
   const dayNames = ['', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
   const fullDayNames = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
 
-  // Get next weekday date for pickup
+  // Get date for a specific day considering week offset
   const getPickupDate = useCallback((day: number): string => {
     const today = new Date();
     const currentDay = today.getDay() || 7;
     let daysToAdd = day - currentDay;
     if (daysToAdd <= 0) daysToAdd += 7;
+    daysToAdd += weekOffset * 7; // Add week offset
     const pickupDate = new Date(today);
     pickupDate.setDate(today.getDate() + daysToAdd);
     return pickupDate.toISOString();
-  }, []);
+  }, [weekOffset]);
+
+  // Get the start and end dates for the current week view
+  const getWeekDateRange = useCallback(() => {
+    const today = new Date();
+    const currentDay = today.getDay() || 7;
+
+    // Calculate Monday of the current/offset week
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (currentDay - 1) + (weekOffset * 7));
+
+    // Calculate Friday
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+
+    return { monday, friday };
+  }, [weekOffset]);
+
+  // Get date for a specific day in the current week view
+  const getDayDate = useCallback((day: number): Date => {
+    const { monday } = getWeekDateRange();
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + (day - 1)); // day 1 = Monday
+    return date;
+  }, [getWeekDateRange]);
+
+  // Format date for display
+  const formatShortDate = (date: Date): string => {
+    return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+  };
+
+  const handlePreviousWeek = () => {
+    if (weekOffset > 0) {
+      setWeekOffset(prev => prev - 1);
+    }
+  };
+
+  const handleNextWeek = () => {
+    if (weekOffset < 4) { // Limit to 4 weeks ahead
+      setWeekOffset(prev => prev + 1);
+    }
+  };
 
   // Load students and find cafeteria
   const loadData = useCallback(async () => {
@@ -125,11 +169,11 @@ export default function CafeteriaTab() {
     loadData();
   }, [loadData]);
 
-  const loadMenuForDay = async (cafeteriaId: string, day: number) => {
+  const loadMenuForDay = async (cafeteriaId: string, day: number, timeSlot?: 'breakfast' | 'lunch' | 'snack' | null) => {
     if (!accessToken) return;
 
     try {
-      const response = await apiService.getMenuByDay(cafeteriaId, day, accessToken);
+      const response = await apiService.getMenuByDay(cafeteriaId, day, accessToken, timeSlot || undefined);
       if (response.success && response.data) {
         setMenuItems(response.data.items);
         if (!cafeteria) {
@@ -145,6 +189,13 @@ export default function CafeteriaTab() {
     } catch (error) {
       console.error('Load menu error:', error);
       setMenuItems([]);
+    }
+  };
+
+  const handleTimeSlotSelect = async (timeSlot: 'breakfast' | 'lunch' | 'snack' | null) => {
+    setSelectedTimeSlot(timeSlot);
+    if (cafeteria) {
+      await loadMenuForDay(cafeteria.id, selectedDay, timeSlot);
     }
   };
 
@@ -454,9 +505,46 @@ export default function CafeteriaTab() {
           </Surface>
         )}
 
-        {/* Week selector */}
+        {/* Week selector with navigation */}
         <Surface style={styles.weekCard} elevation={1}>
-          <Text style={styles.weekTitle}>Selecciona el dia de retiro</Text>
+          {/* Week navigation header */}
+          <View style={styles.weekNavigation}>
+            <TouchableOpacity
+              onPress={handlePreviousWeek}
+              style={[styles.weekNavButton, weekOffset === 0 && styles.weekNavButtonDisabled]}
+              disabled={weekOffset === 0}
+            >
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={28}
+                color={weekOffset === 0 ? colors.textMuted : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.weekDateRange}>
+              <Text style={styles.weekTitle}>
+                {weekOffset === 0 ? 'Esta semana' : weekOffset === 1 ? 'Proxima semana' : `En ${weekOffset} semanas`}
+              </Text>
+              <Text style={styles.weekDates}>
+                {formatShortDate(getWeekDateRange().monday)} - {formatShortDate(getWeekDateRange().friday)}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleNextWeek}
+              style={[styles.weekNavButton, weekOffset >= 4 && styles.weekNavButtonDisabled]}
+              disabled={weekOffset >= 4}
+            >
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={28}
+                color={weekOffset >= 4 ? colors.textMuted : colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Day selector */}
+          <Text style={styles.daySelectionLabel}>Selecciona el dia de retiro</Text>
           <View style={styles.weekDays}>
             {[1, 2, 3, 4, 5].map((day) => (
               <TouchableOpacity
@@ -475,15 +563,106 @@ export default function CafeteriaTab() {
                 >
                   {dayNames[day]}
                 </Text>
+                <Text
+                  style={[
+                    styles.dayDateText,
+                    selectedDay === day && styles.dayDateTextActive,
+                  ]}
+                >
+                  {getDayDate(day).getDate()}
+                </Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </Surface>
+
+        {/* Time slot filter */}
+        <Surface style={styles.timeSlotCard} elevation={1}>
+          <Text style={styles.timeSlotTitle}>Horario de retiro</Text>
+          <View style={styles.timeSlotButtons}>
+            <TouchableOpacity
+              onPress={() => handleTimeSlotSelect(null)}
+              style={[
+                styles.timeSlotButton,
+                selectedTimeSlot === null && styles.timeSlotButtonActive,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={18}
+                color={selectedTimeSlot === null ? colors.textOnPrimary : colors.textSecondary}
+              />
+              <Text style={[
+                styles.timeSlotButtonText,
+                selectedTimeSlot === null && styles.timeSlotButtonTextActive,
+              ]}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleTimeSlotSelect('breakfast')}
+              style={[
+                styles.timeSlotButton,
+                selectedTimeSlot === 'breakfast' && styles.timeSlotButtonActive,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="coffee"
+                size={18}
+                color={selectedTimeSlot === 'breakfast' ? colors.textOnPrimary : colors.textSecondary}
+              />
+              <Text style={[
+                styles.timeSlotButtonText,
+                selectedTimeSlot === 'breakfast' && styles.timeSlotButtonTextActive,
+              ]}>
+                Desayuno
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleTimeSlotSelect('lunch')}
+              style={[
+                styles.timeSlotButton,
+                selectedTimeSlot === 'lunch' && styles.timeSlotButtonActive,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="food"
+                size={18}
+                color={selectedTimeSlot === 'lunch' ? colors.textOnPrimary : colors.textSecondary}
+              />
+              <Text style={[
+                styles.timeSlotButtonText,
+                selectedTimeSlot === 'lunch' && styles.timeSlotButtonTextActive,
+              ]}>
+                Almuerzo
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleTimeSlotSelect('snack')}
+              style={[
+                styles.timeSlotButton,
+                selectedTimeSlot === 'snack' && styles.timeSlotButtonActive,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="cookie"
+                size={18}
+                color={selectedTimeSlot === 'snack' ? colors.textOnPrimary : colors.textSecondary}
+              />
+              <Text style={[
+                styles.timeSlotButtonText,
+                selectedTimeSlot === 'snack' && styles.timeSlotButtonTextActive,
+              ]}>
+                Once
+              </Text>
+            </TouchableOpacity>
           </View>
         </Surface>
 
         {/* Menu items */}
         {menuItems.length > 0 ? (
           <View style={styles.menuSection}>
-            <Text style={styles.menuTitle}>Menu para {fullDayNames[selectedDay]}</Text>
+            <Text style={styles.menuTitle}>Menu para {fullDayNames[selectedDay]}{selectedTimeSlot ? ` - ${selectedTimeSlot === 'breakfast' ? 'Desayuno' : selectedTimeSlot === 'lunch' ? 'Almuerzo' : 'Once'}` : ''}</Text>
             {menuItems.map(item => (
               <Surface key={item.id} style={styles.menuItemCard} elevation={1}>
                 <View style={styles.menuItemContent}>
@@ -628,13 +807,82 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.card,
+    marginBottom: spacing.md,
+  },
+  timeSlotCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
     marginBottom: spacing.lg,
+  },
+  timeSlotTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  timeSlotButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  timeSlotButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    minWidth: 70,
+  },
+  timeSlotButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  timeSlotButtonText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  timeSlotButtonTextActive: {
+    color: colors.textOnPrimary,
+    fontWeight: '600',
+  },
+  weekNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  weekNavButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  weekNavButtonDisabled: {
+    opacity: 0.5,
+  },
+  weekDateRange: {
+    flex: 1,
+    alignItems: 'center',
   },
   weekTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  weekDates: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  daySelectionLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   weekDays: {
@@ -642,9 +890,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   dayButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 56,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
@@ -653,11 +901,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   dayText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.textSecondary,
   },
   dayTextActive: {
+    color: colors.textOnPrimary,
+  },
+  dayDateText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  dayDateTextActive: {
     color: colors.textOnPrimary,
   },
   menuSection: {

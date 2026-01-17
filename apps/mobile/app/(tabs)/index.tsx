@@ -275,14 +275,24 @@ export default function HomeTab() {
                     Ver detalles
                   </Button>
                   {selectedStudent.school.businessModel !== 'tickets_only' && (
-                    <Button
-                      mode="text"
-                      onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
-                      style={styles.historyButton}
-                      icon="history"
-                    >
-                      Ver historial
-                    </Button>
+                    <>
+                      <Button
+                        mode="text"
+                        onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
+                        style={styles.historyButton}
+                        icon="history"
+                      >
+                        Ver historial
+                      </Button>
+                      <Button
+                        mode="text"
+                        onPress={() => router.push(`/spending-stats?studentId=${selectedStudent.id}`)}
+                        style={styles.statsButton}
+                        icon="chart-bar"
+                      >
+                        Ver estadisticas
+                      </Button>
+                    </>
                   )}
                 </View>
               </Surface>
@@ -710,6 +720,9 @@ const styles = StyleSheet.create({
   },
   historyButton: {
     marginTop: spacing.sm,
+  },
+  statsButton: {
+    marginTop: spacing.xs,
   },
   // Quick Actions Styles
   quickActionsCard: {

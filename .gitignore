@@ -74,3 +74,6 @@ pnpm-debug.log*
 # Agent files (keep for development reference)
 # .agent.lock
 # .claude_settings.json
+
+# Auto Claude data directory
+.auto-claude/

@@ -16,6 +16,7 @@ import { walletsRoutes } from './routes/wallets.routes.js';
 import { menuRoutes } from './routes/menu.routes.js';
 import { paymentsRoutes } from './routes/payments.routes.js';
 import { ordersRoutes } from './routes/orders.routes.js';
+import { notificationsRoutes } from './routes/notifications.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,6 +105,7 @@ async function registerRoutes() {
   await app.register(menuRoutes, { prefix: '/api/v1/menu' });
   await app.register(paymentsRoutes, { prefix: '/api/v1/payments' });
   await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
+  await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
 }
 
 // Start server
