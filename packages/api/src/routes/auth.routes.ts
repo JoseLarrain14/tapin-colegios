@@ -29,10 +29,6 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
-const verifyResetTokenSchema = z.object({
-  token: z.string().min(1, 'Token is required'),
-});
-
 export async function authRoutes(app: FastifyInstance) {
   /**
    * POST /api/v1/auth/register

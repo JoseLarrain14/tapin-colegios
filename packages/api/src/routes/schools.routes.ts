@@ -113,7 +113,7 @@ export async function schoolsRoutes(app: FastifyInstance) {
    * GET /api/v1/schools
    * List all active schools
    */
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const schools = await prisma.school.findMany({
         where: { active: true },

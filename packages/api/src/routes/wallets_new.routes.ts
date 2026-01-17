@@ -644,3 +644,4 @@ export async function walletsRoutes(app: FastifyInstance) {
       });
     }
   });
+}

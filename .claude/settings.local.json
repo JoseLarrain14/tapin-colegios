@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:api:*)",
+      "Bash(npm run dev:mobile:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist /FI \"PID eq 45164\")",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx expo start:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout:*)",
+      "Bash(start http://localhost:8081)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cmd //c \"taskkill /PID 47444 /F\")",
+      "Bash(cmd //c \"taskkill /PID 36660 /F\")",
+      "WebFetch(domain:www.aitmpl.com)",
+      "Bash(npx claude-code-templates@latest --agent=development-team/frontend-developer --yes)",
+      "Bash(npx claude-code-templates@latest --agent=development-tools/code-reviewer --yes:*)",
+      "Bash(npx claude-code-templates@latest:*)",
+      "Bash(echo:*)",
+      "Bash(powershell:*)",
+      "Bash(npm run test:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)"
+    ]
+  }
+}

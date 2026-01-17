@@ -77,3 +77,23 @@ pnpm-debug.log*
 
 # Auto Claude data directory
 .auto-claude/
+
+# Temporales de Claude
+tmpclaude-*
+.agent.lock
+
+# Bases de datos locales
+*.db
+!packages/api/prisma/*.db
+
+# Archivos de prueba manual
+test-*.json
+*-test.json
+*.sql
+
+# Exports temporales
+*.csv
+
+# Configuración local de Claude
+.claude_assistant_settings.json
+.claude_settings.json

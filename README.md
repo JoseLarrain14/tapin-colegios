@@ -66,7 +66,7 @@ tap-in-colegios/
 │           ├── utils/       # Utilidades compartidas
 │           └── constants/   # Constantes compartidas
 ├── init.sh                  # Script de setup
-├── features.db              # Base de datos de features
+├── cleanup-plan.md          # Plan de limpieza del proyecto
 └── app_spec.txt             # Especificacion del proyecto
 ```
 

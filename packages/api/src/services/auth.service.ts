@@ -238,7 +238,7 @@ export class AuthService {
       },
     });
 
-    const resetLink = (config.appUrl || 'http://localhost:8081') + '/reset-password?token=' + resetToken;
+    const resetLink = 'http://localhost:8081/reset-password?token=' + resetToken;
     console.log('');
     console.log('========================================================================');
     console.log('              PASSWORD RESET REQUEST                                    ');
