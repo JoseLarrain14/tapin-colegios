@@ -65,8 +65,10 @@ tap-in-colegios/
 │           ├── types/       # Types compartidos
 │           ├── utils/       # Utilidades compartidas
 │           └── constants/   # Constantes compartidas
+├── .claude/                 # Configuracion de agentes Claude
+├── .playwright-mcp/         # Screenshots de pruebas UI
 ├── init.sh                  # Script de setup
-├── cleanup-plan.md          # Plan de limpieza del proyecto
+├── CHANGELOG.md             # Historial de cambios
 └── app_spec.txt             # Especificacion del proyecto
 ```
 
@@ -237,6 +239,15 @@ npm run lint:fix
 - El **RUT chileno** se valida con digito verificador
 - Los **pagos son mock** inicialmente, pero la arquitectura esta lista para pasarelas reales (Webpay, Flow, Fintoc)
 - La estructura para **cupones** esta preparada pero no implementada
+
+## Contribuir
+
+1. Crear una rama desde `master`
+2. Hacer cambios y asegurarse de que el build pasa: `npm run build --workspace=packages/api`
+3. Documentar cambios significativos en `CHANGELOG.md`
+4. Crear Pull Request
+
+Ver [CHANGELOG.md](./CHANGELOG.md) para el historial de cambios.
 
 ## Licencia
 
