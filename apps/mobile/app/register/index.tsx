@@ -29,7 +29,7 @@ export default function RegisterStep1() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <View style={styles.content}>
         {/* Progress indicator */}
         <View style={styles.progressContainer}>

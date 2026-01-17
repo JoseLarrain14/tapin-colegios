@@ -52,10 +52,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const inAuthGroup = segments[0] === 'register' || segments[0] === 'login';
     const isPublicRoute = segments[0] === 'forgot-password' || segments[0] === 'reset-password';
-    const isRoot = segments.length === 0 || (segments.length === 1 && segments[0] === '');
+    const isRoot = segments.length === 0;
 
     // Protected routes that require authentication
-    const protectedRoutes = ['home', 'profile', 'edit-profile', 'students', 'add-student', 'edit-student', 'cafeteria', '(tabs)'];
+    const protectedRoutes = ['profile', 'edit-profile', 'students', 'add-student', 'edit-student', 'cafeteria', '(tabs)'];
     const isProtectedRoute = protectedRoutes.includes(segments[0] as string);
     const isInTabs = segments[0] === '(tabs)';
 

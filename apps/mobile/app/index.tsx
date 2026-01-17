@@ -17,7 +17,7 @@ export default function SplashScreen() {
     // Check if user is already authenticated
     checkAuth().then((authenticated) => {
       if (authenticated) {
-        router.replace('/home');
+        router.replace('/(tabs)');
       }
     });
   }, []);

@@ -84,7 +84,7 @@ export default function RegisterStep5() {
     try {
       const response = await apiService.updatePreferredSchool(selectedId, accessToken);
       if (response.success) {
-        router.push('/home');
+        router.replace('/(tabs)');
       } else {
         Alert.alert('Error', response.message || 'Error al guardar colegio');
       }
@@ -97,7 +97,7 @@ export default function RegisterStep5() {
 
   const handleSkip = () => {
     // Allow skipping school selection - can be added later
-    router.push('/home');
+    router.replace('/(tabs)');
   };
 
   const renderSchoolItem = ({ item }: { item: School }) => {
@@ -130,7 +130,7 @@ export default function RegisterStep5() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         {/* Progress indicator */}

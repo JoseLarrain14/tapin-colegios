@@ -3,17 +3,15 @@ import { Text, Surface, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 export default function CouponsScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader title="Cupones" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Mis Cupones</Text>
-        </View>
 
         {/* Coming Soon Card */}
         <Surface style={styles.comingSoonCard} elevation={2}>

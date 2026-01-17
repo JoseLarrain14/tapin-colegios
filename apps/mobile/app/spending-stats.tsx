@@ -9,6 +9,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student } from '../src/services/api';
 import { formatCLP } from '../src/utils/dateFormat';
 import { NetworkError } from '../src/components/NetworkError';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -111,7 +112,8 @@ export default function SpendingStatsScreen() {
   // Network error state
   if (networkError) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Estadisticas de Gastos" />
         <NetworkError
           message={networkError}
           onRetry={handleRetry}
@@ -124,7 +126,8 @@ export default function SpendingStatsScreen() {
   // Loading state
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Estadisticas de Gastos" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando estadisticas...</Text>
@@ -139,7 +142,19 @@ export default function SpendingStatsScreen() {
     : 1;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Estadisticas de Gastos"
+        rightAction={
+          student ? (
+            <View style={{ paddingRight: spacing.sm }}>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'right' }}>
+                {student.firstName}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -152,24 +167,6 @@ export default function SpendingStatsScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Button
-            mode="text"
-            onPress={() => router.back()}
-            icon="arrow-left"
-            style={styles.backButton}
-            labelStyle={styles.backButtonLabel}
-          >
-            Volver
-          </Button>
-          <Text style={styles.title}>Estadisticas de Gasto</Text>
-          {student && (
-            <Text style={styles.subtitle}>
-              {student.firstName} {student.lastName}
-            </Text>
-          )}
-        </View>
 
         {/* Period Selector */}
         <View style={styles.periodSelector}>

@@ -9,6 +9,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { apiService, Payment } from '../src/services/api';
 import { formatCLP } from '../src/utils/dateFormat';
 import { NetworkError } from '../src/components/NetworkError';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 export default function PaymentHistoryScreen() {
   const router = useRouter();
@@ -143,7 +144,8 @@ export default function PaymentHistoryScreen() {
   // Network error state
   if (networkError) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Historial de Pagos" />
         <NetworkError
           message={networkError}
           onRetry={handleRetry}
@@ -156,7 +158,8 @@ export default function PaymentHistoryScreen() {
   // Loading state
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Historial de Pagos" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
@@ -166,7 +169,17 @@ export default function PaymentHistoryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Historial de Pagos"
+        rightAction={
+          <View style={{ paddingRight: spacing.sm }}>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+              {payments.length} {payments.length === 1 ? 'pago' : 'pagos'}
+            </Text>
+          </View>
+        }
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -179,22 +192,6 @@ export default function PaymentHistoryScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Button
-            mode="text"
-            onPress={() => router.back()}
-            icon="arrow-left"
-            style={styles.backButton}
-            labelStyle={styles.backButtonLabel}
-          >
-            Volver
-          </Button>
-          <Text style={styles.title}>Historial de Pagos</Text>
-          <Text style={styles.subtitle}>
-            {payments.length} {payments.length === 1 ? 'pago' : 'pagos'} registrados
-          </Text>
-        </View>
 
         {/* Payment Details Modal/Overlay */}
         {selectedPayment && (

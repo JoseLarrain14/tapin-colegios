@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
 import { apiService, School } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 // RUT validation utilities
 function cleanRut(rut: string): string {
@@ -261,7 +262,8 @@ export default function AddStudentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader title="Agregar Estudiante" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -271,17 +273,6 @@ export default function AddStudentScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <IconButton
-              icon="arrow-left"
-              size={24}
-              onPress={() => router.back()}
-              style={styles.backButton}
-            />
-            <Text style={styles.title}>Agregar Estudiante</Text>
-            <View style={styles.headerSpacer} />
-          </View>
 
           {/* Form */}
           <Surface style={styles.formCard} elevation={1}>
@@ -374,7 +365,7 @@ export default function AddStudentScreen() {
                     <Button
                       mode="outlined"
                       onPress={() => setSchoolMenuVisible(true)}
-                      style={[styles.selectButton, errors.school && styles.selectButtonError]}
+                      style={[styles.selectButton, errors.school ? styles.selectButtonError : undefined]}
                       contentStyle={styles.selectButtonContent}
                       labelStyle={styles.selectButtonLabel}
                       icon="school"

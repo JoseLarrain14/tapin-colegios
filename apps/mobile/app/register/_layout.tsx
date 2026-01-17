@@ -14,7 +14,7 @@ export default function RegisterLayout() {
           fontWeight: '600',
           color: colors.textPrimary,
         },
-        headerShadowVisible: false,
+        headerShadowVisible: true,
         animation: 'slide_from_right',
       }}
     >
@@ -28,21 +28,28 @@ export default function RegisterLayout() {
       <Stack.Screen
         name="step2"
         options={{
-          title: 'Registro',
+          title: 'Datos Personales',
           headerBackTitle: 'Volver',
         }}
       />
       <Stack.Screen
         name="step3"
         options={{
-          title: 'Registro',
+          title: 'Contrasena',
           headerBackTitle: 'Volver',
         }}
       />
       <Stack.Screen
         name="step4"
         options={{
-          title: 'Registro',
+          title: 'Confirmar',
+          headerBackTitle: 'Volver',
+        }}
+      />
+      <Stack.Screen
+        name="step5"
+        options={{
+          title: 'Seleccionar Colegio',
           headerBackTitle: 'Volver',
         }}
       />

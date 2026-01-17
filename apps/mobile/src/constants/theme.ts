@@ -15,6 +15,7 @@ export const colors = {
   // Text colors
   textPrimary: '#1A1A1A',
   textSecondary: '#666666',
+  textTertiary: '#999999',
   textMuted: '#999999',
   textOnPrimary: '#FFFFFF',
 
@@ -52,6 +53,7 @@ export const borderRadius = {
   lg: 12,
   xl: 16,
   round: 999,
+  full: 9999,
 } as const;
 
 export const typography = {

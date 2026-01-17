@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student, RechargePackage } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 type PaymentMethod = 'credit_card' | 'debit_card' | 'transfer';
 
@@ -149,7 +150,8 @@ export default function RechargeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Recargar Saldo" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando...</Text>
@@ -160,7 +162,8 @@ export default function RechargeScreen() {
 
   if (success) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Recargar Saldo" showBackButton={false} />
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <Surface style={styles.successCard} elevation={2}>
             <View style={styles.successIconContainer}>
@@ -216,16 +219,8 @@ export default function RechargeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recargar saldo</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader title="Recargar Saldo" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {error ? (
           <Surface style={styles.errorCard} elevation={1}>

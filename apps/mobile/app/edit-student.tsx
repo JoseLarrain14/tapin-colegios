@@ -8,6 +8,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student, School } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
 import { ConfirmModal, AlertModal } from '../src/components';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 // RUT validation utilities (same as add-student)
 function cleanRut(rut: string): string {
@@ -365,7 +366,6 @@ export default function EditStudentScreen() {
         {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          rut: formatRut(rut),
           schoolId: selectedSchool!.id,
           grade: grade || undefined,
           section: section || undefined,
@@ -460,12 +460,11 @@ export default function EditStudentScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <IconButton icon="arrow-left" size={24} onPress={handleBack} />
-          <Text style={styles.title}>Editar Estudiante</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader
+          title="Editar Estudiante"
+          showBackButton={true}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando datos...</Text>
@@ -475,7 +474,20 @@ export default function EditStudentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Editar Estudiante"
+        showBackButton={true}
+        rightAction={
+          <IconButton
+            icon="delete"
+            size={24}
+            onPress={handleDelete}
+            iconColor={colors.error}
+            disabled={deleting || saving}
+          />
+        }
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -485,23 +497,6 @@ export default function EditStudentScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <IconButton
-              icon="arrow-left"
-              size={24}
-              onPress={handleBack}
-              style={styles.backButton}
-            />
-            <Text style={styles.title}>Editar Estudiante</Text>
-            <IconButton
-              icon="delete"
-              size={24}
-              onPress={handleDelete}
-              iconColor={colors.error}
-              disabled={deleting || saving}
-            />
-          </View>
 
           {/* Form */}
           <Surface style={styles.formCard} elevation={1}>
@@ -624,7 +619,7 @@ export default function EditStudentScreen() {
                   <Button
                     mode="outlined"
                     onPress={() => setSchoolMenuVisible(true)}
-                    style={[styles.selectButton, errors.school && styles.selectButtonError]}
+                    style={[styles.selectButton, errors.school ? styles.selectButtonError : undefined]}
                     contentStyle={styles.selectButtonContent}
                     labelStyle={styles.selectButtonLabel}
                     icon="school"

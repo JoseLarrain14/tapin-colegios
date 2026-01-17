@@ -9,6 +9,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student, WalletLog } from '../src/services/api';
 import { formatDateTime, formatCLP } from '../src/utils/dateFormat';
 import { NetworkError } from '../src/components/NetworkError';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 export default function WalletHistoryScreen() {
   const router = useRouter();
@@ -121,7 +122,8 @@ export default function WalletHistoryScreen() {
   // Network error state
   if (networkError) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Historial de Billetera" />
         <NetworkError
           message={networkError}
           onRetry={handleRetry}
@@ -134,7 +136,8 @@ export default function WalletHistoryScreen() {
   // Loading state
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Historial de Billetera" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
@@ -144,7 +147,19 @@ export default function WalletHistoryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Historial de Billetera"
+        rightAction={
+          student ? (
+            <View style={{ paddingRight: spacing.sm }}>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'right' }}>
+                {student.firstName}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -157,24 +172,6 @@ export default function WalletHistoryScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Button
-            mode="text"
-            onPress={() => router.back()}
-            icon="arrow-left"
-            style={styles.backButton}
-            labelStyle={styles.backButtonLabel}
-          >
-            Volver
-          </Button>
-          <Text style={styles.title}>Historial de Saldo</Text>
-          {student && (
-            <Text style={styles.subtitle}>
-              {student.firstName} {student.lastName}
-            </Text>
-          )}
-        </View>
 
         {/* Current Balance Card */}
         <Surface style={styles.balanceCard} elevation={2}>

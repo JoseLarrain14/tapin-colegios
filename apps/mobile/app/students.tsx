@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
 import { apiService, Student } from '../src/services/api';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
+import ScreenHeader from '../src/components/ScreenHeader';
 
 export default function StudentsScreen() {
   const router = useRouter();
@@ -84,16 +85,8 @@ export default function StudentsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            onPress={() => router.back()}
-          />
-          <Text style={styles.title}>Mis Estudiantes</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Mis Estudiantes" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando estudiantes...</Text>
@@ -103,16 +96,8 @@ export default function StudentsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          size={24}
-          onPress={() => router.back()}
-        />
-        <Text style={styles.title}>Mis Estudiantes</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader title="Mis Estudiantes" />
 
       <ScrollView
         style={styles.scrollView}

@@ -5,27 +5,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, spacing, borderRadius } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
-import { apiService } from '../src/services/api';
+import { apiService, Notification as AppNotification } from '../src/services/api';
 import { formatDateTime, formatRelativeTime } from '../src/utils/dateFormat';
-
-interface Notification {
-  id: string;
-  title: string;
-  body: string;
-  data: {
-    type: string;
-    [key: string]: any;
-  } | null;
-  read: boolean;
-  createdAt: string;
-}
+import ScreenHeader from '../src/components/ScreenHeader';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const loadNotifications = useCallback(async () => {
     if (!accessToken) return;
@@ -58,7 +47,7 @@ export default function NotificationsScreen() {
     loadNotifications();
   };
 
-  const handleNotificationPress = async (notification: Notification) => {
+  const handleNotificationPress = async (notification: AppNotification) => {
     // Mark as read if not already
     if (!notification.read && accessToken) {
       await apiService.markNotificationRead(notification.id, accessToken);
@@ -102,7 +91,8 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader title="Notificaciones" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando notificaciones...</Text>
@@ -112,26 +102,22 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <IconButton
-            icon="arrow-left"
-            onPress={() => router.back()}
-            iconColor={colors.textPrimary}
-          />
-          <Text style={styles.title}>Notificaciones</Text>
-          {unreadCount > 0 && (
-            <Badge style={styles.badge}>{unreadCount}</Badge>
-          )}
-        </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton}>
-            <Text style={styles.markAllText}>Marcar todas como leidas</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Notificaciones"
+        rightAction={
+          unreadCount > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Badge style={styles.badge}>{unreadCount}</Badge>
+              <TouchableOpacity onPress={handleMarkAllRead} style={{ marginLeft: spacing.xs }}>
+                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '500' }}>
+                  Marcar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
+      />
 
       <ScrollView
         style={styles.scrollView}

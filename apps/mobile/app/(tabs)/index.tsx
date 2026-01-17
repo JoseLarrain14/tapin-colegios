@@ -655,9 +655,6 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   limitContainer: {
-    color: colors.textSecondary,
-  },
-  limitContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

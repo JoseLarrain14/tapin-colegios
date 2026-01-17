@@ -41,7 +41,7 @@ export default function LoginScreen() {
 
     try {
       await login(email.trim().toLowerCase(), password);
-      router.replace('/home');
+      router.replace('/(tabs)');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesion';
       setLoginError(message);
