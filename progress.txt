@@ -1,0 +1,116 @@
+# Ralph Progress Log
+Started: 2026-01-19
+
+## Project Context
+- Casino escolar: sistema de tickets para almuerzos
+- Tech stack: Fastify API, React Native mobile, Next.js admin
+- Database: SQLite + Prisma
+
+## Key Files
+- API routes: packages/api/src/routes/
+- Admin panel: apps/admin/app/(dashboard)/
+- Mobile app: apps/mobile/app/
+- Prisma schema: packages/api/prisma/schema.prisma
+
+## Existing Patterns
+- Validation with Zod schemas
+- JWT auth with refresh tokens
+- Roles: guardian, school_admin, super_admin, cafeteria_operator
+- Admin auth stored in localStorage
+
+## Learnings
+
+### Iteration 1 - US-001: Admin ve estudiantes
+- Created `packages/api/src/routes/admin.routes.ts` for admin-specific endpoints
+- Pattern: Use `verifyAuth()` helper to check JWT, then check role manually
+- For school_admin, get schoolId from `SchoolAdmin` table via `getSchoolAdminSchoolId()`
+- Token decoded object has: `{ userId, role, schoolId? }`
+- SQLite doesn't support case-insensitive search natively, use `contains` for basic search
+- Fixed pre-existing TS error in stats.routes.ts (unused variable)
+
+### Iteration 1 - US-002: Admin crea estudiante
+- Added POST /api/v1/admin/students endpoint
+- RUT validation functions copied from students.routes.ts (should be extracted to shared utils)
+- Use prisma.$transaction for atomic student + wallet creation
+- Check RUT uniqueness within school only (same RUT can exist in different schools)
+
+### Iteration 1 - US-003: Panel Admin - Página estudiantes
+- Updated students page to use /admin/students endpoint
+- Added `adminStudents` methods to apiClient in api.ts
+- Added "Agregar Estudiante" button with modal form
+- Form validates on server, shows error messages
+- Uses useMutation with queryClient.invalidateQueries for refresh
+
+### Iteration 1 - US-006: Verificar página de paquetes funciona
+- Added GET /admin/config endpoint to return school and cafeteria for admin
+- Updated packages page to fetch cafeteriaId dynamically instead of hardcoded 'demo-cafeteria'
+- Updated packages/new page similarly with cafeteriaId from URL or config
+- Fixed Next.js build error: useSearchParams() must be wrapped in Suspense boundary
+- Pattern: Extract component using useSearchParams into separate function, wrap in Suspense in default export
+
+### Iteration 1 - US-007: Apoderado ve y compra paquetes
+- Mobile recharge screen already existed with good UI
+- Issue: Mobile passed schoolId but API expected cafeteriaId
+- Added GET /payments/packages/school/:schoolId endpoint to find cafeteria by school
+- Added getRechargePackagesBySchool() method to mobile apiService
+- Updated recharge.tsx to use the new method
+- Payment flow works: mock gateway, adds tickets to StudentTicket table
+
+### Iteration 1 - US-008: Vista POS para operador del casino
+- Created /dashboard/pos page in admin panel
+- Large search input with debounced search (300ms)
+- Uses existing /admin/students endpoint with search
+- StudentCard component shows: avatar/initials, name, RUT, grade, tickets count
+- Tablet-optimized design with large fonts, big touch targets
+- Added Utensils icon to navigation
+
+### Iteration 1 - US-009: Operador marca consumo de ticket
+- Added POST /api/v1/casino/consume endpoint
+- Added GET /api/v1/casino/consumptions endpoint for history
+- casino.routes.ts already existed, added new endpoints
+- Uses authenticate + requireRole middleware pattern
+- Creates Transaction record with ticketsUsed JSON field
+- Updated POS page with consume button and success state
+- Green confirmation message after consume, auto-clears after 3s
+- Button disabled if no tickets available
+
+### Iteration 1 - US-010: Historial de consumos del día en POS
+- Added history table below search in POS page
+- Shows: hora, estudiante, RUT, curso, ticket type
+- Uses GET /casino/consumptions endpoint
+- Auto-refreshes every 30 seconds + on consume
+- Counter badge shows total consumptions today
+
+### Iteration 1 - US-011: Home muestra tickets disponibles
+- ALREADY IMPLEMENTED - Found existing code in mobile home page
+- API students.routes.ts returns tickets array (lines 374-378, 479-483)
+- Mobile home shows tickets section with type badges (lines 239-258)
+- Shows "Sin tickets disponibles" when empty
+- Updates on focus (useFocusEffect)
+
+### Iteration 1 - US-012: Apoderado vincula estudiante existente
+- Added GET /api/v1/students/search-by-rut/:rut endpoint
+- Added POST /api/v1/students/link endpoint for linking
+- Mobile api.ts: searchStudentByRut() and linkStudent() methods
+- Updated add-student.tsx with mode toggle (SegmentedButtons)
+- Create mode: existing form for creating new student
+- Link mode: search by RUT, show student preview, vincular button
+- Uses React Native Paper components: SegmentedButtons, Avatar
+- Pattern: Fragment (<></>) required to wrap multiple elements in JSX conditional
+
+### Iteration 1 - US-004: Admin importa estudiantes desde Excel
+- Added POST /api/v1/admin/students/import endpoint
+- Installed xlsx and csv-parse libraries for file parsing
+- Registered @fastify/multipart for admin routes (5MB limit)
+- Supports CSV and XLSX/XLS file formats
+- Validates RUTs, required fields, and checks for duplicates
+- Returns detailed summary: total, created, duplicates, errors
+- Uses prisma.$transaction for batch creation with wallets
+
+### Iteration 1 - US-005: Panel Admin - Botón importar Excel
+- Added "Importar Excel" button next to "Agregar Estudiante"
+- Import modal with file selector (CSV/XLSX/XLS)
+- Shows format instructions with expected columns
+- Import progress indicator during processing
+- Results display: created count, duplicates list, error details
+- Added import() method to apiClient.adminStudents with FormData

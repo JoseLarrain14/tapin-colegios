@@ -1,0 +1,174 @@
+{
+  "projectName": "Sistema de Casino Escolar Funcional",
+  "branchName": "feature/casino-funcional",
+  "description": "Completar el sistema de casino escolar para que sea funcional end-to-end. Admin crea paquetes → apoderado compra tickets → estudiante usa tickets en casino.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Admin ve estudiantes de su colegio",
+      "description": "Crear endpoint GET /api/v1/admin/students que retorne estudiantes del colegio del admin logueado. Incluir nombre, RUT, curso, sección y saldo/tickets. Soportar búsqueda por nombre/RUT y paginación. Solo accesible por school_admin o super_admin.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Endpoint GET /api/v1/admin/students retorna estudiantes del colegio del admin",
+        "Solo accesible por school_admin o super_admin",
+        "Incluye: nombre, RUT, curso, sección, saldo/tickets actuales",
+        "Búsqueda por nombre o RUT con query param ?search=",
+        "Paginación con ?page= y ?limit="
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Admin crea estudiante manualmente",
+      "description": "Crear endpoint POST /api/v1/admin/students para crear estudiante en el colegio del admin. Validar RUT único, crear wallet automáticamente con saldo 0.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Endpoint POST /api/v1/admin/students crea estudiante en el colegio del admin",
+        "Campos requeridos: RUT, nombre, apellido, curso, sección",
+        "Valida que el RUT no exista ya en el colegio",
+        "Crea wallet automáticamente con saldo 0",
+        "Retorna el estudiante creado"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Panel Admin - Página de estudiantes",
+      "description": "Crear página /dashboard/students en el panel admin con tabla de estudiantes, búsqueda, y botón para agregar estudiante.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Página /dashboard/students existe y muestra tabla de estudiantes",
+        "Columnas: Nombre, RUT, Curso, Sección, Tickets/Saldo",
+        "Campo de búsqueda por nombre o RUT funciona",
+        "Botón Agregar estudiante abre modal/formulario",
+        "Formulario permite crear estudiante con los campos requeridos"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Admin importa estudiantes desde Excel",
+      "description": "Crear endpoint POST /api/v1/admin/students/import que acepte archivo Excel/CSV con estudiantes. Validar RUTs, reportar errores, crear wallets.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Endpoint POST /api/v1/admin/students/import acepta archivo multipart",
+        "Soporta formato CSV y XLSX",
+        "Columnas esperadas: RUT, Nombre, Apellido, Curso, Sección",
+        "Valida RUTs duplicados y reporta errores por fila",
+        "Crea wallets automáticamente para cada estudiante",
+        "Retorna resumen: total, creados, errores, duplicados"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Panel Admin - Botón importar Excel",
+      "description": "Agregar botón Importar Excel en página de estudiantes que permita subir archivo y muestre resultado.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Botón Importar Excel visible en página /dashboard/students",
+        "Al hacer clic abre selector de archivo (CSV/XLSX)",
+        "Muestra progreso de importación",
+        "Muestra resumen al terminar: creados, errores",
+        "Lista errores específicos por fila si los hay"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Verificar página de paquetes funciona",
+      "description": "Verificar que /dashboard/packages funciona correctamente para crear, editar y eliminar paquetes de tickets.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Página /dashboard/packages muestra lista de paquetes",
+        "Formulario de crear paquete tiene: nombre, precio, cantidad de tickets",
+        "Puede crear paquete ejemplo: Almuerzo diario $5000, 1 ticket",
+        "Puede editar paquete existente",
+        "Puede eliminar paquete"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-007",
+      "title": "Apoderado ve y compra paquetes",
+      "description": "Verificar/completar pantalla de recarga en app móvil para que muestre paquetes del colegio y permita comprarlos.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Pantalla de recarga muestra paquetes disponibles del colegio del estudiante",
+        "Cada paquete muestra: nombre, precio, tickets incluidos",
+        "Al seleccionar paquete muestra confirmación",
+        "Botón confirmar procesa pago (mock)",
+        "Actualiza tickets del estudiante y muestra confirmación"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-008",
+      "title": "Vista POS para operador del casino",
+      "description": "Crear página /dashboard/pos optimizada para tablet con campo de búsqueda grande y resultados claros.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Página /dashboard/pos existe y es accesible",
+        "Campo de búsqueda grande y prominente",
+        "Busca por RUT o nombre al escribir",
+        "Resultados muestran: nombre, RUT, curso, tickets disponibles",
+        "Diseño optimizado para tablet: botones grandes, texto legible"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-009",
+      "title": "Operador marca consumo de ticket",
+      "description": "Agregar botón Marcar consumo en la vista POS que descuente 1 ticket y registre la transacción.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Botón Marcar consumo visible junto a cada resultado de búsqueda",
+        "Al hacer clic descuenta 1 ticket del estudiante",
+        "Muestra tickets restantes después del consumo",
+        "Registra transacción en base de datos con fecha/hora",
+        "Confirmación visual clara (verde) al marcar consumo"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-010",
+      "title": "Historial de consumos del día en POS",
+      "description": "Mostrar lista de consumos registrados hoy en la página POS con opción de anular.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Lista de consumos del día visible en página POS",
+        "Cada entrada muestra: hora, nombre estudiante, tickets restantes",
+        "Botón para anular último consumo (revierte el descuento)",
+        "Lista se actualiza en tiempo real al marcar consumos"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-011",
+      "title": "Home muestra tickets disponibles",
+      "description": "Mostrar cantidad de tickets disponibles en la pantalla home de la app móvil.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Card en home muestra Tickets: X disponibles",
+        "Se actualiza después de comprar paquetes",
+        "Se actualiza después de consumos en casino",
+        "Diseño claro y visible"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-012",
+      "title": "Apoderado vincula estudiante existente",
+      "description": "Permitir que un apoderado vincule un estudiante que ya existe en el sistema del colegio.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "En Agregar estudiante hay opción de buscar estudiante existente",
+        "Búsqueda por RUT muestra estudiante si existe en algún colegio",
+        "Botón Vincular crea relación GuardianStudent",
+        "No duplica el estudiante si ya existe",
+        "Muestra error si el estudiante ya está vinculado al apoderado"
+      ],
+      "passes": true
+    }
+  ]
+}

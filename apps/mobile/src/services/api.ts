@@ -474,6 +474,65 @@ class ApiService {
     }
   }
 
+  // Search for existing student by RUT (for linking)
+  async searchStudentByRut(rut: string, accessToken: string): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    rut: string;
+    grade?: string;
+    section?: string;
+    photoUrl?: string;
+    school: { id: string; name: string; code: string };
+  }>> {
+    try {
+      const response = await this.client.get(`/students/search-by-rut/${encodeURIComponent(rut)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        return error.response.data;
+      }
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al buscar estudiante' };
+    }
+  }
+
+  // Link an existing student to the guardian
+  async linkStudent(studentId: string, accessToken: string): Promise<ApiResponse<{
+    id: string;
+    student: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      rut: string;
+      school: { id: string; name: string };
+    };
+    isPrimary: boolean;
+  }>> {
+    try {
+      const response = await this.client.post('/students/link', { studentId }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        return error.response.data;
+      }
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al vincular estudiante' };
+    }
+  }
+
   async getStudents(accessToken: string): Promise<ApiResponse<Student[]>> {
     try {
       const response = await this.client.get<ApiResponse<Student[]>>('/students', {
@@ -621,6 +680,31 @@ class ApiService {
         packages: RechargePackage[];
         totalPackages: number;
       }>>(`/payments/packages/${cafeteriaId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener paquetes de recarga' };
+    }
+  }
+
+  // Get packages by school ID (for mobile app)
+  async getRechargePackagesBySchool(schoolId: string, accessToken: string): Promise<ApiResponse<{
+    cafeteria: { id: string; name: string; schoolName: string };
+    packages: RechargePackage[];
+    totalPackages: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        cafeteria: { id: string; name: string; schoolName: string };
+        packages: RechargePackage[];
+        totalPackages: number;
+      }>>(`/payments/packages/school/${schoolId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { Text, TextInput, Button, Surface, HelperText, IconButton, Menu, Divider, ActivityIndicator, Snackbar, SegmentedButtons, Avatar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
@@ -60,7 +60,7 @@ function validateRutDetailed(rut: string): RutValidationResult {
 
   const calculatedDigit = calculateVerificationDigit(rutNumber);
   if (providedDigit !== calculatedDigit) {
-    return { valid: false, error: 'digit', message: 'El digito verificador es incorrecto (deberia ser ' + calculatedDigit + ')' };
+    return { valid: false, error: 'digit', message: 'El digito verificador es incorrecto. Por favor verifica el RUT.' };
   }
 
   return { valid: true };
@@ -104,11 +104,31 @@ const GRADES = [
 
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+interface SearchedStudent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  rut: string;
+  grade?: string;
+  section?: string;
+  photoUrl?: string;
+  school: { id: string; name: string; code: string };
+}
+
 export default function AddStudentScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
 
-  // Form state
+  // Mode state
+  const [mode, setMode] = useState<'create' | 'link'>('create');
+
+  // Link mode state
+  const [searchRut, setSearchRut] = useState('');
+  const [searchedStudent, setSearchedStudent] = useState<SearchedStudent | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [linking, setLinking] = useState(false);
+
+  // Form state (for create mode)
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rut, setRut] = useState('');
@@ -208,6 +228,57 @@ export default function AddStudentScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle search for existing student
+  const handleSearchStudent = async () => {
+    if (!accessToken) {
+      showSnackbar('Debes iniciar sesion', 'error');
+      return;
+    }
+
+    const rutValidation = validateRutDetailed(searchRut);
+    if (!rutValidation.valid) {
+      setErrors({ searchRut: rutValidation.message || 'RUT invalido' });
+      return;
+    }
+
+    setSearching(true);
+    setSearchedStudent(null);
+    setErrors({});
+
+    try {
+      const response = await apiService.searchStudentByRut(formatRut(searchRut), accessToken);
+      if (response.success && response.data) {
+        setSearchedStudent(response.data);
+      } else {
+        showSnackbar(response.message || 'Estudiante no encontrado', 'error');
+      }
+    } catch (error) {
+      showSnackbar('Error al buscar estudiante', 'error');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Handle link student
+  const handleLinkStudent = async () => {
+    if (!accessToken || !searchedStudent) return;
+
+    setLinking(true);
+    try {
+      const response = await apiService.linkStudent(searchedStudent.id, accessToken);
+      if (response.success) {
+        showSnackbar(response.message || 'Estudiante vinculado exitosamente', 'success');
+        setTimeout(() => router.back(), 1500);
+      } else {
+        showSnackbar(response.message || 'Error al vincular estudiante', 'error');
+      }
+    } catch (error) {
+      showSnackbar('Error al vincular estudiante', 'error');
+    } finally {
+      setLinking(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // Ref-based guard to prevent double-click submission
     if (isSubmittingRef.current) {
@@ -274,7 +345,121 @@ export default function AddStudentScreen() {
           showsVerticalScrollIndicator={false}
         >
 
-          {/* Form */}
+          {/* Mode Toggle */}
+          <Surface style={styles.modeToggleCard} elevation={1}>
+            <SegmentedButtons
+              value={mode}
+              onValueChange={(value) => {
+                setMode(value as 'create' | 'link');
+                setErrors({});
+                setSearchedStudent(null);
+                setSearchRut('');
+              }}
+              buttons={[
+                { value: 'create', label: 'Crear Nuevo', icon: 'account-plus' },
+                { value: 'link', label: 'Vincular Existente', icon: 'link' },
+              ]}
+              style={styles.segmentedButtons}
+            />
+          </Surface>
+
+          {/* Link Mode */}
+          {mode === 'link' && (
+            <Surface style={styles.formCard} elevation={1}>
+              <Text style={styles.sectionTitle}>Buscar Estudiante por RUT</Text>
+              <Text style={styles.sectionDescription}>
+                Ingresa el RUT del estudiante que deseas vincular a tu cuenta
+              </Text>
+
+              {/* Search RUT Input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    label="RUT del Estudiante"
+                    value={searchRut}
+                    onChangeText={(text) => {
+                      setSearchRut(text.replace(/[^0-9kK\-.]/g, '').toUpperCase());
+                      if (errors.searchRut) setErrors({});
+                    }}
+                    onBlur={() => {
+                      if (searchRut.length >= 8) {
+                        setSearchRut(formatRut(searchRut));
+                      }
+                    }}
+                    mode="outlined"
+                    error={!!errors.searchRut}
+                    style={[styles.input, styles.searchInput]}
+                    placeholder="12.345.678-9"
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.primary}
+                    autoCapitalize="characters"
+                  />
+                  <Button
+                    mode="contained"
+                    onPress={handleSearchStudent}
+                    loading={searching}
+                    disabled={searching || searchRut.length < 8}
+                    style={styles.searchButton}
+                    contentStyle={styles.searchButtonContent}
+                  >
+                    Buscar
+                  </Button>
+                </View>
+                {errors.searchRut && (
+                  <HelperText type="error" visible={true}>
+                    {errors.searchRut}
+                  </HelperText>
+                )}
+              </View>
+
+              {/* Searched Student Result */}
+              {searchedStudent && (
+                <Surface style={styles.studentCard} elevation={2}>
+                  <View style={styles.studentHeader}>
+                    {searchedStudent.photoUrl ? (
+                      <Avatar.Image size={60} source={{ uri: searchedStudent.photoUrl }} />
+                    ) : (
+                      <Avatar.Text
+                        size={60}
+                        label={`${searchedStudent.firstName[0]}${searchedStudent.lastName[0]}`}
+                        style={styles.avatar}
+                      />
+                    )}
+                    <View style={styles.studentInfo}>
+                      <Text style={styles.studentName}>
+                        {searchedStudent.firstName} {searchedStudent.lastName}
+                      </Text>
+                      <Text style={styles.studentRut}>RUT: {searchedStudent.rut}</Text>
+                      {(searchedStudent.grade || searchedStudent.section) && (
+                        <Text style={styles.studentGrade}>
+                          {searchedStudent.grade}{searchedStudent.section ? ` - ${searchedStudent.section}` : ''}
+                        </Text>
+                      )}
+                      <View style={styles.schoolBadge}>
+                        <Text style={styles.schoolBadgeText}>{searchedStudent.school.name}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <Button
+                    mode="contained"
+                    onPress={handleLinkStudent}
+                    loading={linking}
+                    disabled={linking}
+                    style={styles.linkButton}
+                    contentStyle={styles.linkButtonContent}
+                    icon="link"
+                  >
+                    {linking ? 'Vinculando...' : 'Vincular a mi cuenta'}
+                  </Button>
+                </Surface>
+              )}
+            </Surface>
+          )}
+
+          {/* Create Mode - Form */}
+          {mode === 'create' && (
+          <>
           <Surface style={styles.formCard} elevation={1}>
             <Text style={styles.sectionTitle}>Datos del Estudiante</Text>
 
@@ -530,6 +715,8 @@ export default function AddStudentScreen() {
           >
             {loading ? 'Guardando...' : 'Agregar Estudiante'}
           </Button>
+          </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -663,5 +850,90 @@ const styles = StyleSheet.create({
   },
   snackbarError: {
     backgroundColor: colors.error,
+  },
+  // Mode toggle styles
+  modeToggleCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    marginBottom: spacing.lg,
+  },
+  segmentedButtons: {
+    backgroundColor: colors.background,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  // Search styles
+  searchRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  searchInput: {
+    flex: 1,
+  },
+  searchButton: {
+    marginTop: 6,
+    backgroundColor: colors.primary,
+  },
+  searchButtonContent: {
+    height: 44,
+  },
+  // Student card styles
+  studentCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    marginTop: spacing.md,
+  },
+  studentHeader: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  avatar: {
+    backgroundColor: colors.primary,
+  },
+  studentInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  studentName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  studentRut: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  studentGrade: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  schoolBadge: {
+    backgroundColor: colors.primaryLight || colors.primary + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  schoolBadgeText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  linkButton: {
+    backgroundColor: colors.success,
+    borderRadius: borderRadius.md,
+  },
+  linkButtonContent: {
+    height: 48,
   },
 });

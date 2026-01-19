@@ -738,4 +738,255 @@ export async function studentsRoutes(app: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * GET /api/v1/students/search-by-rut/:rut
+   * Search for an existing student by RUT (for linking by guardian)
+   * Returns basic student info without sensitive data
+   */
+  app.get<{ Params: { rut: string } }>(
+    '/search-by-rut/:rut',
+    async (request, reply) => {
+      try {
+        // Verify authentication
+        const authHeader = request.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return reply.status(401).send({
+            success: false,
+            message: 'Token de acceso requerido',
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const decoded = authService.verifyAccessToken(token);
+
+        if (!decoded) {
+          return reply.status(401).send({
+            success: false,
+            message: 'Token invalido o expirado',
+          });
+        }
+
+        // Only guardians can search for students to link
+        if (decoded.role !== 'guardian') {
+          return reply.status(403).send({
+            success: false,
+            message: 'Solo apoderados pueden buscar estudiantes para vincular',
+          });
+        }
+
+        const { rut } = request.params;
+
+        // Validate RUT
+        if (!validateRut(rut)) {
+          return reply.status(400).send({
+            success: false,
+            message: 'RUT invalido',
+          });
+        }
+
+        const formattedRut = formatRut(rut);
+
+        // Search for student by RUT
+        const student = await prisma.student.findFirst({
+          where: {
+            rut: formattedRut,
+            active: true,
+          },
+          include: {
+            school: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        });
+
+        if (!student) {
+          return reply.status(404).send({
+            success: false,
+            message: 'No se encontro un estudiante con este RUT',
+          });
+        }
+
+        // Get guardian to check if already linked
+        const guardian = await prisma.guardian.findUnique({
+          where: { userId: decoded.userId },
+        });
+
+        if (!guardian) {
+          return reply.status(404).send({
+            success: false,
+            message: 'Apoderado no encontrado',
+          });
+        }
+
+        // Check if already linked
+        const existingLink = await prisma.guardianStudent.findFirst({
+          where: {
+            guardianId: guardian.id,
+            studentId: student.id,
+          },
+        });
+
+        if (existingLink) {
+          return reply.status(409).send({
+            success: false,
+            message: 'Este estudiante ya esta vinculado a tu cuenta',
+          });
+        }
+
+        // Return student info for confirmation
+        return reply.send({
+          success: true,
+          data: {
+            id: student.id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            rut: student.rut,
+            grade: student.grade,
+            section: student.section,
+            photoUrl: student.photoUrl,
+            school: student.school,
+          },
+        });
+      } catch (error) {
+        console.error('Search student by RUT error:', error);
+        return reply.status(500).send({
+          success: false,
+          message: 'Error al buscar estudiante',
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/v1/students/link
+   * Link an existing student to the current guardian
+   */
+  app.post<{ Body: { studentId: string } }>(
+    '/link',
+    async (request, reply) => {
+      try {
+        // Verify authentication
+        const authHeader = request.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return reply.status(401).send({
+            success: false,
+            message: 'Token de acceso requerido',
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const decoded = authService.verifyAccessToken(token);
+
+        if (!decoded) {
+          return reply.status(401).send({
+            success: false,
+            message: 'Token invalido o expirado',
+          });
+        }
+
+        // Only guardians can link students
+        if (decoded.role !== 'guardian') {
+          return reply.status(403).send({
+            success: false,
+            message: 'Solo apoderados pueden vincular estudiantes',
+          });
+        }
+
+        const { studentId } = request.body;
+
+        if (!studentId) {
+          return reply.status(400).send({
+            success: false,
+            message: 'ID de estudiante requerido',
+          });
+        }
+
+        // Get guardian
+        const guardian = await prisma.guardian.findUnique({
+          where: { userId: decoded.userId },
+        });
+
+        if (!guardian) {
+          return reply.status(404).send({
+            success: false,
+            message: 'Apoderado no encontrado',
+          });
+        }
+
+        // Check if student exists
+        const student = await prisma.student.findUnique({
+          where: { id: studentId },
+          include: {
+            school: true,
+          },
+        });
+
+        if (!student || !student.active) {
+          return reply.status(404).send({
+            success: false,
+            message: 'Estudiante no encontrado',
+          });
+        }
+
+        // Check if already linked
+        const existingLink = await prisma.guardianStudent.findFirst({
+          where: {
+            guardianId: guardian.id,
+            studentId: student.id,
+          },
+        });
+
+        if (existingLink) {
+          return reply.status(409).send({
+            success: false,
+            message: 'Este estudiante ya esta vinculado a tu cuenta',
+          });
+        }
+
+        // Count existing linked students for isPrimary logic
+        const existingStudentCount = await prisma.guardianStudent.count({
+          where: { guardianId: guardian.id },
+        });
+
+        // Create link
+        const guardianStudent = await prisma.guardianStudent.create({
+          data: {
+            guardianId: guardian.id,
+            studentId: student.id,
+            isPrimary: existingStudentCount === 0, // First student is primary
+          },
+        });
+
+        return reply.status(201).send({
+          success: true,
+          message: `${student.firstName} ${student.lastName} ha sido vinculado exitosamente`,
+          data: {
+            id: guardianStudent.id,
+            student: {
+              id: student.id,
+              firstName: student.firstName,
+              lastName: student.lastName,
+              rut: student.rut,
+              school: {
+                id: student.school.id,
+                name: student.school.name,
+              },
+            },
+            isPrimary: guardianStudent.isPrimary,
+          },
+        });
+      } catch (error) {
+        console.error('Link student error:', error);
+        return reply.status(500).send({
+          success: false,
+          message: 'Error al vincular estudiante',
+        });
+      }
+    }
+  );
 }

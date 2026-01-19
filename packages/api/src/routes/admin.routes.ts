@@ -1,5 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import multipart from '@fastify/multipart';
 import { z } from 'zod';
+import * as XLSX from 'xlsx';
+import { parse as csvParse } from 'csv-parse/sync';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
 
@@ -116,7 +119,101 @@ async function getSchoolAdminSchoolId(userId: string): Promise<string | null> {
   return schoolAdmin?.schoolId || null;
 }
 
+// Interface for import row
+interface ImportRow {
+  rut: string;
+  firstName: string;
+  lastName: string;
+  grade?: string;
+  section?: string;
+}
+
+interface ImportError {
+  row: number;
+  rut?: string;
+  message: string;
+}
+
 export async function adminRoutes(app: FastifyInstance) {
+  // Register multipart plugin for file uploads
+  await app.register(multipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB max file size
+    },
+  });
+
+  /**
+   * GET /api/v1/admin/config
+   * Get admin configuration (school, cafeteria)
+   */
+  app.get('/config', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      if (!['school_admin', 'super_admin'].includes(decoded.role)) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes permisos para acceder a este recurso',
+        });
+      }
+
+      const schoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+
+      if (!schoolId) {
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrador sin colegio asignado',
+        });
+      }
+
+      // Get school with cafeterias
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          cafeterias: {
+            where: { active: true },
+            select: {
+              id: true,
+              name: true,
+            },
+            take: 1,
+          },
+        },
+      });
+
+      if (!school) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Colegio no encontrado',
+        });
+      }
+
+      const cafeteria = school.cafeterias[0] || null;
+
+      return reply.send({
+        success: true,
+        data: {
+          school: {
+            id: school.id,
+            name: school.name,
+            code: school.code,
+          },
+          cafeteria: cafeteria,
+        },
+      });
+    } catch (error) {
+      console.error('Get admin config error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener configuración',
+      });
+    }
+  });
+
   /**
    * GET /api/v1/admin/students
    * List all students for admin
@@ -406,6 +503,215 @@ export async function adminRoutes(app: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         message: 'Error al crear estudiante',
+      });
+    }
+  });
+
+  /**
+   * POST /api/v1/admin/students/import
+   * Import students from Excel/CSV file
+   * Expected columns: RUT, Nombre, Apellido, Curso, Seccion
+   */
+  app.post('/students/import', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // 1. Verify authentication
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      // 2. Verify role (school_admin or super_admin only)
+      if (!['school_admin', 'super_admin'].includes(decoded.role)) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes permisos para importar estudiantes',
+        });
+      }
+
+      // 3. Get school ID for admin
+      const schoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+
+      if (!schoolId) {
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrador sin colegio asignado',
+        });
+      }
+
+      // 4. Get the uploaded file
+      const data = await request.file();
+
+      if (!data) {
+        return reply.status(400).send({
+          success: false,
+          message: 'No se recibió ningún archivo',
+        });
+      }
+
+      const filename = data.filename.toLowerCase();
+      const buffer = await data.toBuffer();
+
+      // 5. Parse file based on extension
+      let rows: ImportRow[] = [];
+
+      if (filename.endsWith('.csv')) {
+        // Parse CSV
+        const content = buffer.toString('utf-8');
+        const records = csvParse(content, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          bom: true,
+        }) as Record<string, string>[];
+
+        rows = records.map((record) => ({
+          rut: record['RUT'] || record['rut'] || record['Rut'] || '',
+          firstName: record['Nombre'] || record['nombre'] || record['NOMBRE'] || record['FirstName'] || '',
+          lastName: record['Apellido'] || record['apellido'] || record['APELLIDO'] || record['LastName'] || '',
+          grade: record['Curso'] || record['curso'] || record['CURSO'] || record['Grade'] || '',
+          section: record['Seccion'] || record['seccion'] || record['SECCION'] || record['Sección'] || record['Section'] || '',
+        }));
+      } else if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
+        // Parse Excel
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+
+        rows = jsonData.map((record) => ({
+          rut: String(record['RUT'] || record['rut'] || record['Rut'] || ''),
+          firstName: String(record['Nombre'] || record['nombre'] || record['NOMBRE'] || record['FirstName'] || ''),
+          lastName: String(record['Apellido'] || record['apellido'] || record['APELLIDO'] || record['LastName'] || ''),
+          grade: String(record['Curso'] || record['curso'] || record['CURSO'] || record['Grade'] || ''),
+          section: String(record['Seccion'] || record['seccion'] || record['SECCION'] || record['Sección'] || record['Section'] || ''),
+        }));
+      } else {
+        return reply.status(400).send({
+          success: false,
+          message: 'Formato de archivo no soportado. Use CSV o XLSX.',
+        });
+      }
+
+      if (rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          message: 'El archivo está vacío o no tiene el formato esperado',
+        });
+      }
+
+      // 6. Get existing RUTs in the school
+      const existingStudents = await prisma.student.findMany({
+        where: { schoolId },
+        select: { rut: true },
+      });
+      const existingRuts = new Set(existingStudents.map((s) => cleanRut(s.rut)));
+
+      // 7. Process rows
+      const errors: ImportError[] = [];
+      const duplicates: string[] = [];
+      const toCreate: ImportRow[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 2; // +2 because row 1 is headers, row 2 is first data
+
+        // Validate required fields
+        if (!row.rut || !row.rut.trim()) {
+          errors.push({ row: rowNum, message: 'RUT es requerido' });
+          continue;
+        }
+
+        if (!row.firstName || !row.firstName.trim()) {
+          errors.push({ row: rowNum, rut: row.rut, message: 'Nombre es requerido' });
+          continue;
+        }
+
+        if (!row.lastName || !row.lastName.trim()) {
+          errors.push({ row: rowNum, rut: row.rut, message: 'Apellido es requerido' });
+          continue;
+        }
+
+        // Validate RUT format
+        if (!validateRut(row.rut)) {
+          errors.push({ row: rowNum, rut: row.rut, message: 'RUT inválido' });
+          continue;
+        }
+
+        const formattedRut = formatRut(row.rut);
+        const cleanedRut = cleanRut(row.rut);
+
+        // Check for duplicates in school
+        if (existingRuts.has(cleanedRut)) {
+          duplicates.push(formattedRut);
+          continue;
+        }
+
+        // Check for duplicates in the import file
+        const isDuplicateInFile = toCreate.some((r) => cleanRut(r.rut) === cleanedRut);
+        if (isDuplicateInFile) {
+          errors.push({ row: rowNum, rut: row.rut, message: 'RUT duplicado en el archivo' });
+          continue;
+        }
+
+        // Add to create list
+        toCreate.push({
+          rut: formattedRut,
+          firstName: row.firstName.trim(),
+          lastName: row.lastName.trim(),
+          grade: row.grade?.trim() || undefined,
+          section: row.section?.trim() || undefined,
+        });
+      }
+
+      // 8. Create students in batch transaction
+      let created = 0;
+
+      if (toCreate.length > 0) {
+        await prisma.$transaction(async (tx) => {
+          for (const student of toCreate) {
+            // Create student
+            const newStudent = await tx.student.create({
+              data: {
+                schoolId,
+                rut: student.rut,
+                firstName: student.firstName,
+                lastName: student.lastName,
+                grade: student.grade || null,
+                section: student.section || null,
+                dailyLimit: 0,
+                active: true,
+              },
+            });
+
+            // Create wallet
+            await tx.wallet.create({
+              data: {
+                studentId: newStudent.id,
+                balance: 0,
+              },
+            });
+
+            created++;
+          }
+        });
+      }
+
+      // 9. Return summary
+      return reply.send({
+        success: true,
+        message: `Importación completada: ${created} estudiantes creados`,
+        data: {
+          total: rows.length,
+          created,
+          duplicates: duplicates.length,
+          errors: errors.length,
+          duplicateRuts: duplicates,
+          errorDetails: errors,
+        },
+      });
+    } catch (error) {
+      console.error('Import students error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al importar estudiantes',
       });
     }
   });

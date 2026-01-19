@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
+import type { RechargePackage } from '@prisma/client';
 import { authService } from '../services/auth.service.js';
 
 // Helper to verify auth token
@@ -56,6 +57,72 @@ const updatePackageSchema = z.object({
 });
 
 export async function paymentsRoutes(app: FastifyInstance) {
+  /**
+   * GET /api/v1/payments/packages/school/:schoolId
+   * Get all recharge packages for a school (finds the first active cafeteria)
+   * This is for mobile app which only has schoolId from student
+   */
+  app.get('/packages/school/:schoolId', async (request: FastifyRequest<{ Params: { schoolId: string } }>, reply: FastifyReply) => {
+    try {
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      const { schoolId } = request.params;
+
+      // Find the first active cafeteria for this school
+      const cafeteria = await prisma.cafeteria.findFirst({
+        where: {
+          schoolId,
+          active: true,
+        },
+        include: { school: true },
+      });
+
+      if (!cafeteria) {
+        return reply.status(404).send({
+          success: false,
+          message: 'No hay cafetería configurada para este colegio',
+        });
+      }
+
+      const packages = await prisma.rechargePackage.findMany({
+        where: {
+          cafeteriaId: cafeteria.id,
+          active: true,
+        },
+        orderBy: { price: 'asc' },
+      });
+
+      return reply.send({
+        success: true,
+        data: {
+          cafeteria: {
+            id: cafeteria.id,
+            name: cafeteria.name,
+            schoolName: cafeteria.school.name,
+          },
+          packages: packages.map(pkg => ({
+            id: pkg.id,
+            name: pkg.name,
+            description: pkg.description,
+            price: pkg.price,
+            type: pkg.type,
+            ticketCount: pkg.ticketCount,
+            ticketType: pkg.ticketType,
+            createdAt: pkg.createdAt,
+          })),
+          totalPackages: packages.length,
+        },
+      });
+    } catch (error) {
+      console.error('Get packages by school error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener paquetes de recarga',
+      });
+    }
+  });
+
   /**
    * GET /api/v1/payments/packages/:cafeteriaId
    * Get all recharge packages for a cafeteria
@@ -365,7 +432,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
       }
 
       // Get or validate package if provided
-      let rechargePackage = null;
+      let rechargePackage: RechargePackage | null = null;
       if (body.packageId) {
         rechargePackage = await prisma.rechargePackage.findUnique({
           where: { id: body.packageId },

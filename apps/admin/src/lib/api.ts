@@ -143,18 +143,50 @@ export const apiClient = {
     getById: (id: string) => api.get(`/students/${id}`),
   },
 
-  // Admin students endpoints
+  // Admin endpoints
+  admin: {
+    config: () => api.get('/admin/config'),
+
+    students: {
+      list: (params?: { page?: number; limit?: number; search?: string }) =>
+        api.get('/admin/students', { params }),
+
+      create: (data: { rut: string; firstName: string; lastName: string; grade?: string; section?: string }) =>
+        api.post('/admin/students', data),
+    },
+  },
+
+  // Legacy alias for adminStudents
   adminStudents: {
     list: (params?: { page?: number; limit?: number; search?: string }) =>
       api.get('/admin/students', { params }),
 
     create: (data: { rut: string; firstName: string; lastName: string; grade?: string; section?: string }) =>
       api.post('/admin/students', data),
+
+    import: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return api.post('/admin/students/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+    },
   },
 
   // Stats endpoints
   stats: {
     dashboard: () => api.get('/stats/dashboard'),
+  },
+
+  // Casino/POS endpoints
+  casino: {
+    consume: (data: { studentId: string; ticketType?: string; quantity?: number }) =>
+      api.post('/casino/consume', data),
+
+    consumptions: () =>
+      api.get('/casino/consumptions'),
   },
 
   // Recharge packages endpoints
