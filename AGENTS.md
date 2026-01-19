@@ -74,4 +74,81 @@ pnpm lint             # Linting
 
 ## Aprendizajes de Ralph
 
-(Ralph agregará aprendizajes aquí después de cada iteración)
+### Iteración 1 - Casino Funcional (Enero 2026)
+
+#### Patrones de Autenticación
+- Usar `verifyAuth()` helper para verificar JWT, luego verificar rol manualmente
+- Para `school_admin`, obtener `schoolId` desde tabla `SchoolAdmin` via `getSchoolAdminSchoolId()`
+- Token decodificado tiene: `{ userId, role, schoolId? }`
+
+#### Endpoints Admin
+- `GET /api/v1/admin/students` - Lista estudiantes del colegio del admin
+- `POST /api/v1/admin/students` - Crear estudiante con wallet
+- `POST /api/v1/admin/students/import` - Importar desde Excel/CSV
+- `GET /api/v1/admin/config` - Obtener school y cafeteria del admin
+
+#### Endpoints Casino/POS
+- `POST /api/v1/casino/consume` - Marcar consumo de ticket
+- `GET /api/v1/casino/consumptions` - Historial de consumos del día
+
+#### Endpoints Estudiantes (Guardian)
+- `GET /api/v1/students/search-by-rut/:rut` - Buscar estudiante existente
+- `POST /api/v1/students/link` - Vincular estudiante a apoderado
+- `GET /api/v1/payments/packages/school/:schoolId` - Paquetes por colegio
+
+#### Validación RUT Chileno
+```typescript
+function calculateVerificationDigit(rutNumber: string): string {
+  let sum = 0, multiplier = 2;
+  for (let i = rutNumber.length - 1; i >= 0; i--) {
+    sum += parseInt(rutNumber[i], 10) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+  const remainder = 11 - (sum % 11);
+  if (remainder === 11) return '0';
+  if (remainder === 10) return 'K';
+  return String(remainder);
+}
+```
+
+#### Soluciones a Problemas Comunes
+
+**Next.js useSearchParams() error:**
+```tsx
+// Error: useSearchParams() should be wrapped in Suspense
+// Solución: Extraer componente y envolver en Suspense
+function FormContent() {
+  const params = useSearchParams()
+  // ...
+}
+export default function Page() {
+  return <Suspense fallback={<Loading/>}><FormContent/></Suspense>
+}
+```
+
+**Mobile pasaba schoolId pero API esperaba cafeteriaId:**
+- Solución: Crear endpoint `/payments/packages/school/:schoolId` que encuentra cafeteria automáticamente
+
+**Multipart file upload en Fastify:**
+```typescript
+import multipart from '@fastify/multipart';
+await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
+const file = await request.file();
+const buffer = await file.toBuffer();
+```
+
+**JSX conditional con múltiples elementos:**
+```tsx
+// Usar Fragment para envolver múltiples elementos
+{condition && (
+  <>
+    <Component1 />
+    <Component2 />
+  </>
+)}
+```
+
+#### Estructura de Tickets
+- Tabla `StudentTicket` con `ticketType` (ej: "almuerzo") y `quantity`
+- Consumo crea `Transaction` con `ticketsUsed` JSON field
+- Un estudiante puede tener múltiples tipos de tickets
