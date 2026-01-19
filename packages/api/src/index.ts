@@ -17,6 +17,11 @@ import { menuRoutes } from './routes/menu.routes.js';
 import { paymentsRoutes } from './routes/payments.routes.js';
 import { ordersRoutes } from './routes/orders.routes.js';
 import { notificationsRoutes } from './routes/notifications.routes.js';
+import { transactionsRoutes } from './routes/transactions.routes.js';
+import { usersRoutes } from './routes/users.routes.js';
+import { statsRoutes } from './routes/stats.routes.js';
+import { casinoRoutes } from './routes/casino.routes.js';
+import { adminRoutes } from './routes/admin.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,16 +101,21 @@ app.get('/api/v1', async () => {
 
 // Register route modules
 async function registerRoutes() {
+  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
-  await app.register(schoolsRoutes, { prefix: '/api/v1/schools' });
+  await app.register(casinoRoutes, { prefix: '/api/v1/casino' });
   await app.register(guardiansRoutes, { prefix: '/api/v1/guardians' });
-  await app.register(studentsRoutes, { prefix: '/api/v1/students' });
-  await app.register(uploadsRoutes, { prefix: '/api/v1/uploads' });
-  await app.register(walletsRoutes, { prefix: '/api/v1/wallets' });
   await app.register(menuRoutes, { prefix: '/api/v1/menu' });
-  await app.register(paymentsRoutes, { prefix: '/api/v1/payments' });
-  await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
+  await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
+  await app.register(paymentsRoutes, { prefix: '/api/v1/payments' });
+  await app.register(schoolsRoutes, { prefix: '/api/v1/schools' });
+  await app.register(studentsRoutes, { prefix: '/api/v1/students' });
+  await app.register(transactionsRoutes, { prefix: '/api/v1/transactions' });
+  await app.register(uploadsRoutes, { prefix: '/api/v1/uploads' });
+  await app.register(usersRoutes, { prefix: '/api/v1/users' });
+  await app.register(walletsRoutes, { prefix: '/api/v1/wallets' });
+  await app.register(statsRoutes, { prefix: '/api/v1/stats' });
 }
 
 // Start server
