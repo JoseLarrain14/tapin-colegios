@@ -175,6 +175,28 @@ export const apiClient = {
     },
   },
 
+  // Admin transactions endpoints
+  adminTransactions: {
+    list: (params?: {
+      page?: number
+      limit?: number
+      dateFrom?: string
+      dateTo?: string
+      type?: string
+      search?: string
+    }) => api.get('/admin/transactions', { params }),
+
+    stats: (params?: { dateFrom?: string; dateTo?: string }) =>
+      api.get('/admin/transactions/stats', { params }),
+
+    export: (params?: {
+      dateFrom?: string
+      dateTo?: string
+      type?: string
+      search?: string
+    }) => api.get('/admin/transactions/export', { params, responseType: 'blob' }),
+  },
+
   // Stats endpoints
   stats: {
     dashboard: () => api.get('/stats/dashboard'),

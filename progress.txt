@@ -114,3 +114,98 @@ Started: 2026-01-19
 - Import progress indicator during processing
 - Results display: created count, duplicates list, error details
 - Added import() method to apiClient.adminStudents with FormData
+
+---
+
+## Iteration 2 - Sistema de Transacciones Mejorado (Enero 2026)
+
+### US-013 a US-021: Feature completa de transacciones
+
+#### Nuevos Endpoints Creados
+
+**GET /api/v1/admin/transactions**
+- Combina datos de Transaction, WalletLog y Payment
+- Formato normalizado con: id, date, type, amount, studentName, studentRut, method, operatorName
+- Filtros: page, limit, dateFrom, dateTo, type, search
+- Filtra automáticamente por colegio del admin
+
+**GET /api/v1/admin/transactions/stats**
+- Retorna estadísticas agregadas del día
+- ticketsConsumed, totalSales, totalRecharges, transactionCount
+- Parámetros dateFrom/dateTo opcionales (default: hoy)
+
+**GET /api/v1/admin/transactions/export**
+- Exporta transacciones a CSV
+- Headers en español con BOM para compatibilidad Excel
+- Límite de 10,000 registros
+
+#### Patrones de Implementación
+
+**Combinar múltiples fuentes de datos:**
+```typescript
+// Query en paralelo de diferentes tablas
+const [transactions, walletLogs, payments] = await Promise.all([
+  prisma.transaction.findMany({ ... }),
+  prisma.walletLog.findMany({ ... }),
+  prisma.payment.findMany({ ... }),
+]);
+
+// Normalizar a formato común
+interface UnifiedTransaction {
+  id: string;
+  date: Date;
+  type: string;
+  amount: number;
+  studentName: string;
+  // ...
+}
+
+// Combinar y ordenar
+const normalized = [...txNormalized, ...logsNormalized, ...paymentsNormalized];
+normalized.sort((a, b) => b.date.getTime() - a.date.getTime());
+```
+
+**Exportar CSV con BOM para Excel:**
+```typescript
+const csvContent = '\uFEFF' + [headers, ...rows]
+  .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+  .join('\n');
+
+reply
+  .header('Content-Type', 'text/csv; charset=utf-8')
+  .header('Content-Disposition', `attachment; filename="archivo.csv"`)
+  .send(csvContent);
+```
+
+**API client con responseType blob para descargas:**
+```typescript
+export: (params) => api.get('/admin/transactions/export', { params, responseType: 'blob' }),
+```
+
+#### Componentes UI Implementados
+
+**Dashboard Cards con estadísticas:**
+- 4 cards: Tickets, Ventas, Recargas, Total
+- useQuery para fetch de stats
+- Iconos de lucide-react: Ticket, DollarSign, CreditCard, Activity
+
+**Tabs para filtrado rápido:**
+- useState para activeTab
+- Contador de registros por tab
+- Filtro automático al cambiar tab
+
+**Panel de filtros colapsable:**
+- showFilters toggle state
+- Date pickers para rango
+- Select para tipo y método
+- Debounce de 300ms para búsqueda
+
+**Modal de detalle:**
+- selectedTransaction state
+- Grid de 2 columnas para campos
+- Overlay con bg-black/50
+
+#### Archivos Modificados
+- `packages/api/src/routes/admin.routes.ts` - 3 nuevos endpoints
+- `apps/admin/src/lib/api.ts` - adminTransactions client
+- `apps/admin/src/app/(dashboard)/transactions/page.tsx` - UI completa renovada

@@ -75,6 +75,15 @@ const listStudentsQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+const listAdminTransactionsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  type: z.enum(['all', 'ticket', 'purchase', 'deposit', 'refund']).optional(),
+  search: z.string().optional(),
+});
+
 const createStudentSchema = z.object({
   rut: z.string().min(8, 'RUT debe tener al menos 8 caracteres').refine(validateRut, {
     message: 'RUT inválido',
@@ -712,6 +721,565 @@ export async function adminRoutes(app: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         message: 'Error al importar estudiantes',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/admin/transactions
+   * Get unified transactions list (Transaction + WalletLog + Payment)
+   * Combines all transaction types into a single normalized response
+   */
+  app.get('/transactions', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // 1. Verify authentication
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      // 2. Verify role (school_admin or super_admin only)
+      if (!['school_admin', 'super_admin'].includes(decoded.role)) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes permisos para acceder a este recurso',
+        });
+      }
+
+      // 3. Get school ID for admin
+      const schoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+
+      if (!schoolId) {
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrador sin colegio asignado',
+        });
+      }
+
+      // 4. Parse query parameters
+      const query = listAdminTransactionsSchema.parse(request.query);
+      const { page, limit, dateFrom, dateTo, type, search } = query;
+
+      // 5. Build date filters
+      const dateFilter: { gte?: Date; lte?: Date } = {};
+      if (dateFrom) {
+        dateFilter.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        dateFilter.lte = endDate;
+      }
+
+      // 6. Query transactions from Transaction table
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          cafeteria: { schoolId },
+          ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
+          ...(type && type !== 'all' && type !== 'deposit' && { type }),
+        },
+        include: {
+          wallet: {
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  rut: true,
+                  grade: true,
+                },
+              },
+            },
+          },
+          validator: {
+            select: {
+              id: true,
+              email: true,
+              guardian: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 7. Query wallet logs (deposits, refunds, adjustments)
+      const walletLogs = await prisma.walletLog.findMany({
+        where: {
+          wallet: {
+            student: { schoolId },
+          },
+          ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
+          ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && { type }),
+        },
+        include: {
+          wallet: {
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  rut: true,
+                  grade: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 8. Query payments (recharges)
+      const payments = await prisma.payment.findMany({
+        where: {
+          student: { schoolId },
+          status: 'completed',
+          ...(Object.keys(dateFilter).length > 0 && { completedAt: dateFilter }),
+          ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && type !== 'refund' && { type: 'deposit' }),
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              rut: true,
+              grade: true,
+            },
+          },
+          guardian: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+          rechargePackage: {
+            select: {
+              name: true,
+              type: true,
+            },
+          },
+        },
+        orderBy: { completedAt: 'desc' },
+      });
+
+      // 9. Normalize all transactions into a unified format
+      interface UnifiedTransaction {
+        id: string;
+        date: Date;
+        type: string;
+        amount: number;
+        description: string;
+        studentName: string;
+        studentRut: string;
+        studentGrade: string | null;
+        method: string | null;
+        operatorName: string | null;
+        source: string;
+      }
+
+      const normalizedTransactions: UnifiedTransaction[] = [];
+
+      // Add Transaction records
+      for (const tx of transactions) {
+        if (!tx.wallet.student) continue;
+
+        const student = tx.wallet.student;
+        const studentName = `${student.firstName} ${student.lastName}`;
+
+        // Apply search filter
+        if (search && search.trim()) {
+          const searchLower = search.trim().toLowerCase();
+          const matchesName = studentName.toLowerCase().includes(searchLower);
+          const matchesRut = student.rut.toLowerCase().includes(searchLower);
+
+          if (!matchesName && !matchesRut) {
+            continue;
+          }
+        }
+
+        normalizedTransactions.push({
+          id: tx.id,
+          date: tx.createdAt,
+          type: tx.type,
+          amount: tx.amount,
+          description: tx.description || `${tx.type === 'purchase' ? 'Compra' : tx.type === 'refund' ? 'Devolución' : 'Ajuste'} en casino`,
+          studentName,
+          studentRut: student.rut,
+          studentGrade: student.grade,
+          method: tx.validationMethod || null,
+          operatorName: tx.validator?.guardian
+            ? `${tx.validator.guardian.firstName} ${tx.validator.guardian.lastName}`
+            : tx.validator?.email || null,
+          source: tx.source,
+        });
+      }
+
+      // Add WalletLog records
+      for (const log of walletLogs) {
+        if (!log.wallet.student) continue;
+
+        const student = log.wallet.student;
+        const studentName = `${student.firstName} ${student.lastName}`;
+
+        // Apply search filter
+        if (search && search.trim()) {
+          const searchLower = search.trim().toLowerCase();
+          const matchesName = studentName.toLowerCase().includes(searchLower);
+          const matchesRut = student.rut.toLowerCase().includes(searchLower);
+
+          if (!matchesName && !matchesRut) {
+            continue;
+          }
+        }
+
+        normalizedTransactions.push({
+          id: log.id,
+          date: log.createdAt,
+          type: log.type,
+          amount: log.amount,
+          description: log.description || `${log.type === 'deposit' ? 'Depósito' : log.type === 'refund' ? 'Devolución' : 'Ajuste'} en billetera`,
+          studentName,
+          studentRut: student.rut,
+          studentGrade: student.grade,
+          method: null,
+          operatorName: null,
+          source: 'wallet',
+        });
+      }
+
+      // Add Payment records
+      for (const payment of payments) {
+        const student = payment.student;
+        const studentName = `${student.firstName} ${student.lastName}`;
+
+        // Apply search filter
+        if (search && search.trim()) {
+          const searchLower = search.trim().toLowerCase();
+          const matchesName = studentName.toLowerCase().includes(searchLower);
+          const matchesRut = student.rut.toLowerCase().includes(searchLower);
+
+          if (!matchesName && !matchesRut) {
+            continue;
+          }
+        }
+
+        const packageInfo = payment.rechargePackage
+          ? ` - ${payment.rechargePackage.name}`
+          : '';
+
+        normalizedTransactions.push({
+          id: payment.id,
+          date: payment.completedAt || payment.createdAt,
+          type: 'deposit',
+          amount: payment.amount,
+          description: `Pago ${payment.gateway}${packageInfo}`,
+          studentName,
+          studentRut: student.rut,
+          studentGrade: student.grade,
+          method: null,
+          operatorName: payment.guardian
+            ? `${payment.guardian.firstName} ${payment.guardian.lastName}`
+            : null,
+          source: 'payment',
+        });
+      }
+
+      // 10. Sort all transactions by date (most recent first)
+      normalizedTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+      // 11. Apply pagination
+      const total = normalizedTransactions.length;
+      const skip = (page - 1) * limit;
+      const paginatedTransactions = normalizedTransactions.slice(skip, skip + limit);
+
+      // 12. Return response
+      return reply.send({
+        success: true,
+        data: paginatedTransactions,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Parámetros inválidos',
+          errors: error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+
+      console.error('List admin transactions error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al listar transacciones',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/admin/transactions/stats
+   * Get transaction statistics for a date range
+   * - school_admin: stats for their school only
+   * - super_admin: stats for all schools
+   * Query params: dateFrom, dateTo (optional, defaults to today)
+   */
+  app.get('/transactions/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // 1. Verify authentication
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      // 2. Verify role (school_admin or super_admin only)
+      if (!['school_admin', 'super_admin'].includes(decoded.role)) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes permisos para acceder a este recurso',
+        });
+      }
+
+      // 3. Parse query parameters for date range
+      const query = request.query as { dateFrom?: string; dateTo?: string };
+
+      // Default to today if not provided
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dateFrom = query.dateFrom ? new Date(query.dateFrom) : today;
+      const dateTo = query.dateTo ? new Date(query.dateTo) : new Date(today);
+      dateTo.setHours(23, 59, 59, 999);
+
+      // 4. Determine school filter
+      let schoolId: string | null = null;
+      if (decoded.role === 'school_admin') {
+        schoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+
+        if (!schoolId) {
+          return reply.status(403).send({
+            success: false,
+            message: 'Administrador sin colegio asignado',
+          });
+        }
+      }
+
+      // 5. Build queries for statistics
+
+      // Get wallet IDs for the school (if school_admin)
+      let walletIds: string[] | undefined;
+      if (schoolId) {
+        const students = await prisma.student.findMany({
+          where: { schoolId },
+          select: { wallet: { select: { id: true } } },
+        });
+        walletIds = students
+          .filter((s) => s.wallet)
+          .map((s) => s.wallet!.id);
+      }
+
+      // Tickets Consumed: Count Transaction where ticketsUsed IS NOT NULL
+      const ticketsConsumed = await prisma.transaction.count({
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          ticketsUsed: { not: null },
+          ...(walletIds && { walletId: { in: walletIds } }),
+        },
+      });
+
+      // Total Sales: Sum Transaction.amount where type='purchase' and source='casino'
+      const salesData = await prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          type: 'purchase',
+          source: 'casino',
+          ...(walletIds && { walletId: { in: walletIds } }),
+        },
+      });
+      const totalSales = salesData._sum.amount || 0;
+
+      // Total Recharges: Sum Payment.amount where status='completed'
+      const rechargesData = await prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          status: 'completed',
+          ...(schoolId && {
+            student: { schoolId }
+          }),
+        },
+      });
+      const totalRecharges = rechargesData._sum.amount || 0;
+
+      // Transaction Count: Total of Transaction + WalletLog
+      const transactionCount = await prisma.transaction.count({
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          ...(walletIds && { walletId: { in: walletIds } }),
+        },
+      });
+
+      const walletLogCount = await prisma.walletLog.count({
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          ...(walletIds && { walletId: { in: walletIds } }),
+        },
+      });
+
+      const totalTransactionCount = transactionCount + walletLogCount;
+
+      // 6. Return statistics
+      return reply.send({
+        success: true,
+        data: {
+          ticketsConsumed,
+          totalSales,
+          totalRecharges,
+          transactionCount: totalTransactionCount,
+        },
+      });
+    } catch (error) {
+      console.error('Get transaction stats error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener estadísticas',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/admin/transactions/export
+   * Export transactions to CSV format
+   */
+  app.get('/transactions/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // 1. Verify authentication
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      // 2. Verify role
+      if (!['school_admin', 'super_admin'].includes(decoded.role)) {
+        return reply.status(403).send({
+          success: false,
+          message: 'No tienes permisos para exportar transacciones',
+        });
+      }
+
+      // 3. Get school ID
+      const schoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+      if (!schoolId) {
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrador sin colegio asignado',
+        });
+      }
+
+      // 4. Parse query parameters
+      const query = request.query as { dateFrom?: string; dateTo?: string; type?: string; search?: string };
+
+      // Build date filters
+      const dateFilter: { gte?: Date; lte?: Date } = {};
+      if (query.dateFrom) {
+        dateFilter.gte = new Date(query.dateFrom);
+      }
+      if (query.dateTo) {
+        const endDate = new Date(query.dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        dateFilter.lte = endDate;
+      }
+
+      // 5. Query transactions (limit 10000)
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          cafeteria: { schoolId },
+          ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
+          ...(query.type && query.type !== 'all' && { type: query.type }),
+        },
+        include: {
+          wallet: {
+            include: {
+              student: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  rut: true,
+                  grade: true,
+                },
+              },
+            },
+          },
+          validator: {
+            select: {
+              email: true,
+              guardian: {
+                select: { firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      });
+
+      // 6. Filter by search if provided
+      let filteredTransactions = transactions;
+      if (query.search && query.search.trim()) {
+        const searchLower = query.search.trim().toLowerCase();
+        filteredTransactions = transactions.filter((tx) => {
+          const student = tx.wallet.student;
+          if (!student) return false;
+          const studentName = `${student.firstName} ${student.lastName}`.toLowerCase();
+          return studentName.includes(searchLower) || student.rut.toLowerCase().includes(searchLower);
+        });
+      }
+
+      // 7. Build CSV content
+      const headers = ['Fecha', 'Estudiante', 'RUT', 'Curso', 'Tipo', 'Método', 'Descripción', 'Monto', 'Operador'];
+      const rows = filteredTransactions.map((tx) => {
+        const student = tx.wallet.student;
+        const operatorName = tx.validator?.guardian
+          ? `${tx.validator.guardian.firstName} ${tx.validator.guardian.lastName}`
+          : tx.validator?.email || '';
+
+        return [
+          new Date(tx.createdAt).toLocaleString('es-CL'),
+          student ? `${student.firstName} ${student.lastName}` : '',
+          student?.rut || '',
+          student?.grade || '',
+          tx.type,
+          tx.validationMethod || '',
+          tx.description || '',
+          tx.amount.toString(),
+          operatorName,
+        ];
+      });
+
+      // Build CSV string with BOM for Excel compatibility
+      const csvContent = '\uFEFF' + [headers, ...rows]
+        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      // 8. Return CSV file
+      const filename = `transacciones_${new Date().toISOString().split('T')[0]}.csv`;
+      reply
+        .header('Content-Type', 'text/csv; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(csvContent);
+    } catch (error) {
+      console.error('Export transactions error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al exportar transacciones',
       });
     }
   });

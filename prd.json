@@ -1,172 +1,143 @@
 {
-  "projectName": "Sistema de Casino Escolar Funcional",
-  "branchName": "feature/casino-funcional",
-  "description": "Completar el sistema de casino escolar para que sea funcional end-to-end. Admin crea paquetes → apoderado compra tickets → estudiante usa tickets en casino.",
+  "projectName": "Sistema de Transacciones Mejorado",
+  "branchName": "feature/transacciones-mejoradas",
+  "description": "Crear sistema de transacciones robusto en panel admin: dashboard con métricas del día, tabla detallada con filtros avanzados, pestañas de vista rápida, exportación CSV y modal de detalle.",
   "userStories": [
     {
-      "id": "US-001",
-      "title": "Admin ve estudiantes de su colegio",
-      "description": "Crear endpoint GET /api/v1/admin/students que retorne estudiantes del colegio del admin logueado. Incluir nombre, RUT, curso, sección y saldo/tickets. Soportar búsqueda por nombre/RUT y paginación. Solo accesible por school_admin o super_admin.",
+      "id": "US-013",
+      "title": "Endpoint de estadísticas del día",
+      "description": "Crear endpoint GET /api/v1/admin/transactions/stats que retorne estadísticas agregadas: ticketsConsumed, totalSales, totalRecharges, transactionCount. Acepta parámetros dateFrom y dateTo (default hoy). Filtra por colegio del admin automáticamente. Solo accesible por school_admin o super_admin.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Endpoint GET /api/v1/admin/students retorna estudiantes del colegio del admin",
-        "Solo accesible por school_admin o super_admin",
-        "Incluye: nombre, RUT, curso, sección, saldo/tickets actuales",
-        "Búsqueda por nombre o RUT con query param ?search=",
-        "Paginación con ?page= y ?limit="
+        "Endpoint GET /api/v1/admin/transactions/stats existe y funciona",
+        "Retorna objeto con: ticketsConsumed, totalSales, totalRecharges, transactionCount",
+        "Parámetros opcionales: dateFrom, dateTo (default: fecha actual)",
+        "Filtra por colegio del admin (school_admin) o todos (super_admin)",
+        "Solo accesible por roles school_admin o super_admin"
       ],
       "passes": true
     },
     {
-      "id": "US-002",
-      "title": "Admin crea estudiante manualmente",
-      "description": "Crear endpoint POST /api/v1/admin/students para crear estudiante en el colegio del admin. Validar RUT único, crear wallet automáticamente con saldo 0.",
+      "id": "US-014",
+      "title": "Endpoint de transacciones unificado",
+      "description": "Crear endpoint GET /api/v1/admin/transactions que combine datos de Transaction, WalletLog y Payment en un formato normalizado. Incluir info del estudiante (nombre, RUT, curso) y del operador que validó. Soportar filtros: page, limit, dateFrom, dateTo, type, search.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Endpoint POST /api/v1/admin/students crea estudiante en el colegio del admin",
-        "Campos requeridos: RUT, nombre, apellido, curso, sección",
-        "Valida que el RUT no exista ya en el colegio",
-        "Crea wallet automáticamente con saldo 0",
-        "Retorna el estudiante creado"
+        "Endpoint GET /api/v1/admin/transactions retorna transacciones combinadas",
+        "Combina datos de Transaction, WalletLog y Payment",
+        "Cada registro tiene: id, date, studentName, studentRut, type, method, description, amount, operatorName",
+        "Parámetros: page, limit, dateFrom, dateTo, type, search",
+        "search filtra por nombre o RUT del estudiante",
+        "Filtra por colegio del admin automáticamente",
+        "Incluye paginación: total, page, limit, totalPages"
       ],
       "passes": true
     },
     {
-      "id": "US-003",
-      "title": "Panel Admin - Página de estudiantes",
-      "description": "Crear página /dashboard/students en el panel admin con tabla de estudiantes, búsqueda, y botón para agregar estudiante.",
+      "id": "US-015",
+      "title": "Cards de resumen del día en UI",
+      "description": "Agregar 4 cards en la parte superior de /dashboard/transactions que muestren: Tickets validados hoy, Ventas del día (CLP), Recargas del día (CLP), Transacciones totales. Usar el endpoint /admin/transactions/stats. Diseño con iconos y colores distintivos.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Página /dashboard/students existe y muestra tabla de estudiantes",
-        "Columnas: Nombre, RUT, Curso, Sección, Tickets/Saldo",
-        "Campo de búsqueda por nombre o RUT funciona",
-        "Botón Agregar estudiante abre modal/formulario",
-        "Formulario permite crear estudiante con los campos requeridos"
+        "4 cards visibles en la parte superior de /dashboard/transactions",
+        "Card 1: Tickets validados hoy con icono de ticket",
+        "Card 2: Ventas del día en formato CLP con icono de dinero",
+        "Card 3: Recargas del día en formato CLP con icono de recarga",
+        "Card 4: Transacciones totales con icono de lista",
+        "Cards usan el endpoint /admin/transactions/stats",
+        "Diseño consistente con el resto del admin panel"
       ],
       "passes": true
     },
     {
-      "id": "US-004",
-      "title": "Admin importa estudiantes desde Excel",
-      "description": "Crear endpoint POST /api/v1/admin/students/import que acepte archivo Excel/CSV con estudiantes. Validar RUTs, reportar errores, crear wallets.",
+      "id": "US-016",
+      "title": "Tabla de transacciones mejorada",
+      "description": "Reemplazar tabla actual en /dashboard/transactions con una nueva que muestre: Fecha/Hora, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador. Usar endpoint /admin/transactions. Paginación con selector 10/25/50.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Tabla muestra columnas: Fecha/Hora, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador",
+        "Tipo muestra badge de color: Consumo ticket (verde), Compra (azul), Recarga (morado), Reembolso (naranja)",
+        "Método muestra: RUT, QR, App, Huella según validationMethod",
+        "Paginación funcional con selector de 10, 25, 50 por página",
+        "Ordenamiento por fecha descendente por defecto",
+        "Muestra estado de carga mientras obtiene datos"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-017",
+      "title": "Pestañas de filtrado rápido",
+      "description": "Agregar 4 pestañas debajo del dashboard: Todas, Tickets Hoy, Ventas, Recargas. Cada pestaña filtra la tabla según el tipo. Mostrar contador de registros en cada pestaña.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "4 pestañas visibles: Todas, Tickets Hoy, Ventas, Recargas",
+        "Pestaña Todas muestra todas las transacciones",
+        "Pestaña Tickets Hoy filtra consumos de tickets del día actual",
+        "Pestaña Ventas filtra compras con saldo (type: purchase)",
+        "Pestaña Recargas filtra depósitos (type: deposit)",
+        "Cada pestaña muestra contador de registros entre paréntesis",
+        "Al cambiar pestaña se actualiza la tabla"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-018",
+      "title": "Panel de filtros avanzados",
+      "description": "Agregar panel de filtros colapsable con: rango de fechas (date pickers), tipo de transacción (multiselect), método de validación (multiselect), búsqueda por nombre/RUT. Botón Limpiar filtros.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Panel de filtros con botón para expandir/colapsar",
+        "Filtro de rango de fechas con date picker (Desde - Hasta)",
+        "Filtro de tipo de transacción con checkboxes múltiples",
+        "Filtro de método de validación con checkboxes múltiples",
+        "Campo de búsqueda por nombre o RUT del estudiante",
+        "Botón Limpiar filtros restaura valores por defecto",
+        "Filtros se aplican al hacer clic en Aplicar o automáticamente"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-019",
+      "title": "Endpoint de exportación CSV",
+      "description": "Crear endpoint GET /api/v1/admin/transactions/export que genere archivo CSV con las transacciones filtradas. Acepta mismos parámetros de filtro. Headers en español. Límite 10,000 registros.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Endpoint POST /api/v1/admin/students/import acepta archivo multipart",
-        "Soporta formato CSV y XLSX",
-        "Columnas esperadas: RUT, Nombre, Apellido, Curso, Sección",
-        "Valida RUTs duplicados y reporta errores por fila",
-        "Crea wallets automáticamente para cada estudiante",
-        "Retorna resumen: total, creados, errores, duplicados"
+        "Endpoint GET /api/v1/admin/transactions/export retorna archivo CSV",
+        "Acepta parámetros: dateFrom, dateTo, type, search (mismos que listado)",
+        "Headers del CSV en español: Fecha, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador",
+        "Content-Type: text/csv con charset UTF-8",
+        "Content-Disposition con nombre: transacciones_YYYY-MM-DD.csv",
+        "Límite máximo de 10,000 registros por exportación"
       ],
       "passes": true
     },
     {
-      "id": "US-005",
-      "title": "Panel Admin - Botón importar Excel",
-      "description": "Agregar botón Importar Excel en página de estudiantes que permita subir archivo y muestre resultado.",
+      "id": "US-020",
+      "title": "Botón exportar CSV en UI",
+      "description": "Agregar botón Exportar CSV en la página de transacciones que descargue el archivo usando el endpoint de exportación. Exporta según filtros actuales.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Botón Importar Excel visible en página /dashboard/students",
-        "Al hacer clic abre selector de archivo (CSV/XLSX)",
-        "Muestra progreso de importación",
-        "Muestra resumen al terminar: creados, errores",
-        "Lista errores específicos por fila si los hay"
+        "Botón Exportar CSV visible en la página de transacciones",
+        "Al hacer clic, descarga archivo CSV",
+        "Exporta según los filtros actualmente aplicados",
+        "Muestra indicador de carga durante la descarga",
+        "Muestra mensaje de éxito al completar descarga"
       ],
       "passes": true
     },
     {
-      "id": "US-006",
-      "title": "Verificar página de paquetes funciona",
-      "description": "Verificar que /dashboard/packages funciona correctamente para crear, editar y eliminar paquetes de tickets.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Página /dashboard/packages muestra lista de paquetes",
-        "Formulario de crear paquete tiene: nombre, precio, cantidad de tickets",
-        "Puede crear paquete ejemplo: Almuerzo diario $5000, 1 ticket",
-        "Puede editar paquete existente",
-        "Puede eliminar paquete"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-007",
-      "title": "Apoderado ve y compra paquetes",
-      "description": "Verificar/completar pantalla de recarga en app móvil para que muestre paquetes del colegio y permita comprarlos.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Pantalla de recarga muestra paquetes disponibles del colegio del estudiante",
-        "Cada paquete muestra: nombre, precio, tickets incluidos",
-        "Al seleccionar paquete muestra confirmación",
-        "Botón confirmar procesa pago (mock)",
-        "Actualiza tickets del estudiante y muestra confirmación"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-008",
-      "title": "Vista POS para operador del casino",
-      "description": "Crear página /dashboard/pos optimizada para tablet con campo de búsqueda grande y resultados claros.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Página /dashboard/pos existe y es accesible",
-        "Campo de búsqueda grande y prominente",
-        "Busca por RUT o nombre al escribir",
-        "Resultados muestran: nombre, RUT, curso, tickets disponibles",
-        "Diseño optimizado para tablet: botones grandes, texto legible"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-009",
-      "title": "Operador marca consumo de ticket",
-      "description": "Agregar botón Marcar consumo en la vista POS que descuente 1 ticket y registre la transacción.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Botón Marcar consumo visible junto a cada resultado de búsqueda",
-        "Al hacer clic descuenta 1 ticket del estudiante",
-        "Muestra tickets restantes después del consumo",
-        "Registra transacción en base de datos con fecha/hora",
-        "Confirmación visual clara (verde) al marcar consumo"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-010",
-      "title": "Historial de consumos del día en POS",
-      "description": "Mostrar lista de consumos registrados hoy en la página POS con opción de anular.",
+      "id": "US-021",
+      "title": "Modal de detalle de transacción",
+      "description": "Al hacer clic en una fila de la tabla, abrir modal con el detalle completo de la transacción: todos los campos, items si los tiene, saldo antes/después.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Lista de consumos del día visible en página POS",
-        "Cada entrada muestra: hora, nombre estudiante, tickets restantes",
-        "Botón para anular último consumo (revierte el descuento)",
-        "Lista se actualiza en tiempo real al marcar consumos"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-011",
-      "title": "Home muestra tickets disponibles",
-      "description": "Mostrar cantidad de tickets disponibles en la pantalla home de la app móvil.",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Card en home muestra Tickets: X disponibles",
-        "Se actualiza después de comprar paquetes",
-        "Se actualiza después de consumos en casino",
-        "Diseño claro y visible"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-012",
-      "title": "Apoderado vincula estudiante existente",
-      "description": "Permitir que un apoderado vincule un estudiante que ya existe en el sistema del colegio.",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "En Agregar estudiante hay opción de buscar estudiante existente",
-        "Búsqueda por RUT muestra estudiante si existe en algún colegio",
-        "Botón Vincular crea relación GuardianStudent",
-        "No duplica el estudiante si ya existe",
-        "Muestra error si el estudiante ya está vinculado al apoderado"
+        "Al hacer clic en una fila se abre modal de detalle",
+        "Modal muestra toda la información de la transacción",
+        "Si tiene items (JSON), muestra lista detallada con cantidad y precio",
+        "Si tiene tickets usados, muestra tipo y cantidad",
+        "Muestra saldo antes y después si está disponible",
+        "Botón X o Cerrar para cerrar el modal",
+        "Modal tiene diseño consistente con el resto del admin"
       ],
       "passes": true
     }
