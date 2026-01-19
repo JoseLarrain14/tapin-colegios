@@ -388,7 +388,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
       const initPaymentSchema = z.object({
         studentId: z.string().uuid('ID de estudiante invalido'),
         amount: z.number().int().positive('El monto debe ser positivo'),
-        packageId: z.string().uuid().optional(),
+        packageId: z.string().min(1).optional(), // Changed from uuid() to allow non-UUID package IDs
         paymentMethod: z.enum(['credit_card', 'debit_card', 'transfer']).default('credit_card'),
         simulateFailure: z.boolean().optional().default(false), // For testing payment failures
       });
