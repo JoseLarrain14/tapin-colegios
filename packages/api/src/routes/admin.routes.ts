@@ -829,14 +829,15 @@ export async function adminRoutes(app: FastifyInstance) {
       });
 
       // 7. Query wallet logs (deposits, refunds, adjustments)
-      const walletLogs = await prisma.walletLog.findMany({
+      // Skip WalletLog query entirely when filtering for 'ticket' or 'purchase' (those are only in Transaction table)
+      const walletLogs = (type === 'ticket' || type === 'purchase') ? [] : await prisma.walletLog.findMany({
         where: {
           wallet: {
             student: { schoolId },
             ...searchFilter,
           },
           ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-          ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && { type }),
+          ...(type && type !== 'all' && { type }),
         },
         include: {
           wallet: {
@@ -866,7 +867,8 @@ export async function adminRoutes(app: FastifyInstance) {
         ],
       } : {};
 
-      const payments = await prisma.payment.findMany({
+      // Skip Payment query when filtering for 'ticket', 'purchase', or 'refund' (payments are only deposits)
+      const payments = (type === 'ticket' || type === 'purchase' || type === 'refund') ? [] : await prisma.payment.findMany({
         where: {
           student: {
             schoolId,
@@ -874,7 +876,6 @@ export async function adminRoutes(app: FastifyInstance) {
           },
           status: 'completed',
           ...(Object.keys(dateFilter).length > 0 && { completedAt: dateFilter }),
-          ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && type !== 'refund' && { type: 'deposit' }),
         },
         include: {
           student: {
