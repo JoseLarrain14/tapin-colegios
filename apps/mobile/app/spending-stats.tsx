@@ -62,11 +62,37 @@ export default function SpendingStatsScreen() {
       const statsResponse = await apiService.getWalletStats(params.studentId, period, accessToken);
       if (statsResponse.success && statsResponse.data) {
         setStats(statsResponse.data);
+      } else {
+        // Si no hay stats disponibles, mostrar datos vacíos en lugar de error
+        setStats({
+          period,
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+          summary: {
+            totalSpent: 0,
+            transactionCount: 0,
+            averagePerTransaction: 0,
+            currentBalance: studentResponse.data?.balance || 0,
+          },
+          chartData: [],
+        });
       }
     } catch (error) {
       console.error('Load spending stats error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Error de conexion';
-      setNetworkError(errorMsg);
+      // Solo mostrar error de red si es realmente un problema de conectividad
+      if (errorMsg.includes('Network') || errorMsg.includes('conexion') || errorMsg.includes('timeout') || errorMsg.includes('ECONNREFUSED')) {
+        setNetworkError(errorMsg);
+      } else {
+        // Para otros errores (404, 500, etc.), mostrar estado vacío
+        setStats({
+          period,
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+          summary: { totalSpent: 0, transactionCount: 0, averagePerTransaction: 0, currentBalance: 0 },
+          chartData: [],
+        });
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

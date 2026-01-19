@@ -1423,3 +1423,90 @@ Percentage Complete: 83.3%
 2. Continue with remaining features (30 remaining)
 3. Focus on completing feature verification through UI testing
 
+
+---
+
+# Session 17 - January 13, 2026
+
+## Summary
+
+Implemented the Cancel Order feature (#34) with full UI and API integration.
+
+## Feature Completed
+
+### Feature #34: Cancel Order - PASSING
+
+**Implementation:**
+- Added cancel button to history.tsx for orders with status 'pending', 'confirmed', or 'preparing'
+- Implemented confirmation dialog (React Native Paper Dialog) showing:
+  - Confirmation message
+  - Refund amount to be credited
+  - "No, mantener" and "Si, cancelar" buttons
+- Added loading state during cancellation
+- Shows success/error alerts after completion
+- Data automatically refreshes after cancellation
+
+**API Verification:**
+1. Created test order ($500) - balance went from $1,300 to $800
+2. Cancelled order via PUT /api/v1/orders/:id/cancel
+3. Order status changed to 'cancelled'
+4. Balance refunded - went from $800 back to $1,300
+
+**Key Code Changes:**
+- apps/mobile/app/(tabs)/history.tsx:
+  - Added Dialog, Portal, Paragraph imports from react-native-paper
+  - Added cancel state management (cancelDialogVisible, orderToCancel, cancelling)
+  - Added canCancelOrder() function to check if order can be cancelled
+  - Added handleCancelPress(), handleCancelConfirm(), handleCancelDismiss() handlers
+  - Added Cancel button in transaction footer (only for cancellable orders)
+  - Added confirmation dialog with refund amount display
+  - Added new styles: cancelButton, cancelButtonText, cancelDialogDetails, cancelDialogAmount
+
+## Git Commits
+
+1. 3271302 - feat: Add cancel order UI to transaction history - Feature #34
+
+## Feature Statistics
+
+Total Features: 180
+Passing: 155
+In Progress: 0
+Percentage Complete: 86.1%
+
+## Session End State
+
+- 1 new feature passing this session (from 154 to 155)
+- All code committed to Git
+- Servers running in background
+- App in working state
+- Total: 155/180 features passing (86.1%)
+
+## Next Steps for Future Agents
+
+1. Get next feature with feature_get_next tool
+2. Continue with remaining features (25 remaining)
+3. Focus on completing feature verification through UI testing
+
+## Additional Features Completed
+
+### Feature #35: View Order Status - PASSING
+- Added order detail dialog showing status, items, total
+- Made order cards tappable to show details
+- Committed: 56298c2
+
+### Feature #36: Transaction History - View All - PASSING
+- Added source indicator for app vs casino purchases
+- Shows "Via App" badge on app orders
+- Committed: 3fc0672
+
+### Feature #37: Transaction History - Filter by Student - PASSING
+- Already implemented! Student filter chips exist
+- "Todos" shows all, individual student chips filter by that student
+
+## Updated Statistics
+
+Total Features: 180
+Passing: 158
+In Progress: 0
+Percentage Complete: 87.8%
+

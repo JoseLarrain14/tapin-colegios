@@ -87,9 +87,10 @@ export default function HistoryTab() {
           : (studentsResponse.data as any).students || [];
         setStudents(studentList);
 
-        if (studentList.length > 0 && !selectedStudent) {
-          setSelectedStudent(studentList[0]);
-        }
+        // Bug fix: Do not auto-select first student to allow "Todos" filter to work
+        // if (studentList.length > 0 && !selectedStudent) {
+        //   setSelectedStudent(studentList[0]);
+        // }
       }
 
       // Get orders

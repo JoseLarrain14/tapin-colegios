@@ -23,6 +23,12 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - Variable no utilizada en `packages/api/src/routes/auth.routes.ts`
 - Parámetro no utilizado en `packages/api/src/routes/schools.routes.ts`
 - Referencia a propiedad inexistente en `packages/api/src/services/auth.service.ts`
+- **Bug 1:** Botón FAB "Agregar" con texto azul en pantalla Mis Estudiantes (ahora blanco)
+- **Bug 2:** Filtro "Todos" no funcionaba en Historial (removida auto-selección)
+- **Bug 3:** Pantalla "Sin conexión" aparecía con WiFi en Estadísticas (mejorado manejo de errores)
+- **Bug 4:** Overflow de botones en Home (reorganizado layout en dos filas)
+- **Bug 5:** Validación RUT mostraba dígito correcto (mensaje genérico por seguridad)
+- **Bug 6:** Cerrar sesión no funcionaba correctamente (corregido race condition)
 
 ### Eliminado
 - 150+ directorios temporales `tmpclaude-*`

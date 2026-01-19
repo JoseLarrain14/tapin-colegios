@@ -50,13 +50,11 @@ export default function RechargeScreen() {
       }
       setStudent(studentResponse.data);
 
-      // Get school's cafeteria and packages
-      // First, we need to get the cafeteria ID from the school
-      // For now, we'll create some default packages if none exist
+      // Get school's cafeteria and packages using school ID
       const schoolId = studentResponse.data.school.id;
 
-      // Try to get cafeteria for this school
-      const cafeteriaResponse = await apiService.getRechargePackages(schoolId, accessToken);
+      // Get packages for this school (API finds the cafeteria automatically)
+      const cafeteriaResponse = await apiService.getRechargePackagesBySchool(schoolId, accessToken);
 
       if (cafeteriaResponse.success && cafeteriaResponse.data?.packages) {
         setPackages(cafeteriaResponse.data.packages);

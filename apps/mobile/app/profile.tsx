@@ -85,7 +85,8 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    // AuthProvider detectara isAuthenticated=false y redirigira automaticamente a '/'
+    // No es necesario navegar manualmente para evitar race condition
   };
 
   const handleEditProfile = () => {

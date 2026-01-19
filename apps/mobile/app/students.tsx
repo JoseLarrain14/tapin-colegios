@@ -219,6 +219,7 @@ export default function StudentsScreen() {
         style={styles.fab}
         onPress={handleAddStudent}
         label="Agregar"
+        color="#FFFFFF"
       />
     </SafeAreaView>
   );

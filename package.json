@@ -11,9 +11,11 @@
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:mobile\"",
     "dev:api": "npm run dev --workspace=packages/api",
     "dev:mobile": "npm run start --workspace=apps/mobile",
+    "dev:admin": "npm run dev --workspace=apps/admin",
     "build": "npm run build --workspaces",
     "build:api": "npm run build --workspace=packages/api",
     "build:mobile": "npm run build --workspace=apps/mobile",
+    "build:admin": "npm run build --workspace=apps/admin",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "rm -rf node_modules packages/*/node_modules apps/*/node_modules",
@@ -24,6 +26,12 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "18.2.0",
+      "react-dom": "18.2.0"
+    }
   },
   "engines": {
     "node": ">=20.0.0"

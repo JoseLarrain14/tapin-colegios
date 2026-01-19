@@ -75,7 +75,7 @@ export class AuthService {
       return { user, guardian };
     });
 
-    const accessToken = await this.generateAccessToken(result.user.id);
+    const accessToken = await this.generateAccessToken(result.user.id, result.user.role);
     const refreshToken = await this.generateRefreshToken(result.user.id);
 
     return {
@@ -101,7 +101,14 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: { guardian: true },
+      include: {
+        guardian: true,
+        schoolAdmin: {
+          include: {
+            school: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -122,7 +129,7 @@ export class AuthService {
       data: { lastLogin: new Date() },
     });
 
-    const accessToken = await this.generateAccessToken(user.id);
+    const accessToken = await this.generateAccessToken(user.id, user.role, user.schoolAdmin?.schoolId);
     const refreshToken = await this.generateRefreshToken(user.id);
 
     return {
@@ -165,7 +172,19 @@ export class AuthService {
       data: { revoked: true },
     });
 
-    const newAccessToken = await this.generateAccessToken(storedToken.userId);
+    // Fetch user to get role and schoolId for token generation
+    const user = await prisma.user.findUnique({
+      where: { id: storedToken.userId },
+      include: {
+        schoolAdmin: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const newAccessToken = await this.generateAccessToken(storedToken.userId, user.role, user.schoolAdmin?.schoolId);
     const newRefreshToken = await this.generateRefreshToken(storedToken.userId);
 
     return {
@@ -305,15 +324,22 @@ export class AuthService {
     return { success: true, message: 'Contrasena actualizada exitosamente' };
   }
 
-  private async generateAccessToken(userId: string): Promise<string> {
+  private async generateAccessToken(userId: string, role: string, schoolId?: string): Promise<string> {
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-    const payload = Buffer.from(
-      JSON.stringify({
-        sub: userId,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 15 * 60,
-      })
-    ).toString('base64url');
+
+    const payloadData: any = {
+      sub: userId,
+      role: role,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+    };
+
+    // Add schoolId for school_admin users
+    if (schoolId) {
+      payloadData.schoolId = schoolId;
+    }
+
+    const payload = Buffer.from(JSON.stringify(payloadData)).toString('base64url');
 
     const signature = crypto
       .createHmac('sha256', config.jwtSecret)
@@ -346,7 +372,7 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  verifyAccessToken(token: string): { userId: string } | null {
+  verifyAccessToken(token: string): { userId: string; role: string; schoolId?: string } | null {
     try {
       const [header, payload, signature] = token.split('.');
 
@@ -365,7 +391,11 @@ export class AuthService {
         return null;
       }
 
-      return { userId: decoded.sub };
+      return {
+        userId: decoded.sub,
+        role: decoded.role,
+        schoolId: decoded.schoolId,
+      };
     } catch {
       return null;
     }

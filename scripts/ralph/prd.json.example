@@ -1,0 +1,43 @@
+{
+  "projectName": "My Feature",
+  "branchName": "feature/my-feature",
+  "description": "Description of the feature being implemented",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add user settings page",
+      "description": "Create a settings page where users can update their preferences",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Settings page accessible from navigation",
+        "User can update email preferences",
+        "Changes persist after page reload"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Add dark mode toggle",
+      "description": "Allow users to switch between light and dark themes",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Toggle visible in settings",
+        "Theme changes immediately on toggle",
+        "Preference saved to local storage"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add notification preferences",
+      "description": "Let users configure which notifications they receive",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Checkbox for each notification type",
+        "Changes saved to database",
+        "UI reflects current preferences on load"
+      ],
+      "passes": false
+    }
+  ]
+}

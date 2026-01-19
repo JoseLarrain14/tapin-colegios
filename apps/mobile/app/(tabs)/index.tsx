@@ -257,25 +257,27 @@ export default function HomeTab() {
                   </View>
                 )}
 
-                <View style={styles.balanceActions}>
-                  <Button
-                    mode="contained"
-                    onPress={() => router.push(`/recharge?studentId=${selectedStudent.id}`)}
-                    style={styles.rechargeButton}
-                    icon="cash-plus"
-                  >
-                    Recargar
-                  </Button>
-                  <Button
-                    mode="outlined"
-                    onPress={handleViewStudents}
-                    style={styles.detailsButton}
-                    icon="eye"
-                  >
-                    Ver detalles
-                  </Button>
+                <View>
+                  <View style={styles.balanceActionsRow}>
+                    <Button
+                      mode="contained"
+                      onPress={() => router.push(`/recharge?studentId=${selectedStudent.id}`)}
+                      style={styles.rechargeButton}
+                      icon="cash-plus"
+                    >
+                      Recargar
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      onPress={handleViewStudents}
+                      style={styles.detailsButton}
+                      icon="eye"
+                    >
+                      Ver detalles
+                    </Button>
+                  </View>
                   {selectedStudent.school.businessModel !== 'tickets_only' && (
-                    <>
+                    <View style={styles.balanceActionsSecondary}>
                       <Button
                         mode="text"
                         onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
@@ -292,7 +294,7 @@ export default function HomeTab() {
                       >
                         Ver estadisticas
                       </Button>
-                    </>
+                    </View>
                   )}
                 </View>
               </Surface>
@@ -702,10 +704,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
-  balanceActions: {
+  balanceActionsRow: {
     flexDirection: 'row',
     marginTop: spacing.lg,
     gap: spacing.md,
+  },
+  balanceActionsSecondary: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xs,
   },
   rechargeButton: {
     flex: 1,
@@ -716,10 +724,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   historyButton: {
-    marginTop: spacing.sm,
   },
   statsButton: {
-    marginTop: spacing.xs,
   },
   // Quick Actions Styles
   quickActionsCard: {
