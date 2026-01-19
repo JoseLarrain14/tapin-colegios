@@ -1,143 +1,112 @@
 {
-  "projectName": "Sistema de Transacciones Mejorado",
-  "branchName": "feature/transacciones-mejoradas",
-  "description": "Crear sistema de transacciones robusto en panel admin: dashboard con métricas del día, tabla detallada con filtros avanzados, pestañas de vista rápida, exportación CSV y modal de detalle.",
+  "projectName": "Corrección Módulo de Transacciones",
+  "branchName": "feature/fix-transacciones",
+  "description": "Corregir bugs críticos en el módulo de transacciones: filtros de tickets y ventas no funcionan, estadísticas muestran cero, y búsqueda ineficiente.",
+  "context": {
+    "problemSummary": "El dashboard de transacciones tiene varios bugs que impiden su correcto funcionamiento",
+    "rootCause": "El tipo 'ticket' no existe en la BD - los tickets se guardan como type='purchase' con ticketsUsed JSON",
+    "affectedFiles": [
+      "packages/api/src/routes/admin.routes.ts",
+      "apps/admin/src/app/(dashboard)/transactions/page.tsx"
+    ]
+  },
+  "technicalReference": {
+    "transactionTypes": {
+      "ventaDirecta": "Transaction donde type='purchase' AND ticketsUsed IS NULL AND amount > 0",
+      "consumoTicket": "Transaction donde type='purchase' AND ticketsUsed IS NOT NULL",
+      "recarga": "Payment donde status='completed'"
+    },
+    "keyTables": ["Transaction", "Payment", "WalletLog"]
+  },
   "userStories": [
     {
-      "id": "US-013",
-      "title": "Endpoint de estadísticas del día",
-      "description": "Crear endpoint GET /api/v1/admin/transactions/stats que retorne estadísticas agregadas: ticketsConsumed, totalSales, totalRecharges, transactionCount. Acepta parámetros dateFrom y dateTo (default hoy). Filtra por colegio del admin automáticamente. Solo accesible por school_admin o super_admin.",
+      "id": "US-022",
+      "title": "Corregir filtro de tickets en endpoint de transacciones",
+      "description": "El filtro type='ticket' no funciona porque ese tipo no existe en la BD. Los tickets se guardan como type='purchase' con ticketsUsed JSON. Modificar GET /api/v1/admin/transactions en admin.routes.ts para detectar tickets por ticketsUsed IS NOT NULL cuando el filtro es 'ticket'.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Endpoint GET /api/v1/admin/transactions/stats existe y funciona",
-        "Retorna objeto con: ticketsConsumed, totalSales, totalRecharges, transactionCount",
-        "Parámetros opcionales: dateFrom, dateTo (default: fecha actual)",
-        "Filtra por colegio del admin (school_admin) o todos (super_admin)",
-        "Solo accesible por roles school_admin o super_admin"
+        "Cuando type='ticket', la query filtra por Transaction.ticketsUsed IS NOT NULL",
+        "El filtro retorna solo transacciones que son consumo de tickets",
+        "El endpoint sigue funcionando para otros tipos (purchase, deposit, refund)",
+        "curl con type=ticket retorna solo consumos de tickets (no ventas directas)"
       ],
+      "technicalHint": "En admin.routes.ts línea ~777, cambiar la lógica: si type === 'ticket', usar { ticketsUsed: { not: null } } en vez de { type: 'ticket' }",
       "passes": true
     },
     {
-      "id": "US-014",
-      "title": "Endpoint de transacciones unificado",
-      "description": "Crear endpoint GET /api/v1/admin/transactions que combine datos de Transaction, WalletLog y Payment en un formato normalizado. Incluir info del estudiante (nombre, RUT, curso) y del operador que validó. Soportar filtros: page, limit, dateFrom, dateTo, type, search.",
+      "id": "US-023",
+      "title": "Corregir filtro de ventas para excluir tickets",
+      "description": "El filtro type='purchase' (ventas) actualmente incluye también los consumos de tickets. Modificar para que ventas sean solo compras directas (ticketsUsed IS NULL).",
       "priority": 1,
       "acceptanceCriteria": [
-        "Endpoint GET /api/v1/admin/transactions retorna transacciones combinadas",
-        "Combina datos de Transaction, WalletLog y Payment",
-        "Cada registro tiene: id, date, studentName, studentRut, type, method, description, amount, operatorName",
-        "Parámetros: page, limit, dateFrom, dateTo, type, search",
-        "search filtra por nombre o RUT del estudiante",
-        "Filtra por colegio del admin automáticamente",
-        "Incluye paginación: total, page, limit, totalPages"
+        "Cuando type='purchase', la query filtra por Transaction.type='purchase' AND ticketsUsed IS NULL",
+        "El filtro retorna solo compras directas con saldo (no consumos de ticket)",
+        "curl con type=purchase retorna solo ventas directas",
+        "La suma de tickets + ventas = total de type purchase en la BD"
       ],
+      "technicalHint": "En admin.routes.ts, cuando type === 'purchase', agregar { type: 'purchase', ticketsUsed: null }",
       "passes": true
     },
     {
-      "id": "US-015",
-      "title": "Cards de resumen del día en UI",
-      "description": "Agregar 4 cards en la parte superior de /dashboard/transactions que muestren: Tickets validados hoy, Ventas del día (CLP), Recargas del día (CLP), Transacciones totales. Usar el endpoint /admin/transactions/stats. Diseño con iconos y colores distintivos.",
+      "id": "US-024",
+      "title": "Corregir estadísticas que muestran cero",
+      "description": "El endpoint GET /api/v1/admin/transactions/stats muestra valores en cero aunque hay transacciones. Posibles causas: timezone incorrecto (setHours usa hora local), uso de createdAt en vez de completedAt para pagos. Agregar logs de debug y corregir.",
       "priority": 1,
       "acceptanceCriteria": [
-        "4 cards visibles en la parte superior de /dashboard/transactions",
-        "Card 1: Tickets validados hoy con icono de ticket",
-        "Card 2: Ventas del día en formato CLP con icono de dinero",
-        "Card 3: Recargas del día en formato CLP con icono de recarga",
-        "Card 4: Transacciones totales con icono de lista",
-        "Cards usan el endpoint /admin/transactions/stats",
-        "Diseño consistente con el resto del admin panel"
+        "Las estadísticas muestran valores correctos cuando hay transacciones del día",
+        "ticketsConsumed cuenta transacciones donde ticketsUsed IS NOT NULL",
+        "totalSales suma amount de transacciones purchase con ticketsUsed IS NULL",
+        "totalRecharges usa completedAt (no createdAt) para filtrar pagos",
+        "Las fechas usan UTC explícito para evitar problemas de timezone",
+        "curl al endpoint stats retorna valores > 0 si hay datos del día"
       ],
+      "technicalHint": "En admin.routes.ts líneas 1056-1139: 1) Usar Date.UTC() para fechas, 2) Cambiar createdAt a completedAt en query de pagos línea 1115, 3) Agregar console.log temporal para debug",
       "passes": true
     },
     {
-      "id": "US-016",
-      "title": "Tabla de transacciones mejorada",
-      "description": "Reemplazar tabla actual en /dashboard/transactions con una nueva que muestre: Fecha/Hora, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador. Usar endpoint /admin/transactions. Paginación con selector 10/25/50.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Tabla muestra columnas: Fecha/Hora, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador",
-        "Tipo muestra badge de color: Consumo ticket (verde), Compra (azul), Recarga (morado), Reembolso (naranja)",
-        "Método muestra: RUT, QR, App, Huella según validationMethod",
-        "Paginación funcional con selector de 10, 25, 50 por página",
-        "Ordenamiento por fecha descendente por defecto",
-        "Muestra estado de carga mientras obtiene datos"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-017",
-      "title": "Pestañas de filtrado rápido",
-      "description": "Agregar 4 pestañas debajo del dashboard: Todas, Tickets Hoy, Ventas, Recargas. Cada pestaña filtra la tabla según el tipo. Mostrar contador de registros en cada pestaña.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "4 pestañas visibles: Todas, Tickets Hoy, Ventas, Recargas",
-        "Pestaña Todas muestra todas las transacciones",
-        "Pestaña Tickets Hoy filtra consumos de tickets del día actual",
-        "Pestaña Ventas filtra compras con saldo (type: purchase)",
-        "Pestaña Recargas filtra depósitos (type: deposit)",
-        "Cada pestaña muestra contador de registros entre paréntesis",
-        "Al cambiar pestaña se actualiza la tabla"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-018",
-      "title": "Panel de filtros avanzados",
-      "description": "Agregar panel de filtros colapsable con: rango de fechas (date pickers), tipo de transacción (multiselect), método de validación (multiselect), búsqueda por nombre/RUT. Botón Limpiar filtros.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Panel de filtros con botón para expandir/colapsar",
-        "Filtro de rango de fechas con date picker (Desde - Hasta)",
-        "Filtro de tipo de transacción con checkboxes múltiples",
-        "Filtro de método de validación con checkboxes múltiples",
-        "Campo de búsqueda por nombre o RUT del estudiante",
-        "Botón Limpiar filtros restaura valores por defecto",
-        "Filtros se aplican al hacer clic en Aplicar o automáticamente"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-019",
-      "title": "Endpoint de exportación CSV",
-      "description": "Crear endpoint GET /api/v1/admin/transactions/export que genere archivo CSV con las transacciones filtradas. Acepta mismos parámetros de filtro. Headers en español. Límite 10,000 registros.",
+      "id": "US-025",
+      "title": "Actualizar contadores de pestañas en frontend",
+      "description": "Las pestañas 'Tickets Hoy', 'Ventas', 'Recargas' en el frontend deben mostrar contadores correctos basados en los filtros corregidos del backend.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Endpoint GET /api/v1/admin/transactions/export retorna archivo CSV",
-        "Acepta parámetros: dateFrom, dateTo, type, search (mismos que listado)",
-        "Headers del CSV en español: Fecha, Estudiante, RUT, Tipo, Método, Descripción, Monto, Operador",
-        "Content-Type: text/csv con charset UTF-8",
-        "Content-Disposition con nombre: transacciones_YYYY-MM-DD.csv",
-        "Límite máximo de 10,000 registros por exportación"
+        "Pestaña 'Tickets Hoy' muestra contador de consumos de tickets del día",
+        "Pestaña 'Ventas' muestra contador de compras directas (sin tickets)",
+        "Pestaña 'Recargas' muestra contador de pagos completados",
+        "Los contadores se actualizan cuando cambia el rango de fechas",
+        "Los contadores coinciden con la cantidad de filas al seleccionar cada pestaña"
       ],
+      "technicalHint": "En transactions/page.tsx, verificar que getTypeForTab() mapee correctamente los tipos y que el backend ya esté corregido",
       "passes": true
     },
     {
-      "id": "US-020",
-      "title": "Botón exportar CSV en UI",
-      "description": "Agregar botón Exportar CSV en la página de transacciones que descargue el archivo usando el endpoint de exportación. Exporta según filtros actuales.",
+      "id": "US-026",
+      "title": "Mover búsqueda a nivel de Prisma",
+      "description": "La búsqueda por nombre/RUT se hace en memoria (JavaScript) después de traer todos los datos. Esto es ineficiente y rompe la paginación. Mover el filtro de búsqueda a la query de Prisma.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Botón Exportar CSV visible en la página de transacciones",
-        "Al hacer clic, descarga archivo CSV",
-        "Exporta según los filtros actualmente aplicados",
-        "Muestra indicador de carga durante la descarga",
-        "Muestra mensaje de éxito al completar descarga"
+        "La búsqueda se ejecuta en la query de Prisma, no en JavaScript",
+        "El total de paginación refleja los resultados filtrados por búsqueda",
+        "Buscar por nombre parcial funciona (ej: 'sofia' encuentra 'Sofía González')",
+        "Buscar por RUT parcial funciona (ej: '12345' encuentra '12.345.678-9')",
+        "La búsqueda es case-insensitive para nombres"
       ],
+      "technicalHint": "En admin.routes.ts líneas 895-903, mover el filtro search al where de Prisma: wallet: { student: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, ...] } }",
       "passes": true
     },
     {
-      "id": "US-021",
-      "title": "Modal de detalle de transacción",
-      "description": "Al hacer clic en una fila de la tabla, abrir modal con el detalle completo de la transacción: todos los campos, items si los tiene, saldo antes/después.",
-      "priority": 2,
+      "id": "US-027",
+      "title": "Verificar integración completa con tests manuales",
+      "description": "Verificar que todas las correcciones funcionan correctamente en conjunto. Probar el flujo completo: crear transacción, ver en dashboard, filtrar, buscar, exportar.",
+      "priority": 3,
       "acceptanceCriteria": [
-        "Al hacer clic en una fila se abre modal de detalle",
-        "Modal muestra toda la información de la transacción",
-        "Si tiene items (JSON), muestra lista detallada con cantidad y precio",
-        "Si tiene tickets usados, muestra tipo y cantidad",
-        "Muestra saldo antes y después si está disponible",
-        "Botón X o Cerrar para cerrar el modal",
-        "Modal tiene diseño consistente con el resto del admin"
+        "Dashboard muestra estadísticas correctas del día actual",
+        "Tab 'Tickets Hoy' muestra solo consumos de tickets",
+        "Tab 'Ventas' muestra solo compras directas (sin tickets)",
+        "Tab 'Recargas' muestra solo pagos completados",
+        "Búsqueda por nombre filtra correctamente",
+        "Búsqueda por RUT filtra correctamente",
+        "Exportar CSV respeta los filtros aplicados",
+        "Build de API y Admin compilan sin errores: pnpm build:api && pnpm build:admin"
       ],
       "passes": true
     }

@@ -770,11 +770,33 @@ export async function adminRoutes(app: FastifyInstance) {
       }
 
       // 6. Query transactions from Transaction table
+      // Handle special filtering for 'ticket' and 'purchase' types:
+      // - 'ticket': filter by ticketsUsed IS NOT NULL (tickets are stored as purchase with ticketsUsed)
+      // - 'purchase': filter by type='purchase' AND ticketsUsed IS NULL (direct sales only)
+      const transactionTypeFilter = (() => {
+        if (!type || type === 'all' || type === 'deposit') return {};
+        if (type === 'ticket') return { ticketsUsed: { not: null } };
+        if (type === 'purchase') return { type: 'purchase', ticketsUsed: null };
+        return { type };
+      })();
+
+      // Build search filter for Prisma queries (search by student name or RUT)
+      const searchFilter = search?.trim() ? {
+        student: {
+          OR: [
+            { firstName: { contains: search.trim(), mode: 'insensitive' as const } },
+            { lastName: { contains: search.trim(), mode: 'insensitive' as const } },
+            { rut: { contains: search.trim() } },
+          ],
+        },
+      } : {};
+
       const transactions = await prisma.transaction.findMany({
         where: {
           cafeteria: { schoolId },
           ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-          ...(type && type !== 'all' && type !== 'deposit' && { type }),
+          ...transactionTypeFilter,
+          ...(search?.trim() && { wallet: searchFilter }),
         },
         include: {
           wallet: {
@@ -811,6 +833,7 @@ export async function adminRoutes(app: FastifyInstance) {
         where: {
           wallet: {
             student: { schoolId },
+            ...searchFilter,
           },
           ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
           ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && { type }),
@@ -834,9 +857,21 @@ export async function adminRoutes(app: FastifyInstance) {
       });
 
       // 8. Query payments (recharges)
+      // Build search filter for payments (directly on student, not nested in wallet)
+      const paymentSearchFilter = search?.trim() ? {
+        OR: [
+          { firstName: { contains: search.trim(), mode: 'insensitive' as const } },
+          { lastName: { contains: search.trim(), mode: 'insensitive' as const } },
+          { rut: { contains: search.trim() } },
+        ],
+      } : {};
+
       const payments = await prisma.payment.findMany({
         where: {
-          student: { schoolId },
+          student: {
+            schoolId,
+            ...paymentSearchFilter,
+          },
           status: 'completed',
           ...(Object.keys(dateFilter).length > 0 && { completedAt: dateFilter }),
           ...(type && type !== 'all' && type !== 'purchase' && type !== 'ticket' && type !== 'refund' && { type: 'deposit' }),
@@ -884,30 +919,23 @@ export async function adminRoutes(app: FastifyInstance) {
 
       const normalizedTransactions: UnifiedTransaction[] = [];
 
-      // Add Transaction records
+      // Add Transaction records (search is now handled at Prisma query level)
       for (const tx of transactions) {
         if (!tx.wallet.student) continue;
 
         const student = tx.wallet.student;
         const studentName = `${student.firstName} ${student.lastName}`;
 
-        // Apply search filter
-        if (search && search.trim()) {
-          const searchLower = search.trim().toLowerCase();
-          const matchesName = studentName.toLowerCase().includes(searchLower);
-          const matchesRut = student.rut.toLowerCase().includes(searchLower);
-
-          if (!matchesName && !matchesRut) {
-            continue;
-          }
-        }
+        // Determine if this is a ticket consumption or a direct purchase
+        const isTicketConsumption = tx.ticketsUsed !== null;
+        const normalizedType = isTicketConsumption ? 'ticket' : tx.type;
 
         normalizedTransactions.push({
           id: tx.id,
           date: tx.createdAt,
-          type: tx.type,
+          type: normalizedType,
           amount: tx.amount,
-          description: tx.description || `${tx.type === 'purchase' ? 'Compra' : tx.type === 'refund' ? 'Devolución' : 'Ajuste'} en casino`,
+          description: tx.description || `${isTicketConsumption ? 'Consumo de ticket' : tx.type === 'purchase' ? 'Compra directa' : tx.type === 'refund' ? 'Devolución' : 'Ajuste'} en casino`,
           studentName,
           studentRut: student.rut,
           studentGrade: student.grade,
@@ -919,23 +947,12 @@ export async function adminRoutes(app: FastifyInstance) {
         });
       }
 
-      // Add WalletLog records
+      // Add WalletLog records (search is now handled at Prisma query level)
       for (const log of walletLogs) {
         if (!log.wallet.student) continue;
 
         const student = log.wallet.student;
         const studentName = `${student.firstName} ${student.lastName}`;
-
-        // Apply search filter
-        if (search && search.trim()) {
-          const searchLower = search.trim().toLowerCase();
-          const matchesName = studentName.toLowerCase().includes(searchLower);
-          const matchesRut = student.rut.toLowerCase().includes(searchLower);
-
-          if (!matchesName && !matchesRut) {
-            continue;
-          }
-        }
 
         normalizedTransactions.push({
           id: log.id,
@@ -952,21 +969,10 @@ export async function adminRoutes(app: FastifyInstance) {
         });
       }
 
-      // Add Payment records
+      // Add Payment records (search is now handled at Prisma query level)
       for (const payment of payments) {
         const student = payment.student;
         const studentName = `${student.firstName} ${student.lastName}`;
-
-        // Apply search filter
-        if (search && search.trim()) {
-          const searchLower = search.trim().toLowerCase();
-          const matchesName = studentName.toLowerCase().includes(searchLower);
-          const matchesRut = student.rut.toLowerCase().includes(searchLower);
-
-          if (!matchesName && !matchesRut) {
-            continue;
-          }
-        }
 
         const packageInfo = payment.rechargePackage
           ? ` - ${payment.rechargePackage.name}`
@@ -1097,22 +1103,25 @@ export async function adminRoutes(app: FastifyInstance) {
       });
 
       // Total Sales: Sum Transaction.amount where type='purchase' and source='casino'
+      // Exclude ticket consumptions (ticketsUsed IS NOT NULL) - only count direct sales
       const salesData = await prisma.transaction.aggregate({
         _sum: { amount: true },
         where: {
           createdAt: { gte: dateFrom, lte: dateTo },
           type: 'purchase',
           source: 'casino',
+          ticketsUsed: null, // Exclude ticket consumptions, only direct sales
           ...(walletIds && { walletId: { in: walletIds } }),
         },
       });
       const totalSales = salesData._sum.amount || 0;
 
       // Total Recharges: Sum Payment.amount where status='completed'
+      // Use completedAt instead of createdAt to count payments by completion date
       const rechargesData = await prisma.payment.aggregate({
         _sum: { amount: true },
         where: {
-          createdAt: { gte: dateFrom, lte: dateTo },
+          completedAt: { gte: dateFrom, lte: dateTo },
           status: 'completed',
           ...(schoolId && {
             student: { schoolId }
@@ -1199,11 +1208,19 @@ export async function adminRoutes(app: FastifyInstance) {
       }
 
       // 5. Query transactions (limit 10000)
+      // Handle special filtering for 'ticket' and 'purchase' types (same as list endpoint)
+      const exportTypeFilter = (() => {
+        if (!query.type || query.type === 'all') return {};
+        if (query.type === 'ticket') return { ticketsUsed: { not: null } };
+        if (query.type === 'purchase') return { type: 'purchase', ticketsUsed: null };
+        return { type: query.type };
+      })();
+
       const transactions = await prisma.transaction.findMany({
         where: {
           cafeteria: { schoolId },
           ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-          ...(query.type && query.type !== 'all' && { type: query.type }),
+          ...exportTypeFilter,
         },
         include: {
           wallet: {
@@ -1251,12 +1268,15 @@ export async function adminRoutes(app: FastifyInstance) {
           ? `${tx.validator.guardian.firstName} ${tx.validator.guardian.lastName}`
           : tx.validator?.email || '';
 
+        // Determine type: 'ticket' if ticketsUsed is not null, otherwise use original type
+        const displayType = tx.ticketsUsed ? 'ticket' : tx.type;
+
         return [
           new Date(tx.createdAt).toLocaleString('es-CL'),
           student ? `${student.firstName} ${student.lastName}` : '',
           student?.rut || '',
           student?.grade || '',
-          tx.type,
+          displayType,
           tx.validationMethod || '',
           tx.description || '',
           tx.amount.toString(),
