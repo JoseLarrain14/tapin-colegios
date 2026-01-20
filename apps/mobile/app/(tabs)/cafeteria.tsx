@@ -169,10 +169,40 @@ export default function CafeteriaTab() {
     loadData();
   }, [loadData]);
 
+  // Get full date string for a specific day (YYYY-MM-DD format)
+  const getDateString = useCallback((day: number): string => {
+    const date = getDayDate(day);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const dayNum = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayNum}`;
+  }, [getDayDate]);
+
   const loadMenuForDay = async (cafeteriaId: string, day: number, timeSlot?: 'breakfast' | 'lunch' | 'snack' | null) => {
     if (!accessToken) return;
 
     try {
+      // Try the new menu-planning resolve endpoint first (date-based)
+      const dateStr = getDateString(day);
+      const newResponse = await apiService.getMenuByDate(cafeteriaId, dateStr, accessToken);
+
+      if (newResponse.success && newResponse.data && newResponse.data.items.length > 0) {
+        // Convert items to MenuItem format
+        const items: MenuItem[] = newResponse.data.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          category: item.category,
+          imageUrl: item.imageUrl,
+          available: true,
+          availableDays: [day],
+        }));
+        setMenuItems(items);
+        return;
+      }
+
+      // Fallback to the old day-of-week based endpoint
       const response = await apiService.getMenuByDay(cafeteriaId, day, accessToken, timeSlot || undefined);
       if (response.success && response.data) {
         setMenuItems(response.data.items);

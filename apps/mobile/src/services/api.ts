@@ -944,6 +944,51 @@ class ApiService {
     }
   }
 
+  // Menu planning endpoint - resolve menu for a specific date
+  async getMenuByDate(
+    cafeteriaId: string,
+    date: string, // YYYY-MM-DD format
+    accessToken: string
+  ): Promise<ApiResponse<{
+    source: 'assignment' | 'pattern' | 'default';
+    date: string;
+    dayOfWeek: number;
+    items: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      price: number;
+      category?: string;
+      imageUrl?: string;
+    }>;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        source: 'assignment' | 'pattern' | 'default';
+        date: string;
+        dayOfWeek: number;
+        items: Array<{
+          id: string;
+          name: string;
+          description?: string;
+          price: number;
+          category?: string;
+          imageUrl?: string;
+        }>;
+      }>>(`/menu-planning/${cafeteriaId}/resolve/${date}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener menu del dia' };
+    }
+  }
+
   // Order endpoints
   async getOrders(accessToken: string): Promise<ApiResponse<{
     orders: Order[];

@@ -387,7 +387,7 @@
       ],
       "filesToModify": ["apps/mobile/src/services/api.ts"],
       "verification": "cd apps/mobile && npx tsc --noEmit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-141",
@@ -404,7 +404,7 @@
       ],
       "filesToModify": ["apps/mobile/app/(tabs)/cafeteria.tsx"],
       "verification": "cd apps/mobile && npx tsc --noEmit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-142",
@@ -421,7 +421,7 @@
       ],
       "filesToModify": [],
       "verification": "Verificacion manual: admin asigna menu, mobile lo muestra",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-150",
