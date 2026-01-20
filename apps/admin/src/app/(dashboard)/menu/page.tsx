@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Calendar } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 
@@ -122,12 +123,21 @@ export default function MenuPage() {
             Gestiona los productos de la cafetería
           </p>
         </div>
-        <Link
-          href="/menu/new"
-          className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + Nuevo Producto
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/menu/calendar"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Calendar className="w-4 h-4" />
+            Calendario
+          </Link>
+          <Link
+            href="/menu/new"
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + Nuevo Producto
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

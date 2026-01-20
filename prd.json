@@ -438,7 +438,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Ir a /menu, screenshot con boton Calendario",
-      "passes": false
+      "passes": true
     }
   ]
 }
