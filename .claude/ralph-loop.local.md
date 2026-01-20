@@ -37,6 +37,10 @@ Implementar mejoras admin panel segun prd.json - 8 user stories US-030 a US-037
 - Tests E2E: 4/6 passed (school_admin tests OK, super_admin credentials missing)
 - Screenshots: 6 generados en apps/admin/screenshots/
 
+### Post-Iteracion
+- AGENTS.md actualizado con patrones aprendidos (commit 8a5fd00)
+- Patrones documentados: filtrado UI por rol, validacion RUT mejorada, metricas agregadas, Playwright E2E
+
 ### Proximos Pasos (opcional)
 - Crear usuario super_admin en seed para tests completos
 - Agregar mas tests de integracion

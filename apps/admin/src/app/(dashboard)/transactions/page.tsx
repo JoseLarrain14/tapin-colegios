@@ -81,6 +81,8 @@ interface Stats {
   totalSales: number
   totalRecharges: number
   transactionCount: number
+  salesCount: number      // NUEVO
+  rechargesCount: number  // NUEVO
 }
 
 export default function TransactionsPage() {
@@ -113,6 +115,7 @@ export default function TransactionsPage() {
     queryKey: ['admin-transactions-stats', today],
     queryFn: async () => {
       const res = await apiClient.adminTransactions.stats({ dateFrom: today, dateTo: today })
+      console.log('[Frontend] Stats received:', res.data.data)  // AGREGAR ESTE LOG
       return res.data.data as Stats
     },
   })
@@ -223,16 +226,16 @@ export default function TransactionsPage() {
     }
   }
 
-  // Tab counts (approximate based on stats)
+  // Tab counts (using real values from stats)
   const getTabCount = (tab: TabType): number => {
     if (!statsData) return 0
     switch (tab) {
       case 'tickets':
         return statsData.ticketsConsumed
       case 'sales':
-        return Math.floor(statsData.transactionCount * 0.4)
+        return statsData.salesCount ?? 0      // VALOR REAL
       case 'recharges':
-        return Math.floor(statsData.transactionCount * 0.3)
+        return statsData.rechargesCount ?? 0  // VALOR REAL
       default:
         return statsData.transactionCount
     }

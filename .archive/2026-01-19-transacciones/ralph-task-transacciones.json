@@ -1,0 +1,187 @@
+{
+  "task": "Corregir módulo de transacciones del panel admin",
+  "priority": "CRITICAL",
+  "context": "El módulo de transacciones tiene bugs que causan que las estadísticas muestren cero y los filtros no funcionen correctamente",
+
+  "problems": [
+    {
+      "id": 1,
+      "title": "El tipo de transacción 'ticket' NO EXISTE",
+      "severity": "CRITICAL",
+      "description": "El frontend filtra por type='ticket' pero este tipo no existe en la BD. Los tickets se guardan como type='purchase' con ticketsUsed JSON.",
+      "files": [
+        {
+          "path": "packages/api/src/routes/admin.routes.ts",
+          "line": 777,
+          "issue": "Busca type='ticket' que no existe"
+        },
+        {
+          "path": "apps/admin/src/app/(dashboard)/transactions/page.tsx",
+          "line": 124,
+          "issue": "getTypeForTab retorna 'ticket' para el tab de tickets"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Filtros 'Tickets' y 'Ventas' muestran lo mismo",
+      "severity": "HIGH",
+      "description": "Ambos tipos son 'purchase' en la BD. La diferencia es que tickets tienen ticketsUsed != null",
+      "files": [
+        {
+          "path": "packages/api/src/routes/admin.routes.ts",
+          "lines": "773-807",
+          "issue": "No distingue entre ventas directas y consumo de tickets"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Estadísticas muestran CERO",
+      "severity": "CRITICAL",
+      "description": "Las stats del día muestran 0 aunque hay transacciones. Posibles causas: timezone incorrecto, uso de createdAt en vez de completedAt para pagos",
+      "files": [
+        {
+          "path": "packages/api/src/routes/admin.routes.ts",
+          "lines": "1056-1139",
+          "issues": [
+            "Líneas 1056-1061: setHours(0,0,0,0) usa hora local, puede causar mismatch",
+            "Línea 1115: Usa createdAt para pagos, debería usar completedAt"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Búsqueda ineficiente",
+      "severity": "MEDIUM",
+      "description": "La búsqueda se hace en memoria después de traer todos los datos. Debería hacerse en Prisma",
+      "files": [
+        {
+          "path": "packages/api/src/routes/admin.routes.ts",
+          "lines": "895-903",
+          "issue": "Filtra en JavaScript en vez de en la query de Prisma"
+        }
+      ]
+    }
+  ],
+
+  "solutions": [
+    {
+      "problem_id": 1,
+      "title": "Agregar filtro para tickets por ticketsUsed",
+      "file": "packages/api/src/routes/admin.routes.ts",
+      "description": "Modificar la consulta de transactions para detectar tickets por ticketsUsed IS NOT NULL",
+      "code_change": {
+        "location": "Dentro del where de prisma.transaction.findMany (línea ~777)",
+        "logic": "Si type === 'ticket', agregar filtro { ticketsUsed: { not: null } } en vez de { type: 'ticket' }"
+      }
+    },
+    {
+      "problem_id": 2,
+      "title": "Distinguir ventas de tickets",
+      "file": "packages/api/src/routes/admin.routes.ts",
+      "description": "Para filtro 'purchase' (ventas), excluir transacciones con ticketsUsed",
+      "code_change": {
+        "logic": "Si type === 'purchase', agregar filtro { ticketsUsed: null, type: 'purchase' }"
+      }
+    },
+    {
+      "problem_id": 3,
+      "title": "Corregir cálculo de estadísticas",
+      "file": "packages/api/src/routes/admin.routes.ts",
+      "steps": [
+        {
+          "step": 1,
+          "description": "Usar UTC explícito para fechas",
+          "code": "const dateFrom = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));"
+        },
+        {
+          "step": 2,
+          "description": "Usar completedAt para filtrar pagos en línea 1115",
+          "code": "where: { completedAt: { gte: dateFrom, lte: dateTo }, status: 'completed' }"
+        },
+        {
+          "step": 3,
+          "description": "Agregar console.log temporal para debug de fechas y ver qué valores se están usando"
+        }
+      ]
+    },
+    {
+      "problem_id": 4,
+      "title": "Mover búsqueda a Prisma",
+      "file": "packages/api/src/routes/admin.routes.ts",
+      "description": "Agregar filtro de búsqueda en la query de Prisma",
+      "code_example": "search ? { wallet: { student: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }, { rut: { contains: search } }] } } } : {}"
+    }
+  ],
+
+  "data_model_reference": {
+    "Transaction": {
+      "key_fields": {
+        "type": "purchase | refund | adjustment (NO existe 'ticket')",
+        "ticketsUsed": "JSON string cuando es consumo de ticket, null cuando es venta directa",
+        "source": "casino | app",
+        "amount": "0 cuando es ticket, > 0 cuando es venta"
+      }
+    },
+    "Payment": {
+      "key_fields": {
+        "status": "pending | processing | completed | failed",
+        "createdAt": "Cuando se creó el pago",
+        "completedAt": "Cuando se completó (USAR ESTE PARA STATS)"
+      },
+      "note": "Esta tabla contiene las RECARGAS, no las ventas"
+    }
+  },
+
+  "how_to_distinguish_transaction_types": {
+    "venta_directa": {
+      "table": "Transaction",
+      "conditions": "type = 'purchase' AND ticketsUsed IS NULL AND amount > 0"
+    },
+    "consumo_ticket": {
+      "table": "Transaction",
+      "conditions": "type = 'purchase' AND ticketsUsed IS NOT NULL AND amount = 0"
+    },
+    "recarga": {
+      "table": "Payment",
+      "conditions": "status = 'completed'"
+    }
+  },
+
+  "implementation_order": [
+    {
+      "phase": 1,
+      "priority": "CRITICAL",
+      "tasks": [
+        "Corregir filtro de tickets en admin.routes.ts",
+        "Corregir filtro de ventas para excluir tickets"
+      ]
+    },
+    {
+      "phase": 2,
+      "priority": "CRITICAL",
+      "tasks": [
+        "Agregar logs de debug para ver fechas en stats",
+        "Corregir timezone usando UTC",
+        "Cambiar createdAt a completedAt para pagos"
+      ]
+    },
+    {
+      "phase": 3,
+      "priority": "MEDIUM",
+      "tasks": [
+        "Mover búsqueda a nivel de Prisma",
+        "Corregir paginación para reflejar búsqueda"
+      ]
+    }
+  ],
+
+  "test_commands": {
+    "verify_api_running": "curl http://localhost:3001/health",
+    "verify_stats": "curl -H 'Authorization: Bearer TOKEN' http://localhost:3001/api/v1/admin/transactions/stats",
+    "verify_tickets_filter": "curl -H 'Authorization: Bearer TOKEN' 'http://localhost:3001/api/v1/admin/transactions?type=ticket'",
+    "verify_sales_filter": "curl -H 'Authorization: Bearer TOKEN' 'http://localhost:3001/api/v1/admin/transactions?type=purchase'"
+  }
+}

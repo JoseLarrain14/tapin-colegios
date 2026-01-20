@@ -1,0 +1,537 @@
+{
+  "task": "Mejoras del Panel Admin - Dashboard, Estudiantes y UX",
+  "priority": "HIGH",
+  "created_at": "2026-01-19",
+  "context": "El panel admin tiene problemas de UX, estadísticas confusas, y funcionalidades faltantes que dificultan la gestión del colegio",
+
+  "current_state": {
+    "database": {
+      "schools": 10,
+      "school_admins": 1,
+      "students": 2,
+      "guardians": 1,
+      "note": "9 colegios sin admin, datos de seed con RUTs inválidos"
+    },
+    "students_data": [
+      { "name": "Juan Pérez", "rut": "12345678-9 (INVALIDO)", "balance": 5000, "tickets": 10 },
+      { "name": "Sofia Perez", "rut": "22222222-2 (válido)", "balance": 10000, "tickets": 6 }
+    ],
+    "dashboard_shows": {
+      "colegios_activos": "1 (irrelevante para school_admin)",
+      "usuarios_totales": "1 (confuso - cuenta guardians no estudiantes)",
+      "transacciones_hoy": "X",
+      "ingresos_mes": "$X"
+    }
+  },
+
+  "stories": [
+    {
+      "id": "S1",
+      "title": "Mejorar mensaje de error al crear estudiante con RUT inválido",
+      "priority": "HIGH",
+      "status": "pending",
+      "passes": false,
+      "description": "Cuando un usuario intenta crear un estudiante con RUT inválido, el error 400 no explica claramente qué está mal. Debe mostrar el dígito verificador esperado.",
+
+      "problem": {
+        "current_behavior": "Error 400 con mensaje genérico 'Datos inválidos' o 'RUT inválido'",
+        "expected_behavior": "Mensaje claro: 'RUT inválido. El dígito verificador debería ser X' o ejemplos de RUTs válidos",
+        "root_cause": "Zod validation no incluye información del dígito esperado"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "packages/api/src/routes/admin.routes.ts",
+          "changes": [
+            {
+              "location": "función validateRut() línea ~31-55",
+              "action": "Modificar para retornar el dígito esperado cuando falla"
+            },
+            {
+              "location": "createStudentSchema línea ~87-95",
+              "action": "Mejorar mensaje de error con dígito calculado"
+            },
+            {
+              "location": "catch block del POST /students línea ~500-508",
+              "action": "Retornar mensaje más descriptivo"
+            }
+          ]
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: Al enviar RUT '12345678-9', el error debe incluir 'El dígito verificador correcto es 5'",
+        "AC2: El mensaje de error debe ser en español",
+        "AC3: El error debe llegar al frontend y mostrarse en el modal"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Ir a http://localhost:3000/students",
+          "2. Click en 'Agregar Estudiante'",
+          "3. Ingresar RUT: 12345678-9, Nombre: Test, Apellido: Test",
+          "4. Click en 'Crear'",
+          "5. VERIFICAR: El mensaje de error debe mostrar 'dígito verificador correcto es 5'"
+        ],
+        "screenshot_expected": "Modal con mensaje de error descriptivo visible"
+      },
+
+      "test_command": "curl -X POST http://localhost:3001/api/v1/admin/students -H 'Authorization: Bearer TOKEN' -H 'Content-Type: application/json' -d '{\"rut\":\"12345678-9\",\"firstName\":\"Test\",\"lastName\":\"Test\"}'"
+    },
+
+    {
+      "id": "S2",
+      "title": "Agregar validación de RUT en frontend con feedback visual",
+      "priority": "HIGH",
+      "status": "pending",
+      "passes": false,
+      "description": "El formulario de crear estudiante no valida el RUT antes de enviar. Debe mostrar feedback visual inmediato.",
+
+      "problem": {
+        "current_behavior": "Sin validación - usuario envía y recibe error 400",
+        "expected_behavior": "Validación en tiempo real con indicador verde/rojo y dígito esperado",
+        "root_cause": "No hay validación client-side"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "apps/admin/src/app/(dashboard)/students/page.tsx",
+          "changes": [
+            {
+              "location": "Después de la función formatRut() línea ~62",
+              "action": "Agregar funciones validateRut() y calculateVerificationDigit()"
+            },
+            {
+              "location": "useState para createForm línea ~76",
+              "action": "Agregar estado para validación de RUT: rutValid, rutExpectedDigit"
+            },
+            {
+              "location": "Input del RUT en el modal línea ~430-441",
+              "action": "Agregar onChange que valide RUT y muestre indicador visual"
+            },
+            {
+              "location": "Botón submit del modal",
+              "action": "Deshabilitar si RUT no es válido"
+            }
+          ]
+        }
+      ],
+
+      "implementation_code": {
+        "validation_functions": "// Copiar de packages/api/src/routes/admin.routes.ts líneas 17-55\n// Las funciones cleanRut, calculateVerificationDigit, validateRut"
+      },
+
+      "acceptance_criteria": [
+        "AC1: Al escribir RUT, se muestra indicador rojo/verde según validez",
+        "AC2: Si RUT inválido, mostrar 'Dígito esperado: X' debajo del input",
+        "AC3: Botón 'Crear' deshabilitado si RUT inválido",
+        "AC4: Al escribir RUT válido, indicador verde y botón habilitado"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Ir a http://localhost:3000/students",
+          "2. Click en 'Agregar Estudiante'",
+          "3. Escribir RUT: 12345678-9",
+          "4. VERIFICAR: Input debe tener borde ROJO y texto 'Dígito esperado: 5'",
+          "5. Borrar y escribir RUT: 12345678-5",
+          "6. VERIFICAR: Input debe tener borde VERDE",
+          "7. VERIFICAR: Botón 'Crear' debe estar HABILITADO"
+        ],
+        "screenshot_expected": "Input con borde rojo/verde según validez del RUT"
+      }
+    },
+
+    {
+      "id": "S3",
+      "title": "Agregar 'Estudiantes Activos' al dashboard",
+      "priority": "HIGH",
+      "status": "pending",
+      "passes": false,
+      "description": "El dashboard no muestra la cantidad de estudiantes, que es una métrica fundamental.",
+
+      "problem": {
+        "current_behavior": "Dashboard solo muestra: Colegios Activos, Usuarios Totales, Transacciones, Ingresos",
+        "expected_behavior": "Agregar card de 'Estudiantes Activos' con conteo y cambio porcentual",
+        "root_cause": "Endpoint stats no calcula estudiantes"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "packages/api/src/routes/stats.routes.ts",
+          "changes": [
+            {
+              "location": "Después de totalUsers (línea ~127)",
+              "action": "Agregar cálculo de activeStudents con conteo de estudiantes activos del colegio"
+            },
+            {
+              "location": "Respuesta del endpoint (línea ~200+)",
+              "action": "Incluir activeStudents en el objeto stats"
+            }
+          ],
+          "code_example": "// 5. Active Students\nconst studentWhereClause = isSchoolAdmin && userSchoolId\n  ? { schoolId: userSchoolId, active: true }\n  : { active: true };\n\nconst [currentStudents, previousStudents] = await Promise.all([\n  prisma.student.count({ where: studentWhereClause }),\n  prisma.student.count({\n    where: {\n      ...studentWhereClause,\n      createdAt: { lt: monthStart },\n    },\n  }),\n]);\n\nconst activeStudents = {\n  value: currentStudents,\n  change: calculateChange(currentStudents, previousStudents),\n};"
+        },
+        {
+          "path": "apps/admin/src/app/(dashboard)/page.tsx",
+          "changes": [
+            {
+              "location": "Interface DashboardStats (línea ~18)",
+              "action": "Agregar activeStudents: { value: number; change: string }"
+            },
+            {
+              "location": "statsCards array (línea ~66)",
+              "action": "Agregar card de Estudiantes Activos con icono GraduationCap"
+            }
+          ]
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: Dashboard muestra card 'Estudiantes Activos' con valor 2",
+        "AC2: Card tiene icono de GraduationCap",
+        "AC3: Card muestra cambio porcentual vs mes anterior",
+        "AC4: Para school_admin, solo cuenta estudiantes de su colegio"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Ir a http://localhost:3000 (dashboard)",
+          "2. VERIFICAR: Existe card 'Estudiantes Activos'",
+          "3. VERIFICAR: Muestra valor '2'",
+          "4. VERIFICAR: Tiene icono de estudiante/graduación",
+          "5. VERIFICAR: Muestra porcentaje de cambio"
+        ],
+        "screenshot_expected": "Dashboard con 5 cards incluyendo 'Estudiantes Activos: 2'"
+      },
+
+      "test_command": "curl -H 'Authorization: Bearer TOKEN' http://localhost:3001/api/v1/stats/dashboard | jq '.data.stats.activeStudents'"
+    },
+
+    {
+      "id": "S4",
+      "title": "Renombrar 'Usuarios Totales' a 'Apoderados' en dashboard",
+      "priority": "HIGH",
+      "status": "pending",
+      "passes": false,
+      "description": "La etiqueta 'Usuarios Totales' es confusa porque cuenta guardians, no todos los usuarios.",
+
+      "problem": {
+        "current_behavior": "Card dice 'Usuarios Totales' pero cuenta Guardians",
+        "expected_behavior": "Card dice 'Apoderados' o 'Apoderados Registrados'",
+        "root_cause": "Naming incorrecto en frontend"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "apps/admin/src/app/(dashboard)/page.tsx",
+          "changes": [
+            {
+              "location": "statsCards array, segundo item (línea ~74-79)",
+              "action": "Cambiar label de 'Usuarios Totales' a 'Apoderados'"
+            }
+          ],
+          "before": "label: 'Usuarios Totales',",
+          "after": "label: 'Apoderados',"
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: Card en dashboard dice 'Apoderados' en vez de 'Usuarios Totales'",
+        "AC2: El valor sigue siendo 1 (conteo de guardians)",
+        "AC3: El icono sigue siendo Users"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Ir a http://localhost:3000 (dashboard)",
+          "2. VERIFICAR: Card dice 'Apoderados' NO 'Usuarios Totales'",
+          "3. VERIFICAR: Valor es '1'"
+        ],
+        "screenshot_expected": "Dashboard con card 'Apoderados: 1'"
+      }
+    },
+
+    {
+      "id": "S5",
+      "title": "Ocultar 'Colegios Activos' para school_admin",
+      "priority": "MEDIUM",
+      "status": "pending",
+      "passes": false,
+      "description": "La estadística 'Colegios Activos' no tiene sentido para school_admin que solo gestiona un colegio.",
+
+      "problem": {
+        "current_behavior": "school_admin ve 'Colegios Activos: 1' que es irrelevante",
+        "expected_behavior": "school_admin no ve esta card, solo super_admin la ve",
+        "root_cause": "Frontend no filtra cards por rol"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "apps/admin/src/app/(dashboard)/page.tsx",
+          "changes": [
+            {
+              "location": "statsCards array (línea ~66)",
+              "action": "Filtrar card de 'Colegios Activos' basado en user.role"
+            }
+          ],
+          "code_example": "const statsCards = stats ? [\n  // Solo mostrar para super_admin\n  ...(user?.role === 'super_admin' ? [{\n    label: 'Colegios Activos',\n    value: stats.activeSchools.value.toString(),\n    icon: School,\n    change: stats.activeSchools.change,\n    color: 'bg-blue-500',\n  }] : []),\n  // ... resto de cards\n] : []"
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: school_admin NO ve card 'Colegios Activos'",
+        "AC2: super_admin SÍ ve card 'Colegios Activos'",
+        "AC3: El grid se ajusta correctamente (3 cards para school_admin)"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Login como school_admin (admin@colegio.cl)",
+          "2. Ir a http://localhost:3000 (dashboard)",
+          "3. VERIFICAR: NO existe card 'Colegios Activos'",
+          "4. VERIFICAR: Grid muestra solo 4 cards"
+        ],
+        "screenshot_expected": "Dashboard sin card de Colegios Activos"
+      }
+    },
+
+    {
+      "id": "S6",
+      "title": "Ocultar sección 'Colegios' del menú para school_admin",
+      "priority": "MEDIUM",
+      "status": "pending",
+      "passes": false,
+      "description": "school_admin no debería ver la sección de Colegios en la navegación.",
+
+      "problem": {
+        "current_behavior": "school_admin ve link a '/schools' en el sidebar",
+        "expected_behavior": "school_admin no ve este link, solo super_admin",
+        "root_cause": "navItems no filtra por rol"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "apps/admin/src/app/(dashboard)/layout.tsx",
+          "changes": [
+            {
+              "location": "navItems array (línea ~49-57)",
+              "action": "Filtrar item 'Colegios' basado en user.role"
+            }
+          ],
+          "code_example": "const navItems = [\n  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },\n  { href: '/pos', icon: Utensils, label: 'POS Casino' },\n  { href: '/menu', icon: ShoppingCart, label: 'Menú' },\n  { href: '/packages', icon: Package, label: 'Paquetes' },\n  { href: '/students', icon: GraduationCap, label: 'Estudiantes' },\n  { href: '/transactions', icon: Receipt, label: 'Transacciones' },\n  // Solo para super_admin\n  ...(user?.role === 'super_admin' ? [\n    { href: '/schools', icon: School, label: 'Colegios' },\n  ] : []),\n]"
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: school_admin NO ve 'Colegios' en el sidebar",
+        "AC2: super_admin SÍ ve 'Colegios' en el sidebar",
+        "AC3: Navegación móvil también respeta esta regla"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Login como school_admin (admin@colegio.cl)",
+          "2. VERIFICAR: Sidebar NO tiene link 'Colegios'",
+          "3. VERIFICAR: Solo aparecen: Dashboard, POS, Menú, Paquetes, Estudiantes, Transacciones"
+        ],
+        "screenshot_expected": "Sidebar sin opción Colegios"
+      }
+    },
+
+    {
+      "id": "S7",
+      "title": "Remover/ocultar botón 'Agregar Colegio' de acciones rápidas",
+      "priority": "MEDIUM",
+      "status": "pending",
+      "passes": false,
+      "description": "El botón 'Agregar Colegio' en acciones rápidas no tiene sentido para school_admin.",
+
+      "problem": {
+        "current_behavior": "Dashboard muestra 'Agregar Colegio' para todos los usuarios",
+        "expected_behavior": "Solo super_admin ve este botón, school_admin ve acciones relevantes",
+        "root_cause": "Acciones no filtradas por rol"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "apps/admin/src/app/(dashboard)/page.tsx",
+          "changes": [
+            {
+              "location": "Sección 'Acciones Rápidas' (línea ~185-216)",
+              "action": "Condicionar botón 'Agregar Colegio' a super_admin, reemplazar con 'Agregar Estudiante' para school_admin"
+            }
+          ]
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: school_admin ve 'Agregar Estudiante' en vez de 'Agregar Colegio'",
+        "AC2: super_admin sigue viendo 'Agregar Colegio'",
+        "AC3: Botón 'Agregar Estudiante' navega a /students o abre modal"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Login como school_admin",
+          "2. Ir a dashboard",
+          "3. VERIFICAR: Acciones Rápidas muestra 'Agregar Estudiante' NO 'Agregar Colegio'",
+          "4. Click en 'Agregar Estudiante'",
+          "5. VERIFICAR: Navega a /students o abre modal de creación"
+        ],
+        "screenshot_expected": "Acciones rápidas con 'Agregar Estudiante' visible"
+      }
+    },
+
+    {
+      "id": "S8",
+      "title": "Agregar 'Saldo Total' y 'Tickets Totales' al dashboard",
+      "priority": "LOW",
+      "status": "pending",
+      "passes": false,
+      "description": "Métricas útiles para el school_admin: cuánto saldo y tickets hay en total.",
+
+      "problem": {
+        "current_behavior": "No hay visibilidad del saldo total de wallets ni tickets disponibles",
+        "expected_behavior": "Dashboard muestra 'Saldo Total: $15,000' y 'Tickets Totales: 16'",
+        "root_cause": "Endpoint stats no calcula estos valores"
+      },
+
+      "files_to_modify": [
+        {
+          "path": "packages/api/src/routes/stats.routes.ts",
+          "changes": [
+            {
+              "location": "Después de activeStudents",
+              "action": "Agregar cálculo de totalBalance y totalTickets"
+            }
+          ],
+          "code_example": "// 6. Total Wallet Balance\nconst walletAggregation = await prisma.wallet.aggregate({\n  _sum: { balance: true },\n  where: isSchoolAdmin && userSchoolId\n    ? { student: { schoolId: userSchoolId } }\n    : {},\n});\nconst totalBalance = {\n  value: walletAggregation._sum.balance || 0,\n  formatted: formatCurrency(walletAggregation._sum.balance || 0),\n};\n\n// 7. Total Tickets\nconst ticketAggregation = await prisma.studentTicket.aggregate({\n  _sum: { quantity: true },\n  where: isSchoolAdmin && userSchoolId\n    ? { student: { schoolId: userSchoolId } }\n    : {},\n});\nconst totalTickets = {\n  value: ticketAggregation._sum.quantity || 0,\n};"
+        },
+        {
+          "path": "apps/admin/src/app/(dashboard)/page.tsx",
+          "changes": [
+            {
+              "location": "Interface DashboardStats",
+              "action": "Agregar totalBalance y totalTickets"
+            },
+            {
+              "location": "statsCards array",
+              "action": "Agregar cards para Saldo Total y Tickets Totales"
+            }
+          ]
+        }
+      ],
+
+      "acceptance_criteria": [
+        "AC1: Dashboard muestra 'Saldo Total: $15,000'",
+        "AC2: Dashboard muestra 'Tickets Totales: 16'",
+        "AC3: Valores se actualizan correctamente con los datos de la DB"
+      ],
+
+      "visual_verification": {
+        "steps": [
+          "1. Ir a http://localhost:3000 (dashboard)",
+          "2. VERIFICAR: Existe card 'Saldo Total' con valor '$15,000'",
+          "3. VERIFICAR: Existe card 'Tickets Totales' con valor '16'"
+        ],
+        "screenshot_expected": "Dashboard con cards de Saldo Total y Tickets Totales"
+      }
+    }
+  ],
+
+  "implementation_order": [
+    {
+      "phase": 1,
+      "priority": "HIGH",
+      "title": "Fixes críticos de UX",
+      "stories": ["S1", "S2"],
+      "estimated_complexity": "MEDIUM"
+    },
+    {
+      "phase": 2,
+      "priority": "HIGH",
+      "title": "Dashboard - Estadísticas correctas",
+      "stories": ["S3", "S4"],
+      "estimated_complexity": "MEDIUM"
+    },
+    {
+      "phase": 3,
+      "priority": "MEDIUM",
+      "title": "Dashboard - Filtrado por rol",
+      "stories": ["S5", "S6", "S7"],
+      "estimated_complexity": "LOW"
+    },
+    {
+      "phase": 4,
+      "priority": "LOW",
+      "title": "Dashboard - Métricas adicionales",
+      "stories": ["S8"],
+      "estimated_complexity": "MEDIUM"
+    }
+  ],
+
+  "verification_checklist": {
+    "before_marking_complete": [
+      "1. Build exitoso: npm run build:admin && npm run build:api",
+      "2. Sin errores de TypeScript",
+      "3. Verificación visual en browser completada",
+      "4. Funcionalidad probada manualmente",
+      "5. No hay regresiones en otras funcionalidades"
+    ],
+    "visual_tests": [
+      {
+        "page": "/students",
+        "checks": [
+          "Modal de crear estudiante muestra validación de RUT",
+          "Input tiene borde rojo con RUT inválido",
+          "Input tiene borde verde con RUT válido",
+          "Error del servidor se muestra claramente"
+        ]
+      },
+      {
+        "page": "/",
+        "checks": [
+          "Card 'Estudiantes Activos' visible con valor correcto",
+          "Card 'Apoderados' visible (no 'Usuarios Totales')",
+          "Card 'Colegios Activos' NO visible para school_admin",
+          "Acciones rápidas muestran 'Agregar Estudiante' para school_admin"
+        ]
+      },
+      {
+        "page": "sidebar",
+        "checks": [
+          "Link 'Colegios' NO visible para school_admin"
+        ]
+      }
+    ]
+  },
+
+  "test_credentials": {
+    "school_admin": {
+      "email": "admin@colegio.cl",
+      "password": "admin123",
+      "schoolId": "c8e4afd3-5227-4331-9650-855251ada18e"
+    },
+    "super_admin": {
+      "email": "super@tapin.cl",
+      "password": "super123"
+    }
+  },
+
+  "valid_test_ruts": [
+    "12345678-5",
+    "11111111-1",
+    "22222222-2",
+    "98765432-5",
+    "20123456-5"
+  ],
+
+  "completion_promise": "ALL STORIES COMPLETE",
+
+  "notes": [
+    "IMPORTANTE: Cada story debe verificarse VISUALMENTE en el browser antes de marcar passes: true",
+    "El seed tiene RUT inválido (12345678-9) - esto es conocido, no arreglar en este PRD",
+    "Usar user.role para condicionar elementos del UI",
+    "Los cambios del backend (stats.routes.ts) requieren reiniciar la API"
+  ]
+}
