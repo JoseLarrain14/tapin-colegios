@@ -149,11 +149,14 @@ model Cafeteria {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  school           School            @relation(fields: [schoolId], references: [id])
+  school           School                @relation(fields: [schoolId], references: [id])
   menuItems        MenuItem[]
   rechargePackages RechargePackage[]
   transactions     Transaction[]
   orders           Order[]
+  menuTemplates    MenuTemplate[]
+  weeklyPattern    WeeklyPattern?
+  dailyAssignments DailyMenuAssignment[]
 
   @@map("cafeterias")
 }
@@ -172,9 +175,119 @@ model MenuItem {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  cafeteria       Cafeteria                 @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  templateItems   MenuTemplateItem[]
+  patternItems    WeeklyPatternItem[]
+  assignmentItems DailyMenuAssignmentItem[]
 
   @@map("menu_items")
+}
+
+// =============================================================================
+// Menu Planning System
+// =============================================================================
+
+// Template de menu reutilizable (coleccion de platos)
+model MenuTemplate {
+  id          String   @id @default(uuid())
+  cafeteriaId String   @map("cafeteria_id")
+  name        String
+  description String?
+  color       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cafeteria Cafeteria          @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  items     MenuTemplateItem[]
+
+  @@map("menu_templates")
+}
+
+// Items dentro de un template
+model MenuTemplateItem {
+  id         String @id @default(uuid())
+  templateId String @map("template_id")
+  menuItemId String @map("menu_item_id")
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  template MenuTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  menuItem MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, menuItemId])
+  @@map("menu_template_items")
+}
+
+// Patron semanal base (se repite automaticamente)
+model WeeklyPattern {
+  id          String   @id @default(uuid())
+  cafeteriaId String   @unique @map("cafeteria_id")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cafeteria Cafeteria          @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  days      WeeklyPatternDay[]
+
+  @@map("weekly_patterns")
+}
+
+// Dias del patron semanal
+model WeeklyPatternDay {
+  id        String @id @default(uuid())
+  patternId String @map("pattern_id")
+  dayOfWeek Int    @map("day_of_week") // 1=Lunes, 2=Martes, ..., 5=Viernes
+
+  pattern WeeklyPattern       @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  items   WeeklyPatternItem[]
+
+  @@unique([patternId, dayOfWeek])
+  @@map("weekly_pattern_days")
+}
+
+// Items en un dia del patron semanal
+model WeeklyPatternItem {
+  id           String @id @default(uuid())
+  patternDayId String @map("pattern_day_id")
+  menuItemId   String @map("menu_item_id")
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  patternDay WeeklyPatternDay @relation(fields: [patternDayId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([patternDayId, menuItemId])
+  @@map("weekly_pattern_items")
+}
+
+// Asignacion de menu a fecha especifica (sobrescribe patron)
+model DailyMenuAssignment {
+  id          String   @id @default(uuid())
+  cafeteriaId String   @map("cafeteria_id")
+  date        DateTime
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cafeteria Cafeteria                 @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  items     DailyMenuAssignmentItem[]
+
+  @@unique([cafeteriaId, date])
+  @@index([date])
+  @@map("daily_menu_assignments")
+}
+
+// Items en una asignacion diaria
+model DailyMenuAssignmentItem {
+  id           String @id @default(uuid())
+  assignmentId String @map("assignment_id")
+  menuItemId   String @map("menu_item_id")
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  assignment DailyMenuAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem            @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, menuItemId])
+  @@map("daily_menu_assignment_items")
 }
 
 model RechargePackage {

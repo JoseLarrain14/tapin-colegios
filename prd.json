@@ -1,0 +1,444 @@
+{
+  "projectName": "Sistema de Calendario de Menu",
+  "branchName": "feature/menu-calendar",
+  "description": "Sistema de planificacion visual de menu con calendario, drag-and-drop, templates y patron semanal",
+  "userStories": [
+    {
+      "id": "US-100",
+      "title": "Crear modelo MenuTemplate en schema.prisma",
+      "description": "Agregar modelo MenuTemplate y MenuTemplateItem para templates reutilizables",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Modelo MenuTemplate con: id, cafeteriaId, name, description, color, active, createdAt, updatedAt",
+        "Modelo MenuTemplateItem con: id, templateId, menuItemId, sortOrder",
+        "Relaciones correctas con onDelete Cascade",
+        "npx prisma migrate dev ejecutado sin errores"
+      ],
+      "filesToModify": ["packages/api/prisma/schema.prisma"],
+      "verification": "npx prisma migrate dev --name add_menu_template",
+      "passes": true
+    },
+    {
+      "id": "US-101",
+      "title": "Crear modelo WeeklyPattern en schema.prisma",
+      "description": "Agregar modelos para patron semanal",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Modelo WeeklyPattern con: id, cafeteriaId (unique), active, createdAt, updatedAt",
+        "Modelo WeeklyPatternDay con: id, patternId, dayOfWeek (1-5)",
+        "Modelo WeeklyPatternItem con: id, patternDayId, menuItemId, sortOrder",
+        "Constraints unique correctos",
+        "Migracion sin errores"
+      ],
+      "filesToModify": ["packages/api/prisma/schema.prisma"],
+      "verification": "npx prisma migrate dev --name add_weekly_pattern",
+      "passes": true
+    },
+    {
+      "id": "US-102",
+      "title": "Crear modelo DailyMenuAssignment en schema.prisma",
+      "description": "Agregar modelos para asignaciones a fechas especificas",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Modelo DailyMenuAssignment con: id, cafeteriaId, date, note, createdAt, updatedAt",
+        "Modelo DailyMenuAssignmentItem con: id, assignmentId, menuItemId, sortOrder",
+        "Constraint unique en [cafeteriaId, date]",
+        "Index en date",
+        "Migracion sin errores"
+      ],
+      "filesToModify": ["packages/api/prisma/schema.prisma"],
+      "verification": "npx prisma migrate dev --name add_daily_assignment",
+      "passes": true
+    },
+    {
+      "id": "US-103",
+      "title": "Agregar relaciones a modelos existentes",
+      "description": "Agregar relaciones inversas a MenuItem y Cafeteria",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "MenuItem tiene: templateItems, patternItems, assignmentItems",
+        "Cafeteria tiene: menuTemplates, weeklyPattern, dailyAssignments",
+        "npx prisma generate sin errores",
+        "npx tsc --noEmit sin errores en packages/api"
+      ],
+      "filesToModify": ["packages/api/prisma/schema.prisma"],
+      "verification": "cd packages/api && npx prisma generate && npx tsc --noEmit",
+      "passes": true
+    },
+    {
+      "id": "US-104",
+      "title": "Crear API CRUD de templates",
+      "description": "Endpoints para gestionar templates de menu",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Archivo menu-templates.routes.ts creado",
+        "GET /menu-templates/:cafeteriaId lista templates",
+        "POST /menu-templates/:cafeteriaId crea template",
+        "PUT /menu-templates/:cafeteriaId/:templateId actualiza",
+        "DELETE /menu-templates/:cafeteriaId/:templateId elimina",
+        "POST .../items agrega item a template",
+        "DELETE .../items/:itemId quita item",
+        "Validacion con Zod",
+        "Auth requerido",
+        "Rutas registradas en index.ts",
+        "pnpm build:api sin errores"
+      ],
+      "filesToModify": ["packages/api/src/routes/menu-templates.routes.ts", "packages/api/src/index.ts"],
+      "verification": "pnpm build:api",
+      "passes": false
+    },
+    {
+      "id": "US-105",
+      "title": "Crear API patron semanal",
+      "description": "Endpoints para gestionar patron semanal",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Archivo menu-planning.routes.ts creado",
+        "GET /menu-planning/:cafeteriaId/weekly-pattern retorna patron",
+        "PUT /menu-planning/:cafeteriaId/weekly-pattern/day/:dayOfWeek actualiza dia",
+        "Crea WeeklyPattern si no existe",
+        "dayOfWeek validado 1-5",
+        "pnpm build:api sin errores"
+      ],
+      "filesToModify": ["packages/api/src/routes/menu-planning.routes.ts", "packages/api/src/index.ts"],
+      "verification": "pnpm build:api",
+      "passes": false
+    },
+    {
+      "id": "US-106",
+      "title": "Crear API asignaciones diarias",
+      "description": "Endpoints para asignar menus a fechas",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "GET /menu-planning/:cafeteriaId/calendar?from=&to= retorna asignaciones",
+        "GET /menu-planning/:cafeteriaId/date/:date retorna menu de fecha",
+        "PUT /menu-planning/:cafeteriaId/date/:date crea/actualiza asignacion",
+        "DELETE /menu-planning/:cafeteriaId/date/:date elimina asignacion",
+        "Formato fecha YYYY-MM-DD",
+        "pnpm build:api sin errores"
+      ],
+      "filesToModify": ["packages/api/src/routes/menu-planning.routes.ts"],
+      "verification": "pnpm build:api",
+      "passes": false
+    },
+    {
+      "id": "US-107",
+      "title": "Crear endpoint resolucion de menu para mobile",
+      "description": "Endpoint que resuelve menu por fecha con logica de prioridad",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "GET /menu-planning/:cafeteriaId/resolve/:date",
+        "Respuesta: source, items, date, dayOfWeek",
+        "Logica: asignacion > patron > availableDays",
+        "Items incluyen datos completos del plato",
+        "pnpm build:api sin errores"
+      ],
+      "filesToModify": ["packages/api/src/routes/menu-planning.routes.ts"],
+      "verification": "pnpm build:api",
+      "passes": false
+    },
+    {
+      "id": "US-110",
+      "title": "Instalar dependencias dnd-kit y date-fns",
+      "description": "Instalar librerias para drag-and-drop y fechas",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "cd apps/admin && pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities date-fns",
+        "package.json tiene las 4 dependencias",
+        "pnpm build:admin sin errores"
+      ],
+      "filesToModify": ["apps/admin/package.json"],
+      "verification": "pnpm build:admin",
+      "passes": false
+    },
+    {
+      "id": "US-111",
+      "title": "Agregar metodos de templates al API client",
+      "description": "Metodos apiClient.menuTemplates en admin",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "apiClient.menuTemplates.list(cafeteriaId)",
+        "apiClient.menuTemplates.create(cafeteriaId, data)",
+        "apiClient.menuTemplates.update(cafeteriaId, templateId, data)",
+        "apiClient.menuTemplates.delete(cafeteriaId, templateId)",
+        "apiClient.menuTemplates.addItem(...)",
+        "apiClient.menuTemplates.removeItem(...)",
+        "TypeScript compila sin errores"
+      ],
+      "filesToModify": ["apps/admin/src/lib/api.ts"],
+      "verification": "cd apps/admin && npx tsc --noEmit",
+      "passes": false
+    },
+    {
+      "id": "US-112",
+      "title": "Agregar metodos de planning al API client",
+      "description": "Metodos apiClient.menuPlanning en admin",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "apiClient.menuPlanning.getWeeklyPattern(cafeteriaId)",
+        "apiClient.menuPlanning.updatePatternDay(cafeteriaId, day, items)",
+        "apiClient.menuPlanning.getCalendar(cafeteriaId, from, to)",
+        "apiClient.menuPlanning.getDateMenu(cafeteriaId, date)",
+        "apiClient.menuPlanning.setDateMenu(cafeteriaId, date, items)",
+        "apiClient.menuPlanning.clearDateMenu(cafeteriaId, date)",
+        "TypeScript compila"
+      ],
+      "filesToModify": ["apps/admin/src/lib/api.ts"],
+      "verification": "cd apps/admin && npx tsc --noEmit",
+      "passes": false
+    },
+    {
+      "id": "US-120",
+      "title": "Crear estructura pagina /menu/calendar",
+      "description": "Pagina base del calendario con layout 2 columnas",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Archivo page.tsx creado en menu/calendar/",
+        "Layout: 70% calendario, 30% sidebar",
+        "Header con titulo y navegacion de mes",
+        "useState para mes actual",
+        "useQuery para cafeteriaId",
+        "Loading state",
+        "Pagina accesible en /menu/calendar",
+        "pnpm build:admin sin errores"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Ir a /menu/calendar, screenshot de la pagina base",
+      "passes": false
+    },
+    {
+      "id": "US-121",
+      "title": "Implementar grid de calendario mensual",
+      "description": "Grid 7 columnas con dias del mes",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Header con dias: Lun Mar Mie Jue Vie Sab Dom",
+        "Grid muestra todos los dias del mes",
+        "Dias de otros meses en gris claro",
+        "Dia actual con borde azul",
+        "Fines de semana en fondo gris",
+        "Navegacion < > cambia mes"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Screenshot mostrando grid de 7 columnas con dias",
+      "passes": false
+    },
+    {
+      "id": "US-122",
+      "title": "Mostrar indicadores de menu en dias",
+      "description": "Indicador visual si dia tiene menu",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "useQuery para asignaciones del mes",
+        "useQuery para patron semanal",
+        "Asignacion especifica: circulo azul",
+        "Solo patron: circulo verde punteado",
+        "Sin menu: sin indicador",
+        "Tooltip con cantidad de platos"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Screenshot con indicadores en algunos dias",
+      "passes": false
+    },
+    {
+      "id": "US-123",
+      "title": "Implementar sidebar con lista de platos",
+      "description": "Sidebar derecho con platos para arrastrar",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Sidebar 30% derecha",
+        "Titulo Platos Disponibles",
+        "useQuery para obtener platos",
+        "Lista con nombre, precio, categoria",
+        "Buscador de platos",
+        "Filtro por categoria",
+        "Scroll si hay muchos"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Screenshot con sidebar mostrando platos",
+      "passes": false
+    },
+    {
+      "id": "US-124",
+      "title": "Implementar drag-and-drop platos a dias",
+      "description": "Arrastrar platos del sidebar a dias del calendario",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "DndContext envuelve la pagina",
+        "Platos son Draggable",
+        "Dias son Droppable",
+        "Al soltar: mutacion setDateMenu",
+        "Feedback visual durante drag",
+        "Highlight en dia al hover",
+        "Toast de confirmacion",
+        "Refetch despues de agregar"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Arrastrar plato a dia, verificar indicador aparece",
+      "passes": false
+    },
+    {
+      "id": "US-125",
+      "title": "Implementar modal detalle de dia",
+      "description": "Click en dia abre modal con menu del dia",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Click en dia abre modal",
+        "Modal muestra fecha formateada",
+        "Lista de platos con nombre y precio",
+        "Boton X para quitar plato",
+        "Boton Usar Patron Semanal",
+        "Indicador de fuente (asignacion o patron)",
+        "Boton cerrar"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Click en dia, screenshot del modal",
+      "passes": false
+    },
+    {
+      "id": "US-126",
+      "title": "Implementar seccion patron semanal",
+      "description": "Seccion colapsable para patron semanal",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Seccion Patron Semanal debajo del calendario",
+        "Toggle expandir/colapsar",
+        "5 columnas: Lun Mar Mie Jue Vie",
+        "Cada columna muestra platos del patron",
+        "Columnas son droppable",
+        "Boton X para quitar plato del patron",
+        "Indicador explicativo del patron"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Expandir seccion, screenshot con 5 columnas",
+      "passes": false
+    },
+    {
+      "id": "US-130",
+      "title": "Agregar seccion templates en sidebar",
+      "description": "Seccion Templates debajo de platos",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Seccion Templates en sidebar",
+        "useQuery para templates",
+        "Cada template: nombre, cantidad platos, color",
+        "Templates son draggables",
+        "Boton Nuevo Template"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Screenshot sidebar con seccion Templates",
+      "passes": false
+    },
+    {
+      "id": "US-131",
+      "title": "Implementar modal crear/editar template",
+      "description": "Modal para gestionar templates",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Modal con: nombre, descripcion, color",
+        "Selector de color predefinidos",
+        "Lista de platos para agregar",
+        "Checkbox para seleccionar platos",
+        "Platos seleccionados en lista aparte",
+        "Boton Guardar crea template",
+        "Validacion nombre requerido"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Click Nuevo Template, screenshot del modal",
+      "passes": false
+    },
+    {
+      "id": "US-132",
+      "title": "Implementar drag-and-drop template a dia",
+      "description": "Arrastrar template asigna todos sus platos",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Templates son draggables con type template",
+        "Al soltar: obtener items del template",
+        "Llamar setDateMenu con todos los items",
+        "Toast con nombre del template aplicado",
+        "Indicador del dia se actualiza"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Crear template, arrastrar a dia, verificar platos",
+      "passes": false
+    },
+    {
+      "id": "US-140",
+      "title": "Actualizar API mobile para nuevo endpoint",
+      "description": "Nuevo metodo getMenuByDate en mobile",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "Metodo getMenuByDate(cafeteriaId, date) agregado",
+        "Llama a /menu-planning/:cafeteriaId/resolve/:date",
+        "Retorna { source, items, date, dayOfWeek }",
+        "Tipado TypeScript correcto",
+        "Manejo de errores"
+      ],
+      "filesToModify": ["apps/mobile/src/services/api.ts"],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "passes": false
+    },
+    {
+      "id": "US-141",
+      "title": "Modificar cafeteria.tsx para usar fecha completa",
+      "description": "Usar nuevo endpoint con fecha YYYY-MM-DD",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "getPickupDate retorna YYYY-MM-DD",
+        "loadMenuForDay usa getMenuByDate",
+        "Menu carga para cualquier dia",
+        "Indicador opcional si source=assignment",
+        "Fallback a endpoint anterior si falla",
+        "Build mobile sin errores"
+      ],
+      "filesToModify": ["apps/mobile/app/(tabs)/cafeteria.tsx"],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "passes": false
+    },
+    {
+      "id": "US-142",
+      "title": "Verificar menu en app mobile",
+      "description": "Verificar conexion admin-mobile funciona",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "Asignar platos a fecha X desde admin",
+        "Abrir mobile, navegar a fecha X",
+        "Platos asignados aparecen correctamente",
+        "Cambiar a fecha sin asignacion",
+        "Muestra patron o default",
+        "Precios correctos"
+      ],
+      "filesToModify": [],
+      "verification": "Verificacion manual: admin asigna menu, mobile lo muestra",
+      "passes": false
+    },
+    {
+      "id": "US-150",
+      "title": "Agregar link Calendario en /menu",
+      "description": "Boton para ir al calendario desde lista de menu",
+      "priority": 8,
+      "acceptanceCriteria": [
+        "Boton Calendario junto a Nuevo Plato",
+        "Icono Calendar de lucide-react",
+        "Click navega a /menu/calendar",
+        "Estilo outline (secundario)",
+        "Build admin sin errores"
+      ],
+      "filesToModify": ["apps/admin/src/app/(dashboard)/menu/page.tsx"],
+      "verification": "pnpm build:admin",
+      "visualVerification": "Ir a /menu, screenshot con boton Calendario",
+      "passes": false
+    }
+  ]
+}
