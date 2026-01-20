@@ -97,3 +97,17 @@ test-*.json
 # Configuración local de Claude
 .claude_assistant_settings.json
 .claude_settings.json
+
+# Screenshots de tests E2E
+screenshots/
+
+# Archivos de progreso temporal
+*-progress.txt
+claude-progress.txt
+progress.txt
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
