@@ -22,6 +22,8 @@ import { usersRoutes } from './routes/users.routes.js';
 import { statsRoutes } from './routes/stats.routes.js';
 import { casinoRoutes } from './routes/casino.routes.js';
 import { adminRoutes } from './routes/admin.routes.js';
+import { menuTemplatesRoutes } from './routes/menu-templates.routes.js';
+import { menuPlanningRoutes } from './routes/menu-planning.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -116,6 +118,8 @@ async function registerRoutes() {
   await app.register(usersRoutes, { prefix: '/api/v1/users' });
   await app.register(walletsRoutes, { prefix: '/api/v1/wallets' });
   await app.register(statsRoutes, { prefix: '/api/v1/stats' });
+  await app.register(menuTemplatesRoutes, { prefix: '/api/v1/menu-templates' });
+  await app.register(menuPlanningRoutes, { prefix: '/api/v1/menu-planning' });
 }
 
 // Start server
