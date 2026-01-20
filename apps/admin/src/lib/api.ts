@@ -228,6 +228,54 @@ export const apiClient = {
     delete: (cafeteriaId: string, packageId: string) =>
       api.delete(`/payments/packages/${cafeteriaId}/${packageId}`),
   },
+
+  // Menu templates endpoints
+  menuTemplates: {
+    list: (cafeteriaId: string) =>
+      api.get(`/menu-templates/${cafeteriaId}`),
+
+    getById: (cafeteriaId: string, templateId: string) =>
+      api.get(`/menu-templates/${cafeteriaId}/${templateId}`),
+
+    create: (cafeteriaId: string, data: { name: string; description?: string; color?: string; active?: boolean; menuItemIds?: string[] }) =>
+      api.post(`/menu-templates/${cafeteriaId}`, data),
+
+    update: (cafeteriaId: string, templateId: string, data: { name?: string; description?: string | null; color?: string | null; active?: boolean }) =>
+      api.put(`/menu-templates/${cafeteriaId}/${templateId}`, data),
+
+    delete: (cafeteriaId: string, templateId: string) =>
+      api.delete(`/menu-templates/${cafeteriaId}/${templateId}`),
+
+    addItem: (cafeteriaId: string, templateId: string, menuItemId: string, sortOrder?: number) =>
+      api.post(`/menu-templates/${cafeteriaId}/${templateId}/items`, { menuItemId, sortOrder }),
+
+    removeItem: (cafeteriaId: string, templateId: string, itemId: string) =>
+      api.delete(`/menu-templates/${cafeteriaId}/${templateId}/items/${itemId}`),
+  },
+
+  // Menu planning endpoints
+  menuPlanning: {
+    getWeeklyPattern: (cafeteriaId: string) =>
+      api.get(`/menu-planning/${cafeteriaId}/weekly-pattern`),
+
+    updatePatternDay: (cafeteriaId: string, dayOfWeek: number, menuItemIds: string[]) =>
+      api.put(`/menu-planning/${cafeteriaId}/weekly-pattern/day/${dayOfWeek}`, { menuItemIds }),
+
+    getCalendar: (cafeteriaId: string, from: string, to: string) =>
+      api.get(`/menu-planning/${cafeteriaId}/calendar`, { params: { from, to } }),
+
+    getDateMenu: (cafeteriaId: string, date: string) =>
+      api.get(`/menu-planning/${cafeteriaId}/date/${date}`),
+
+    setDateMenu: (cafeteriaId: string, date: string, menuItemIds: string[], note?: string) =>
+      api.put(`/menu-planning/${cafeteriaId}/date/${date}`, { menuItemIds, note }),
+
+    clearDateMenu: (cafeteriaId: string, date: string) =>
+      api.delete(`/menu-planning/${cafeteriaId}/date/${date}`),
+
+    resolveMenu: (cafeteriaId: string, date: string) =>
+      api.get(`/menu-planning/${cafeteriaId}/resolve/${date}`),
+  },
 }
 
 export default api

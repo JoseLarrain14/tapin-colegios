@@ -149,7 +149,7 @@
       ],
       "filesToModify": ["apps/admin/package.json"],
       "verification": "pnpm build:admin",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-111",
@@ -167,7 +167,7 @@
       ],
       "filesToModify": ["apps/admin/src/lib/api.ts"],
       "verification": "cd apps/admin && npx tsc --noEmit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-112",
@@ -185,7 +185,7 @@
       ],
       "filesToModify": ["apps/admin/src/lib/api.ts"],
       "verification": "cd apps/admin && npx tsc --noEmit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-120",
