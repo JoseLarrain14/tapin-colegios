@@ -152,3 +152,184 @@ const buffer = await file.toBuffer();
 - Tabla `StudentTicket` con `ticketType` (ej: "almuerzo") y `quantity`
 - Consumo crea `Transaction` con `ticketsUsed` JSON field
 - Un estudiante puede tener múltiples tipos de tickets
+
+### Iteración 2 - Sistema de Transacciones (Enero 2026)
+
+#### Combinar Múltiples Fuentes de Datos
+```typescript
+// Query en paralelo de diferentes tablas
+const [transactions, walletLogs, payments] = await Promise.all([
+  prisma.transaction.findMany({ ... }),
+  prisma.walletLog.findMany({ ... }),
+  prisma.payment.findMany({ ... }),
+]);
+
+// Normalizar a formato común y ordenar
+const normalized = [...txNormalized, ...logsNormalized, ...paymentsNormalized];
+normalized.sort((a, b) => b.date.getTime() - a.date.getTime());
+```
+
+#### Exportar CSV con BOM para Excel
+```typescript
+const csvContent = '\uFEFF' + [headers, ...rows]
+  .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+  .join('\n');
+
+reply
+  .header('Content-Type', 'text/csv; charset=utf-8')
+  .header('Content-Disposition', `attachment; filename="archivo.csv"`)
+  .send(csvContent);
+```
+
+#### API Client con responseType blob
+```typescript
+// Para descargas de archivos
+export: (params) => api.get('/admin/transactions/export', {
+  params,
+  responseType: 'blob'
+}),
+```
+
+### Iteración 3 - Mejoras Admin Panel (Enero 2026)
+
+#### Filtrado UI Basado en Rol con Spread Operator
+```typescript
+// Ocultar elementos según rol del usuario
+const isSchoolAdmin = user?.role === 'school_admin';
+
+const statsCards = [
+  // Card solo visible para super_admin
+  ...(!isSchoolAdmin ? [{
+    label: 'Colegios Activos',
+    icon: School,
+    value: stats.activeSchools
+  }] : []),
+  // Cards visibles para todos
+  { label: 'Estudiantes Activos', icon: GraduationCap, value: stats.activeStudents },
+];
+
+// También aplica para navegación
+const navItems = [
+  ...(!isSchoolAdmin ? [{ href: '/schools', label: 'Colegios' }] : []),
+  { href: '/students', label: 'Estudiantes' },
+];
+```
+
+#### Validación RUT con Mensaje Detallado (Mejorado)
+```typescript
+// Backend: Función que retorna dígito esperado
+function validateRutWithDetails(rut: string): {
+  valid: boolean;
+  expectedDigit?: string;
+  message?: string
+} {
+  const [number, providedDigit] = rut.split('-');
+  const calculatedDigit = calculateVerificationDigit(number);
+
+  if (providedDigit.toUpperCase() !== calculatedDigit) {
+    return {
+      valid: false,
+      expectedDigit: calculatedDigit,
+      message: `RUT inválido. El dígito verificador correcto es ${calculatedDigit}`
+    };
+  }
+  return { valid: true };
+}
+
+// Zod schema con superRefine para mensajes personalizados
+rut: z.string().superRefine((val, ctx) => {
+  const result = validateRutWithDetails(val);
+  if (!result.valid) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: result.message,
+    });
+  }
+}),
+```
+
+```tsx
+// Frontend: Input con feedback visual
+const [rutValid, setRutValid] = useState<boolean | null>(null);
+const [rutError, setRutError] = useState('');
+
+const handleRutChange = (value: string) => {
+  setRut(value);
+  if (value.includes('-')) {
+    const result = validateRut(value);
+    setRutValid(result.valid);
+    setRutError(result.valid ? 'RUT válido' : `Dígito esperado: ${result.expectedDigit}`);
+  }
+};
+
+// Input con borde verde/rojo según validez
+<input
+  className={`border ${
+    rutValid === null ? 'border-gray-300' :
+    rutValid ? 'border-green-500' : 'border-red-500'
+  }`}
+  onChange={(e) => handleRutChange(e.target.value)}
+/>
+```
+
+#### Métricas Agregadas con Prisma
+```typescript
+// Agregar métricas de balance y tickets
+const [walletBalance, ticketSum] = await Promise.all([
+  prisma.wallet.aggregate({
+    where: schoolFilter,
+    _sum: { balance: true }
+  }),
+  prisma.studentTicket.aggregate({
+    where: schoolFilter,
+    _sum: { quantity: true }
+  }),
+]);
+
+// Calcular cambio porcentual vs período anterior
+const calculateChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 100);
+};
+```
+
+#### Playwright E2E para Verificación Visual
+```typescript
+// Configuración: playwright.config.ts
+export default defineConfig({
+  testDir: './e2e',
+  use: {
+    baseURL: 'http://localhost:3000',
+    screenshot: 'on', // Screenshot en cada paso
+  },
+});
+
+// Test con screenshots para verificación
+test('Dashboard shows correct cards for school_admin', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('#email', 'admin@colegio.cl');
+  await page.fill('#password', 'admin123');
+  await page.click('button[type="submit"]');
+  await page.waitForURL('/');
+
+  // Screenshot de evidencia
+  await page.screenshot({
+    path: 'screenshots/dashboard.png',
+    fullPage: true
+  });
+
+  // Verificar elementos visibles/ocultos
+  await expect(page.locator('text=Estudiantes Activos')).toBeVisible();
+  await expect(page.locator('text=Colegios Activos')).not.toBeVisible();
+});
+```
+
+#### Endpoints de Transacciones
+- `GET /api/v1/admin/transactions` - Lista unificada con filtros
+- `GET /api/v1/admin/transactions/stats` - Métricas agregadas del día
+- `GET /api/v1/admin/transactions/export` - Exportar a CSV
+
+#### Tips de Debugging
+- Si Playwright tiene problemas con puertos, verificar que API corre en 3000 y Admin en 3001 (o viceversa)
+- Usar `taskkill /F /IM node.exe` en Windows para matar procesos zombie
+- Los tests de super_admin fallan si el usuario no existe en la BD del seed
