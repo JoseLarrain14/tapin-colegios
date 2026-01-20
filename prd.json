@@ -1,113 +1,146 @@
 {
-  "projectName": "Corrección Módulo de Transacciones",
-  "branchName": "feature/fix-transacciones",
-  "description": "Corregir bugs críticos en el módulo de transacciones: filtros de tickets y ventas no funcionan, estadísticas muestran cero, y búsqueda ineficiente.",
+  "projectName": "Mejoras Admin Panel - Dashboard y Estudiantes",
+  "branchName": "feature/admin-improvements",
+  "description": "Corregir problemas de UX en el panel admin: error 400 al crear estudiante con RUT, estadísticas confusas en dashboard, y elementos de navegación incorrectos para school_admin.",
   "context": {
-    "problemSummary": "El dashboard de transacciones tiene varios bugs que impiden su correcto funcionamiento",
-    "rootCause": "El tipo 'ticket' no existe en la BD - los tickets se guardan como type='purchase' con ticketsUsed JSON",
-    "affectedFiles": [
-      "packages/api/src/routes/admin.routes.ts",
-      "apps/admin/src/app/(dashboard)/transactions/page.tsx"
-    ]
-  },
-  "technicalReference": {
-    "transactionTypes": {
-      "ventaDirecta": "Transaction donde type='purchase' AND ticketsUsed IS NULL AND amount > 0",
-      "consumoTicket": "Transaction donde type='purchase' AND ticketsUsed IS NOT NULL",
-      "recarga": "Payment donde status='completed'"
+    "problemSummary": "El panel admin tiene problemas de UX que dificultan la gestión del colegio",
+    "rootCause": "Validación de RUT sin feedback claro, estadísticas que cuentan guardians en vez de estudiantes, y UI no filtrada por rol",
+    "database": {
+      "students": 2,
+      "guardians": 1,
+      "schools": 10,
+      "note": "Juan Pérez balance=$5000 tickets=10, Sofia Perez balance=$10000 tickets=6"
     },
-    "keyTables": ["Transaction", "Payment", "WalletLog"]
+    "validTestRuts": ["12345678-5", "11111111-1", "22222222-2", "98765432-5"],
+    "testCredentials": {
+      "school_admin": "admin@colegio.cl / admin123",
+      "super_admin": "super@tapin.cl / super123"
+    }
   },
   "userStories": [
     {
-      "id": "US-022",
-      "title": "Corregir filtro de tickets en endpoint de transacciones",
-      "description": "El filtro type='ticket' no funciona porque ese tipo no existe en la BD. Los tickets se guardan como type='purchase' con ticketsUsed JSON. Modificar GET /api/v1/admin/transactions en admin.routes.ts para detectar tickets por ticketsUsed IS NOT NULL cuando el filtro es 'ticket'.",
+      "id": "US-030",
+      "title": "Mejorar mensaje de error al crear estudiante con RUT inválido",
+      "description": "El error 400 al crear estudiante muestra 'Datos inválidos' sin explicar qué está mal con el RUT. Modificar el backend para retornar el dígito verificador esperado en el mensaje de error.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Cuando type='ticket', la query filtra por Transaction.ticketsUsed IS NOT NULL",
-        "El filtro retorna solo transacciones que son consumo de tickets",
-        "El endpoint sigue funcionando para otros tipos (purchase, deposit, refund)",
-        "curl con type=ticket retorna solo consumos de tickets (no ventas directas)"
+        "Al enviar RUT '12345678-9', error incluye 'El dígito verificador correcto es 5'",
+        "Mensaje de error en español y descriptivo",
+        "Error llega al frontend y se muestra en el modal de crear estudiante",
+        "curl POST /admin/students con RUT inválido retorna mensaje con dígito esperado"
       ],
-      "technicalHint": "En admin.routes.ts línea ~777, cambiar la lógica: si type === 'ticket', usar { ticketsUsed: { not: null } } en vez de { type: 'ticket' }",
+      "technicalHint": "En admin.routes.ts, modificar validateRut() para calcular y retornar el dígito esperado. En el catch de Zod, incluir este info en el mensaje.",
+      "filesToModify": ["packages/api/src/routes/admin.routes.ts"],
+      "visualVerification": "Ir a /students, crear estudiante con RUT 12345678-9, verificar que error muestra dígito correcto",
       "passes": true
     },
     {
-      "id": "US-023",
-      "title": "Corregir filtro de ventas para excluir tickets",
-      "description": "El filtro type='purchase' (ventas) actualmente incluye también los consumos de tickets. Modificar para que ventas sean solo compras directas (ticketsUsed IS NULL).",
+      "id": "US-031",
+      "title": "Agregar validación de RUT en frontend con feedback visual",
+      "description": "El formulario de crear estudiante no valida el RUT antes de enviar. Agregar validación en tiempo real con indicador verde/rojo y mostrar dígito esperado si es inválido.",
       "priority": 1,
       "acceptanceCriteria": [
-        "Cuando type='purchase', la query filtra por Transaction.type='purchase' AND ticketsUsed IS NULL",
-        "El filtro retorna solo compras directas con saldo (no consumos de ticket)",
-        "curl con type=purchase retorna solo ventas directas",
-        "La suma de tickets + ventas = total de type purchase en la BD"
+        "Al escribir RUT, input muestra borde rojo si inválido, verde si válido",
+        "Si RUT inválido, texto debajo del input muestra 'Dígito esperado: X'",
+        "Botón 'Crear' deshabilitado mientras RUT sea inválido",
+        "Al escribir RUT válido (12345678-5), borde verde y botón habilitado"
       ],
-      "technicalHint": "En admin.routes.ts, cuando type === 'purchase', agregar { type: 'purchase', ticketsUsed: null }",
+      "technicalHint": "Copiar funciones cleanRut, calculateVerificationDigit, validateRut de admin.routes.ts al componente. Agregar estado rutValid y rutExpectedDigit.",
+      "filesToModify": ["apps/admin/src/app/(dashboard)/students/page.tsx"],
+      "visualVerification": "Ir a /students, abrir modal, escribir 12345678-9 (borde rojo), escribir 12345678-5 (borde verde)",
       "passes": true
     },
     {
-      "id": "US-024",
-      "title": "Corregir estadísticas que muestran cero",
-      "description": "El endpoint GET /api/v1/admin/transactions/stats muestra valores en cero aunque hay transacciones. Posibles causas: timezone incorrecto (setHours usa hora local), uso de createdAt en vez de completedAt para pagos. Agregar logs de debug y corregir.",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Las estadísticas muestran valores correctos cuando hay transacciones del día",
-        "ticketsConsumed cuenta transacciones donde ticketsUsed IS NOT NULL",
-        "totalSales suma amount de transacciones purchase con ticketsUsed IS NULL",
-        "totalRecharges usa completedAt (no createdAt) para filtrar pagos",
-        "Las fechas usan UTC explícito para evitar problemas de timezone",
-        "curl al endpoint stats retorna valores > 0 si hay datos del día"
-      ],
-      "technicalHint": "En admin.routes.ts líneas 1056-1139: 1) Usar Date.UTC() para fechas, 2) Cambiar createdAt a completedAt en query de pagos línea 1115, 3) Agregar console.log temporal para debug",
-      "passes": true
-    },
-    {
-      "id": "US-025",
-      "title": "Actualizar contadores de pestañas en frontend",
-      "description": "Las pestañas 'Tickets Hoy', 'Ventas', 'Recargas' en el frontend deben mostrar contadores correctos basados en los filtros corregidos del backend.",
+      "id": "US-032",
+      "title": "Agregar 'Estudiantes Activos' al dashboard",
+      "description": "El dashboard no muestra cantidad de estudiantes. Agregar card 'Estudiantes Activos' con conteo y cambio porcentual.",
       "priority": 2,
       "acceptanceCriteria": [
-        "Pestaña 'Tickets Hoy' muestra contador de consumos de tickets del día",
-        "Pestaña 'Ventas' muestra contador de compras directas (sin tickets)",
-        "Pestaña 'Recargas' muestra contador de pagos completados",
-        "Los contadores se actualizan cuando cambia el rango de fechas",
-        "Los contadores coinciden con la cantidad de filas al seleccionar cada pestaña"
+        "Dashboard muestra card 'Estudiantes Activos' con valor 2",
+        "Card tiene icono GraduationCap de lucide-react",
+        "Card muestra cambio porcentual vs mes anterior",
+        "Para school_admin, solo cuenta estudiantes de su colegio",
+        "API endpoint /stats/dashboard retorna activeStudents en la respuesta"
       ],
-      "technicalHint": "En transactions/page.tsx, verificar que getTypeForTab() mapee correctamente los tipos y que el backend ya esté corregido",
+      "technicalHint": "En stats.routes.ts agregar query prisma.student.count con filtro por schoolId. En page.tsx agregar card con import de GraduationCap.",
+      "filesToModify": ["packages/api/src/routes/stats.routes.ts", "apps/admin/src/app/(dashboard)/page.tsx"],
+      "visualVerification": "Ir al dashboard (/), verificar que existe card 'Estudiantes Activos: 2'",
       "passes": true
     },
     {
-      "id": "US-026",
-      "title": "Mover búsqueda a nivel de Prisma",
-      "description": "La búsqueda por nombre/RUT se hace en memoria (JavaScript) después de traer todos los datos. Esto es ineficiente y rompe la paginación. Mover el filtro de búsqueda a la query de Prisma.",
+      "id": "US-033",
+      "title": "Renombrar 'Usuarios Totales' a 'Apoderados' en dashboard",
+      "description": "La card 'Usuarios Totales' es confusa porque cuenta guardians. Renombrar a 'Apoderados' para claridad.",
       "priority": 2,
       "acceptanceCriteria": [
-        "La búsqueda se ejecuta en la query de Prisma, no en JavaScript",
-        "El total de paginación refleja los resultados filtrados por búsqueda",
-        "Buscar por nombre parcial funciona (ej: 'sofia' encuentra 'Sofía González')",
-        "Buscar por RUT parcial funciona (ej: '12345' encuentra '12.345.678-9')",
-        "La búsqueda es case-insensitive para nombres"
+        "Card dice 'Apoderados' en vez de 'Usuarios Totales'",
+        "El valor sigue siendo 1 (conteo de guardians)",
+        "El icono sigue siendo Users"
       ],
-      "technicalHint": "En admin.routes.ts líneas 895-903, mover el filtro search al where de Prisma: wallet: { student: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, ...] } }",
+      "technicalHint": "En page.tsx, cambiar label: 'Usuarios Totales' a label: 'Apoderados' en el statsCards array.",
+      "filesToModify": ["apps/admin/src/app/(dashboard)/page.tsx"],
+      "visualVerification": "Ir al dashboard, verificar que card dice 'Apoderados: 1'",
       "passes": true
     },
     {
-      "id": "US-027",
-      "title": "Verificar integración completa con tests manuales",
-      "description": "Verificar que todas las correcciones funcionan correctamente en conjunto. Probar el flujo completo: crear transacción, ver en dashboard, filtrar, buscar, exportar.",
+      "id": "US-034",
+      "title": "Ocultar 'Colegios Activos' para school_admin",
+      "description": "La card 'Colegios Activos' no tiene sentido para school_admin que solo gestiona un colegio. Ocultar para school_admin, mostrar solo para super_admin.",
       "priority": 3,
       "acceptanceCriteria": [
-        "Dashboard muestra estadísticas correctas del día actual",
-        "Tab 'Tickets Hoy' muestra solo consumos de tickets",
-        "Tab 'Ventas' muestra solo compras directas (sin tickets)",
-        "Tab 'Recargas' muestra solo pagos completados",
-        "Búsqueda por nombre filtra correctamente",
-        "Búsqueda por RUT filtra correctamente",
-        "Exportar CSV respeta los filtros aplicados",
-        "Build de API y Admin compilan sin errores: pnpm build:api && pnpm build:admin"
+        "school_admin NO ve card 'Colegios Activos'",
+        "super_admin SÍ ve card 'Colegios Activos'",
+        "El grid de cards se ajusta correctamente"
       ],
+      "technicalHint": "En page.tsx, usar spread operator condicional: ...(user?.role === 'super_admin' ? [cardColegios] : [])",
+      "filesToModify": ["apps/admin/src/app/(dashboard)/page.tsx"],
+      "visualVerification": "Login como admin@colegio.cl, ir a dashboard, verificar que NO existe card 'Colegios Activos'",
+      "passes": true
+    },
+    {
+      "id": "US-035",
+      "title": "Ocultar sección 'Colegios' del menú para school_admin",
+      "description": "school_admin ve link a '/schools' en el sidebar pero no debería. Ocultar para school_admin.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "school_admin NO ve 'Colegios' en el sidebar",
+        "super_admin SÍ ve 'Colegios' en el sidebar",
+        "Navegación móvil también respeta esta regla"
+      ],
+      "technicalHint": "En layout.tsx, filtrar navItems con spread operator condicional basado en user.role.",
+      "filesToModify": ["apps/admin/src/app/(dashboard)/layout.tsx"],
+      "visualVerification": "Login como admin@colegio.cl, verificar que sidebar NO tiene link 'Colegios'",
+      "passes": true
+    },
+    {
+      "id": "US-036",
+      "title": "Cambiar 'Agregar Colegio' por 'Agregar Estudiante' en acciones rápidas",
+      "description": "El botón 'Agregar Colegio' no tiene sentido para school_admin. Reemplazar con 'Agregar Estudiante' que navega a /students.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "school_admin ve 'Agregar Estudiante' en vez de 'Agregar Colegio'",
+        "super_admin sigue viendo 'Agregar Colegio'",
+        "Click en 'Agregar Estudiante' navega a /students"
+      ],
+      "technicalHint": "En page.tsx sección Acciones Rápidas, condicionar el botón basado en user.role. Usar router.push('/students') para navegación.",
+      "filesToModify": ["apps/admin/src/app/(dashboard)/page.tsx"],
+      "visualVerification": "Login como admin@colegio.cl, ir a dashboard, verificar que Acciones Rápidas muestra 'Agregar Estudiante'",
+      "passes": true
+    },
+    {
+      "id": "US-037",
+      "title": "Agregar Saldo Total y Tickets Totales al dashboard",
+      "description": "Agregar métricas de 'Saldo Total' (suma de wallets) y 'Tickets Totales' (suma de tickets) al dashboard.",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Dashboard muestra card 'Saldo Total: $15,000'",
+        "Dashboard muestra card 'Tickets Totales: 16'",
+        "Valores se calculan solo para el colegio del admin",
+        "API endpoint /stats/dashboard retorna totalBalance y totalTickets"
+      ],
+      "technicalHint": "En stats.routes.ts usar prisma.wallet.aggregate({_sum: {balance}}) y prisma.studentTicket.aggregate({_sum: {quantity}}). Filtrar por schoolId.",
+      "filesToModify": ["packages/api/src/routes/stats.routes.ts", "apps/admin/src/app/(dashboard)/page.tsx"],
+      "visualVerification": "Ir al dashboard, verificar cards 'Saldo Total: $15,000' y 'Tickets Totales: 16'",
       "passes": true
     }
   ]

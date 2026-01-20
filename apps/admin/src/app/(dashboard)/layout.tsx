@@ -45,7 +45,9 @@ export default function DashboardLayout({
     router.push('/login')
   }
 
-  // Navigation items
+  // Navigation items - filter based on user role (US-035)
+  const isSchoolAdmin = user?.role === 'school_admin'
+
   const navItems = [
     { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/pos', icon: Utensils, label: 'POS Casino' },
@@ -53,7 +55,8 @@ export default function DashboardLayout({
     { href: '/packages', icon: Package, label: 'Paquetes' },
     { href: '/students', icon: GraduationCap, label: 'Estudiantes' },
     { href: '/transactions', icon: Receipt, label: 'Transacciones' },
-    { href: '/schools', icon: School, label: 'Colegios' },
+    // Only show Colegios for super_admin (US-035)
+    ...(!isSchoolAdmin ? [{ href: '/schools', icon: School, label: 'Colegios' }] : []),
   ]
 
   return (

@@ -98,7 +98,7 @@ export async function statsRoutes(app: FastifyInstance) {
           };
         }
 
-        // 2. Total Users (Guardians)
+        // 2. Total Users (Guardians/Apoderados)
         const guardianWhereClause = isSchoolAdmin && userSchoolId
           ? {
               students: {
@@ -124,6 +124,55 @@ export async function statsRoutes(app: FastifyInstance) {
         const totalUsers = {
           value: currentUsers,
           change: calculateChange(currentUsers, previousUsers),
+        };
+
+        // 2.5. Active Students (new metric)
+        const studentWhereClause = isSchoolAdmin && userSchoolId
+          ? { schoolId: userSchoolId, active: true }
+          : { active: true };
+
+        const [currentStudents, previousStudents] = await Promise.all([
+          prisma.student.count({ where: studentWhereClause }),
+          prisma.student.count({
+            where: {
+              ...studentWhereClause,
+              createdAt: { lt: monthStart },
+            },
+          }),
+        ]);
+
+        const activeStudents = {
+          value: currentStudents,
+          change: calculateChange(currentStudents, previousStudents),
+        };
+
+        // 2.6. Total Balance (sum of all wallets)
+        const walletWhereClause = isSchoolAdmin && userSchoolId
+          ? { student: { schoolId: userSchoolId } }
+          : {};
+
+        const walletBalanceData = await prisma.wallet.aggregate({
+          _sum: { balance: true },
+          where: walletWhereClause,
+        });
+
+        const totalBalance = {
+          value: walletBalanceData._sum.balance || 0,
+          formatted: `$${(walletBalanceData._sum.balance || 0).toLocaleString('es-CL')}`,
+        };
+
+        // 2.7. Total Tickets (sum of all student tickets)
+        const ticketWhereClause = isSchoolAdmin && userSchoolId
+          ? { student: { schoolId: userSchoolId } }
+          : {};
+
+        const ticketData = await prisma.studentTicket.aggregate({
+          _sum: { quantity: true },
+          where: ticketWhereClause,
+        });
+
+        const totalTickets = {
+          value: ticketData._sum.quantity || 0,
         };
 
         // 3. Transactions Today
@@ -220,6 +269,9 @@ export async function statsRoutes(app: FastifyInstance) {
             stats: {
               activeSchools,
               totalUsers,
+              activeStudents,
+              totalBalance,
+              totalTickets,
               transactionsToday,
               revenueThisMonth,
             },

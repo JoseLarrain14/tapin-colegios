@@ -54,6 +54,42 @@ function validateRut(rut: string): boolean {
   return providedDigit === calculatedDigit;
 }
 
+// Extended RUT validation that returns detailed info for better error messages
+function validateRutWithDetails(rut: string): { valid: boolean; expectedDigit?: string; message?: string } {
+  if (!rut || typeof rut !== 'string') {
+    return { valid: false, message: 'RUT es requerido' };
+  }
+
+  const cleanedRut = cleanRut(rut);
+
+  if (cleanedRut.length < 8 || cleanedRut.length > 9) {
+    return { valid: false, message: 'RUT debe tener entre 8 y 9 caracteres' };
+  }
+
+  const rutNumber = cleanedRut.slice(0, -1);
+  const providedDigit = cleanedRut.slice(-1);
+
+  if (!/^\d+$/.test(rutNumber)) {
+    return { valid: false, message: 'El cuerpo del RUT debe contener solo números' };
+  }
+
+  if (!/^[0-9K]$/.test(providedDigit)) {
+    return { valid: false, message: 'El dígito verificador debe ser un número o K' };
+  }
+
+  const calculatedDigit = calculateVerificationDigit(rutNumber);
+
+  if (providedDigit !== calculatedDigit) {
+    return {
+      valid: false,
+      expectedDigit: calculatedDigit,
+      message: `RUT inválido. El dígito verificador correcto es ${calculatedDigit}`
+    };
+  }
+
+  return { valid: true };
+}
+
 function formatRut(rut: string): string {
   const cleanedRut = cleanRut(rut);
 
@@ -85,8 +121,14 @@ const listAdminTransactionsSchema = z.object({
 });
 
 const createStudentSchema = z.object({
-  rut: z.string().min(8, 'RUT debe tener al menos 8 caracteres').refine(validateRut, {
-    message: 'RUT inválido',
+  rut: z.string().min(8, 'RUT debe tener al menos 8 caracteres').superRefine((rut, ctx) => {
+    const result = validateRutWithDetails(rut);
+    if (!result.valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.message || 'RUT inválido',
+      });
+    }
   }),
   firstName: z.string().min(1, 'Nombre es requerido'),
   lastName: z.string().min(1, 'Apellido es requerido'),
@@ -1059,13 +1101,17 @@ export async function adminRoutes(app: FastifyInstance) {
       // 3. Parse query parameters for date range
       const query = request.query as { dateFrom?: string; dateTo?: string };
 
-      // Default to today if not provided
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Parse dates in UTC to avoid timezone issues
+      // When no date is provided, use today in UTC
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0]; // "YYYY-MM-DD" in UTC
 
-      const dateFrom = query.dateFrom ? new Date(query.dateFrom) : today;
-      const dateTo = query.dateTo ? new Date(query.dateTo) : new Date(today);
-      dateTo.setHours(23, 59, 59, 999);
+      const dateFromStr = query.dateFrom || todayStr;
+      const dateToStr = query.dateTo || todayStr;
+
+      // Create dates at start and end of day in UTC
+      const dateFrom = new Date(`${dateFromStr}T00:00:00.000Z`);
+      const dateTo = new Date(`${dateToStr}T23:59:59.999Z`);
 
       // 4. Determine school filter
       let schoolId: string | null = null;
@@ -1080,39 +1126,28 @@ export async function adminRoutes(app: FastifyInstance) {
         }
       }
 
-      // 5. Build queries for statistics
+      console.log('[Stats] Query params:', { dateFrom, dateTo, schoolId });
 
-      // Get wallet IDs for the school (if school_admin)
-      let walletIds: string[] | undefined;
-      if (schoolId) {
-        const students = await prisma.student.findMany({
-          where: { schoolId },
-          select: { wallet: { select: { id: true } } },
-        });
-        walletIds = students
-          .filter((s) => s.wallet)
-          .map((s) => s.wallet!.id);
-      }
+      // 5. Build queries for statistics
 
       // Tickets Consumed: Count Transaction where ticketsUsed IS NOT NULL
       const ticketsConsumed = await prisma.transaction.count({
         where: {
           createdAt: { gte: dateFrom, lte: dateTo },
           ticketsUsed: { not: null },
-          ...(walletIds && { walletId: { in: walletIds } }),
+          ...(schoolId && { cafeteria: { schoolId } }),
         },
       });
 
-      // Total Sales: Sum Transaction.amount where type='purchase' and source='casino'
+      // Total Sales: Sum Transaction.amount where type='purchase'
       // Exclude ticket consumptions (ticketsUsed IS NOT NULL) - only count direct sales
       const salesData = await prisma.transaction.aggregate({
         _sum: { amount: true },
         where: {
           createdAt: { gte: dateFrom, lte: dateTo },
           type: 'purchase',
-          source: 'casino',
-          ticketsUsed: null, // Exclude ticket consumptions, only direct sales
-          ...(walletIds && { walletId: { in: walletIds } }),
+          ticketsUsed: null,
+          ...(schoolId && { cafeteria: { schoolId } }),
         },
       });
       const totalSales = salesData._sum.amount || 0;
@@ -1135,18 +1170,39 @@ export async function adminRoutes(app: FastifyInstance) {
       const transactionCount = await prisma.transaction.count({
         where: {
           createdAt: { gte: dateFrom, lte: dateTo },
-          ...(walletIds && { walletId: { in: walletIds } }),
+          ...(schoolId && { cafeteria: { schoolId } }),
         },
       });
 
       const walletLogCount = await prisma.walletLog.count({
         where: {
           createdAt: { gte: dateFrom, lte: dateTo },
-          ...(walletIds && { walletId: { in: walletIds } }),
+          ...(schoolId && { wallet: { student: { schoolId } } }),
         },
       });
 
       const totalTransactionCount = transactionCount + walletLogCount;
+
+      // Count para tab "Ventas" (purchases sin tickets)
+      const salesCount = await prisma.transaction.count({
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          type: 'purchase',
+          ticketsUsed: null,
+          ...(schoolId && { cafeteria: { schoolId } }),
+        },
+      });
+
+      // Count para tab "Recargas" (deposits)
+      const rechargesCount = await prisma.walletLog.count({
+        where: {
+          createdAt: { gte: dateFrom, lte: dateTo },
+          type: 'deposit',
+          ...(schoolId && { wallet: { student: { schoolId } } }),
+        },
+      });
+
+      console.log('[Stats] Results:', { ticketsConsumed, totalSales, totalRecharges, totalTransactionCount, salesCount, rechargesCount });
 
       // 6. Return statistics
       return reply.send({
@@ -1156,6 +1212,8 @@ export async function adminRoutes(app: FastifyInstance) {
           totalSales,
           totalRecharges,
           transactionCount: totalTransactionCount,
+          salesCount,
+          rechargesCount,
         },
       });
     } catch (error) {

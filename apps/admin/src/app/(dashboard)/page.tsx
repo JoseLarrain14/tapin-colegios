@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { apiClient } from '@/lib/api'
-import { School, Users, Receipt, TrendingUp, Loader2 } from 'lucide-react'
+import { School, Users, Receipt, TrendingUp, Loader2, GraduationCap, Wallet, Ticket } from 'lucide-react'
 
 /**
  * Dashboard Home Page
@@ -18,6 +19,9 @@ import { School, Users, Receipt, TrendingUp, Loader2 } from 'lucide-react'
 interface DashboardStats {
   activeSchools: { value: number; change: string }
   totalUsers: { value: number; change: string }
+  activeStudents: { value: number; change: string }
+  totalBalance: { value: number; formatted: string }
+  totalTickets: { value: number }
   transactionsToday: { value: number; change: string }
   revenueThisMonth: { value: number; formatted: string; change: string }
 }
@@ -31,11 +35,14 @@ interface RecentActivity {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { user } = useAuthStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const isSchoolAdmin = user?.role === 'school_admin'
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -62,21 +69,47 @@ export default function DashboardPage() {
     fetchDashboardData()
   }, [])
 
-  // Format stats for display
+  // Format stats for display - conditionally show cards based on role
   const statsCards = stats ? [
-    {
+    // Colegios Activos - only for super_admin (US-034)
+    ...(!isSchoolAdmin ? [{
       label: 'Colegios Activos',
       value: stats.activeSchools.value.toString(),
       icon: School,
       change: stats.activeSchools.change,
       color: 'bg-blue-500',
-    },
+    }] : []),
+    // Estudiantes Activos (US-032)
     {
-      label: 'Usuarios Totales',
+      label: 'Estudiantes Activos',
+      value: stats.activeStudents.value.toLocaleString('es-CL'),
+      icon: GraduationCap,
+      change: stats.activeStudents.change,
+      color: 'bg-cyan-500',
+    },
+    // Apoderados (renamed from Usuarios Totales - US-033)
+    {
+      label: 'Apoderados',
       value: stats.totalUsers.value.toLocaleString('es-CL'),
       icon: Users,
       change: stats.totalUsers.change,
       color: 'bg-green-500',
+    },
+    // Saldo Total (US-037)
+    {
+      label: 'Saldo Total',
+      value: stats.totalBalance.formatted,
+      icon: Wallet,
+      change: '',
+      color: 'bg-emerald-500',
+    },
+    // Tickets Totales (US-037)
+    {
+      label: 'Tickets Totales',
+      value: stats.totalTickets.value.toLocaleString('es-CL'),
+      icon: Ticket,
+      change: '',
+      color: 'bg-amber-500',
     },
     {
       label: 'Transacciones Hoy',
@@ -187,14 +220,29 @@ export default function DashboardPage() {
           Acciones Rápidas
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left">
-            <h3 className="font-medium text-gray-900 dark:text-white mb-1">
-              Agregar Colegio
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Registrar un nuevo colegio en la plataforma
-            </p>
-          </button>
+          {/* US-036: Show different first action based on role */}
+          {isSchoolAdmin ? (
+            <button
+              onClick={() => router.push('/students')}
+              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left"
+            >
+              <h3 className="font-medium text-gray-900 dark:text-white mb-1">
+                Agregar Estudiante
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Registrar un nuevo estudiante en el colegio
+              </p>
+            </button>
+          ) : (
+            <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left">
+              <h3 className="font-medium text-gray-900 dark:text-white mb-1">
+                Agregar Colegio
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Registrar un nuevo colegio en la plataforma
+              </p>
+            </button>
+          )}
 
           <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-left">
             <h3 className="font-medium text-gray-900 dark:text-white mb-1">
@@ -205,7 +253,10 @@ export default function DashboardPage() {
             </p>
           </button>
 
-          <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-left">
+          <button
+            onClick={() => router.push('/transactions')}
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-left"
+          >
             <h3 className="font-medium text-gray-900 dark:text-white mb-1">
               Ver Reportes
             </h3>

@@ -209,3 +209,163 @@ export: (params) => api.get('/admin/transactions/export', { params, responseType
 - `packages/api/src/routes/admin.routes.ts` - 3 nuevos endpoints
 - `apps/admin/src/lib/api.ts` - adminTransactions client
 - `apps/admin/src/app/(dashboard)/transactions/page.tsx` - UI completa renovada
+
+---
+
+## Iteration 3 - Mejoras Admin Panel (Enero 2026)
+
+### Investigación Previa (2026-01-19)
+
+#### Problemas Identificados
+
+**1. Error 400 al crear estudiante:**
+- Causa: Validación de RUT con dígito verificador estricto
+- El seed tiene RUTs inválidos (12345678-9 debería ser 12345678-5)
+- Mensaje de error poco claro para el usuario
+
+**2. Dashboard con estadísticas confusas:**
+- "Colegios Activos" irrelevante para school_admin
+- "Usuarios Totales" cuenta guardians, no estudiantes (confuso)
+- Falta métrica de "Estudiantes Activos"
+
+**3. Navegación incorrecta por rol:**
+- school_admin ve sección "Colegios" que no debería ver
+- Botón "Agregar Colegio" en acciones rápidas (no tiene sentido)
+
+**4. Falta gestión de apoderados:**
+- No hay página para ver/gestionar guardians
+- No se ve la relación guardian-estudiante
+
+#### Estado de la Base de Datos
+```
+Colegios: 10 (9 sin admin)
+School Admins: 1 (admin@colegio.cl)
+Estudiantes: 2 (Juan Pérez, Sofia Perez)
+Apoderados: 1 (María González)
+
+Estudiante Juan: balance=$5000, tickets=10 lunch, RUT=12345678-9 (INVALIDO)
+Estudiante Sofia: balance=$10000, tickets=6 lunch, RUT=22222222-2 (válido)
+```
+
+#### RUTs Válidos para Testing
+- 12345678-5
+- 11111111-1
+- 22222222-2
+- 98765432-5
+- 20123456-5
+
+#### PRD Creado
+- Archivo: `prd-admin-improvements.json`
+- Versión MD: `PRD-ADMIN-IMPROVEMENTS.md`
+- 8 User Stories en 4 fases
+- Cada story tiene: acceptance_criteria, visual_verification, files_to_modify
+
+### Stories del PRD (prd.json)
+
+| ID | Título | Prioridad | passes |
+|----|--------|-----------|--------|
+| US-030 | Mejorar mensaje error RUT (backend) | 1 | false |
+| US-031 | Validación RUT frontend con feedback visual | 1 | false |
+| US-032 | Agregar "Estudiantes Activos" al dashboard | 2 | false |
+| US-033 | Renombrar "Usuarios Totales" a "Apoderados" | 2 | false |
+| US-034 | Ocultar "Colegios Activos" para school_admin | 3 | false |
+| US-035 | Ocultar sección "Colegios" del menú | 3 | false |
+| US-036 | Cambiar "Agregar Colegio" por "Agregar Estudiante" | 3 | false |
+| US-037 | Agregar Saldo Total y Tickets Totales | 4 | false |
+
+### Archivos a Modificar
+
+| Archivo | Stories |
+|---------|---------|
+| packages/api/src/routes/admin.routes.ts | US-030 |
+| packages/api/src/routes/stats.routes.ts | US-032, US-037 |
+| apps/admin/src/app/(dashboard)/page.tsx | US-032, US-033, US-034, US-036, US-037 |
+| apps/admin/src/app/(dashboard)/layout.tsx | US-035 |
+| apps/admin/src/app/(dashboard)/students/page.tsx | US-031 |
+
+### PRD Listo para Ralph
+- prd.json actualizado con formato correcto
+- Todas las stories tienen passes: false
+- Cada story tiene: acceptanceCriteria, technicalHint, filesToModify, visualVerification
+
+### Implementaciones Completadas (Ralph Iteracion 1)
+
+#### US-030: Mejorar mensaje error RUT (backend)
+- Creada funcion `validateRutWithDetails()` en admin.routes.ts
+- Retorna el digito verificador esperado cuando el RUT es invalido
+- Mensaje de error descriptivo en espanol
+- Usa `superRefine` de Zod para mensajes personalizados
+
+#### US-031: Validacion RUT frontend con feedback visual
+- Agregadas funciones de validacion de RUT en students/page.tsx
+- Input muestra borde verde si valido, rojo si invalido
+- Muestra texto "Digito esperado: X" debajo del input
+- Boton "Guardar" deshabilitado hasta que RUT sea valido
+- Reset de estado al cerrar el modal
+
+#### US-032: Agregar "Estudiantes Activos" al dashboard
+- Agregada query `prisma.student.count` en stats.routes.ts
+- Filtro por schoolId para school_admin
+- Card con icono GraduationCap de lucide-react
+- Muestra cambio porcentual vs mes anterior
+
+#### US-033: Renombrar "Usuarios Totales" a "Apoderados"
+- Cambiado label en statsCards array en page.tsx
+- Mantiene el mismo icono Users y conteo de guardians
+
+#### US-034: Ocultar "Colegios Activos" para school_admin
+- Uso de spread operator condicional: `...(!isSchoolAdmin ? [card] : [])`
+- Card solo visible para super_admin
+
+#### US-035: Ocultar seccion "Colegios" del menu
+- Filtrado de navItems en layout.tsx basado en user.role
+- Aplica tanto a sidebar desktop como menu movil
+
+#### US-036: Cambiar "Agregar Colegio" por "Agregar Estudiante"
+- Boton condicional basado en isSchoolAdmin
+- school_admin ve "Agregar Estudiante" que navega a /students
+- super_admin sigue viendo "Agregar Colegio"
+
+#### US-037: Agregar Saldo Total y Tickets Totales
+- Agregadas queries aggregate en stats.routes.ts:
+  - `prisma.wallet.aggregate({_sum: {balance}})`
+  - `prisma.studentTicket.aggregate({_sum: {quantity}})`
+- Cards con iconos Wallet y Ticket de lucide-react
+- Filtro por schoolId para school_admin
+
+#### Archivos Modificados
+- `packages/api/src/routes/admin.routes.ts` - US-030
+- `packages/api/src/routes/stats.routes.ts` - US-032, US-037
+- `apps/admin/src/app/(dashboard)/page.tsx` - US-032, US-033, US-034, US-036, US-037
+- `apps/admin/src/app/(dashboard)/layout.tsx` - US-035
+- `apps/admin/src/app/(dashboard)/students/page.tsx` - US-031
+
+#### Build Status
+- API: OK (tsc compilado sin errores)
+- Admin: OK (Next.js build exitoso)
+- prd.json: Todas las stories con passes: true
+
+#### Verificacion Visual con Playwright (2026-01-19)
+
+**Tests E2E ejecutados:** 6 tests, 4 pasaron (school_admin), 2 fallaron (super_admin - credenciales no existen en DB)
+
+**Screenshots generados en `apps/admin/screenshots/`:**
+- `us-032-037-dashboard-school-admin.png` - Dashboard completo con todas las cards
+- `us-031-rut-invalid.png` - RUT 12345678-9 con borde rojo y "Digito esperado: 5"
+- `us-031-rut-valid.png` - RUT 12345678-5 con borde verde y "RUT valido"
+- `us-035-sidebar-school-admin.png` - Sidebar sin enlace "Colegios"
+- `us-036-quick-actions-school-admin.png` - Accion rapida "Agregar Estudiante"
+
+**Verificacion por US:**
+| US | Descripcion | Estado |
+|----|-------------|--------|
+| US-030 | Mensaje error RUT con digito esperado | VERIFICADO |
+| US-031 | Validacion RUT frontend (borde verde/rojo) | VERIFICADO |
+| US-032 | Card "Estudiantes Activos: 2" | VERIFICADO |
+| US-033 | Card renombrada a "Apoderados" | VERIFICADO |
+| US-034 | Card "Colegios Activos" oculta para school_admin | VERIFICADO |
+| US-035 | Menu "Colegios" oculto en sidebar | VERIFICADO |
+| US-036 | "Agregar Estudiante" en acciones rapidas | VERIFICADO |
+| US-037 | Cards "Saldo Total: $15.000" y "Tickets: 16" | VERIFICADO |
+
+**Estado Final:** Todas las 8 user stories implementadas y verificadas visualmente.

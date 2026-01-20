@@ -1,10 +1,67 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, X, Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react'
+
+// RUT validation functions
+function cleanRut(rut: string): string {
+  return rut.replace(/[.\-\s]/g, '').toUpperCase()
+}
+
+function calculateVerificationDigit(rutNumber: string | number): string {
+  const rut = String(rutNumber)
+  let sum = 0
+  let multiplier = 2
+
+  for (let i = rut.length - 1; i >= 0; i--) {
+    sum += parseInt(rut[i], 10) * multiplier
+    multiplier = multiplier === 7 ? 2 : multiplier + 1
+  }
+
+  const remainder = 11 - (sum % 11)
+
+  if (remainder === 11) return '0'
+  if (remainder === 10) return 'K'
+  return String(remainder)
+}
+
+function validateRutWithDetails(rut: string): { valid: boolean; expectedDigit?: string; message?: string } {
+  if (!rut || typeof rut !== 'string') {
+    return { valid: false, message: 'RUT es requerido' }
+  }
+
+  const cleanedRut = cleanRut(rut)
+
+  if (cleanedRut.length < 8 || cleanedRut.length > 9) {
+    return { valid: false, message: 'RUT debe tener entre 8 y 9 caracteres' }
+  }
+
+  const rutNumber = cleanedRut.slice(0, -1)
+  const providedDigit = cleanedRut.slice(-1)
+
+  if (!/^\d+$/.test(rutNumber)) {
+    return { valid: false, message: 'El cuerpo del RUT debe contener solo numeros' }
+  }
+
+  if (!/^[0-9K]$/.test(providedDigit)) {
+    return { valid: false, message: 'El digito verificador debe ser un numero o K' }
+  }
+
+  const calculatedDigit = calculateVerificationDigit(rutNumber)
+
+  if (providedDigit !== calculatedDigit) {
+    return {
+      valid: false,
+      expectedDigit: calculatedDigit,
+      message: `Digito verificador incorrecto. El correcto es ${calculatedDigit}`
+    }
+  }
+
+  return { valid: true }
+}
 
 interface Student {
   id: string
@@ -82,6 +139,25 @@ export default function StudentsPage() {
   })
   const [createError, setCreateError] = useState<string | null>(null)
 
+  // RUT validation state
+  const [rutValidation, setRutValidation] = useState<{ valid: boolean; expectedDigit?: string; message?: string } | null>(null)
+  const [hasTypedRut, setHasTypedRut] = useState(false)
+
+  // Validate RUT on change
+  useEffect(() => {
+    if (createForm.rut && createForm.rut.length >= 8) {
+      const result = validateRutWithDetails(createForm.rut)
+      setRutValidation(result)
+      setHasTypedRut(true)
+    } else if (createForm.rut.length > 0) {
+      setHasTypedRut(true)
+      setRutValidation(null)
+    } else {
+      setRutValidation(null)
+      setHasTypedRut(false)
+    }
+  }, [createForm.rut])
+
   // Import modal state
   const [showImportModal, setShowImportModal] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
@@ -108,9 +184,7 @@ export default function StudentsPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-students'] })
-      setShowCreateModal(false)
-      setCreateForm({ rut: '', firstName: '', lastName: '', grade: '', section: '' })
-      setCreateError(null)
+      closeCreateModal()
     },
     onError: (error: any) => {
       setCreateError(error.response?.data?.message || 'Error al crear estudiante')
@@ -169,6 +243,14 @@ export default function StudentsPage() {
       }
     }
     return '-'
+  }
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    setCreateForm({ rut: '', firstName: '', lastName: '', grade: '', section: '' })
+    setCreateError(null)
+    setRutValidation(null)
+    setHasTypedRut(false)
   }
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -401,7 +483,7 @@ export default function StudentsPage() {
             {/* Backdrop */}
             <div
               className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              onClick={() => setShowCreateModal(false)}
+              onClick={closeCreateModal}
             />
 
             {/* Modal */}
@@ -413,7 +495,7 @@ export default function StudentsPage() {
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={closeCreateModal}
                     className="text-gray-400 hover:text-gray-500"
                   >
                     <X className="w-5 h-5" />
@@ -437,8 +519,26 @@ export default function StudentsPage() {
                       onChange={(e) => setCreateForm({ ...createForm, rut: e.target.value })}
                       placeholder="12.345.678-9"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                      className={`w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white transition-colors ${
+                        hasTypedRut && rutValidation
+                          ? rutValidation.valid
+                            ? 'border-green-500 focus:border-green-500 focus:ring-green-500'
+                            : 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
                     />
+                    {hasTypedRut && rutValidation && !rutValidation.valid && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {rutValidation.expectedDigit
+                          ? `Digito esperado: ${rutValidation.expectedDigit}`
+                          : rutValidation.message}
+                      </p>
+                    )}
+                    {hasTypedRut && rutValidation?.valid && (
+                      <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                        RUT valido
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -499,15 +599,15 @@ export default function StudentsPage() {
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 flex justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={closeCreateModal}
                     className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    disabled={createMutation.isPending}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    disabled={createMutation.isPending || !rutValidation?.valid}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {createMutation.isPending ? 'Guardando...' : 'Guardar'}
                   </button>
