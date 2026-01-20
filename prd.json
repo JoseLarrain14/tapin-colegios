@@ -205,7 +205,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Ir a /menu/calendar, screenshot de la pagina base",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-121",
@@ -223,7 +223,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Screenshot mostrando grid de 7 columnas con dias",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-122",
@@ -241,7 +241,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Screenshot con indicadores en algunos dias",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-123",
@@ -260,7 +260,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Screenshot con sidebar mostrando platos",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-124",
@@ -280,7 +280,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Arrastrar plato a dia, verificar indicador aparece",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-125",
@@ -299,7 +299,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Click en dia, screenshot del modal",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-126",
@@ -318,7 +318,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Expandir seccion, screenshot con 5 columnas",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-130",
@@ -335,7 +335,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Screenshot sidebar con seccion Templates",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-131",
@@ -354,7 +354,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Click Nuevo Template, screenshot del modal",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-132",
@@ -371,7 +371,7 @@
       "filesToModify": ["apps/admin/src/app/(dashboard)/menu/calendar/page.tsx"],
       "verification": "pnpm build:admin",
       "visualVerification": "Crear template, arrastrar a dia, verificar platos",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-140",
