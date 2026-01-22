@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
+import { validateCafeteriaAccess } from './admin.routes.js';
 
 // Helper to verify auth token
 async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -61,18 +62,10 @@ export async function menuRoutes(app: FastifyInstance) {
 
       const { cafeteriaId } = request.params;
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-        include: { school: true },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       const menuItems = await prisma.menuItem.findMany({
         where: { cafeteriaId },
@@ -144,18 +137,10 @@ export async function menuRoutes(app: FastifyInstance) {
         });
       }
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-        include: { school: true },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       const allMenuItems = await prisma.menuItem.findMany({
         where: {
@@ -251,17 +236,9 @@ export async function menuRoutes(app: FastifyInstance) {
       const { cafeteriaId } = request.params;
       const body = createMenuItemSchema.parse(request.body);
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       const menuItem = await prisma.menuItem.create({
         data: {
@@ -322,6 +299,10 @@ export async function menuRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, itemId } = request.params;
       const body = updateMenuItemSchema.parse(request.body);
+
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       // Check item exists and belongs to cafeteria
       const existingItem = await prisma.menuItem.findUnique({
@@ -394,6 +375,10 @@ export async function menuRoutes(app: FastifyInstance) {
       if (!decoded) return;
 
       const { cafeteriaId, itemId } = request.params;
+
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       // Check item exists and belongs to cafeteria
       const existingItem = await prisma.menuItem.findUnique({

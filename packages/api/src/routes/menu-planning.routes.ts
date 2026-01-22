@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
+import { validateCafeteriaAccess } from './admin.routes.js';
 
 // Helper to verify auth token
 async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -57,17 +58,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
 
       const { cafeteriaId } = request.params;
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       // Get or create weekly pattern
       let pattern = await prisma.weeklyPattern.findUnique({
@@ -170,17 +164,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       // Get or create weekly pattern
       let pattern = await prisma.weeklyPattern.findUnique({
@@ -306,17 +293,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       const { cafeteriaId } = request.params;
       const { from, to } = request.query;
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       // Parse dates
       const fromDate = from ? new Date(from) : new Date();
@@ -412,17 +392,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       // Set time to start of day for comparison
       targetDate.setHours(0, 0, 0, 0);
@@ -517,17 +490,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
 
       // Set time to start of day
       targetDate.setHours(0, 0, 0, 0);
@@ -659,6 +625,11 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+      const { cafeteria } = result;
+
       // Set time to start of day
       targetDate.setHours(0, 0, 0, 0);
       const endOfDay = new Date(targetDate);
@@ -735,7 +706,11 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
-      // Check cafeteria exists
+      // Validate cafeteria access and get cafeteria with school
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+
+      // Fetch cafeteria with school relation for response
       const cafeteria = await prisma.cafeteria.findUnique({
         where: { id: cafeteriaId },
         include: { school: true },

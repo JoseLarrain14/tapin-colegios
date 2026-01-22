@@ -136,8 +136,8 @@ const createStudentSchema = z.object({
   section: z.string().optional(),
 });
 
-// Helper to verify auth token
-async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
+// Helper to verify auth token (exported for use in other routes)
+export async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
   const authHeader = request.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     reply.status(401).send({
@@ -161,13 +161,51 @@ async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
   return decoded;
 }
 
-// Helper to get school admin's school ID
-async function getSchoolAdminSchoolId(userId: string): Promise<string | null> {
+// Helper to get school admin's school ID (exported for use in other routes)
+export async function getSchoolAdminSchoolId(userId: string): Promise<string | null> {
   const schoolAdmin = await prisma.schoolAdmin.findUnique({
     where: { userId },
     select: { schoolId: true },
   });
   return schoolAdmin?.schoolId || null;
+}
+
+// Helper to validate cafeteria access by school (exported for use in other routes)
+export async function validateCafeteriaAccess(
+  cafeteriaId: string,
+  decoded: { userId: string; role: string; schoolId?: string },
+  reply: FastifyReply
+): Promise<{ cafeteria: any; schoolId: string } | null> {
+  const cafeteria = await prisma.cafeteria.findUnique({
+    where: { id: cafeteriaId },
+    include: { school: true },
+  });
+
+  if (!cafeteria) {
+    reply.status(404).send({
+      success: false,
+      message: 'Cafeteria no encontrada',
+    });
+    return null;
+  }
+
+  // Super admin has access to everything
+  if (decoded.role === 'super_admin') {
+    return { cafeteria, schoolId: cafeteria.schoolId };
+  }
+
+  // Get user's school ID
+  const userSchoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+
+  if (!userSchoolId || cafeteria.schoolId !== userSchoolId) {
+    reply.status(403).send({
+      success: false,
+      message: 'No tienes acceso a esta cafeteria',
+    });
+    return null;
+  }
+
+  return { cafeteria, schoolId: userSchoolId };
 }
 
 // Interface for import row
@@ -1126,8 +1164,6 @@ export async function adminRoutes(app: FastifyInstance) {
         }
       }
 
-      console.log('[Stats] Query params:', { dateFrom, dateTo, schoolId });
-
       // 5. Build queries for statistics
 
       // Tickets Consumed: Count Transaction where ticketsUsed IS NOT NULL
@@ -1201,8 +1237,6 @@ export async function adminRoutes(app: FastifyInstance) {
           ...(schoolId && { wallet: { student: { schoolId } } }),
         },
       });
-
-      console.log('[Stats] Results:', { ticketsConsumed, totalSales, totalRecharges, totalTransactionCount, salesCount, rechargesCount });
 
       // 6. Return statistics
       return reply.send({

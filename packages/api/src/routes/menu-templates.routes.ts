@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
+import { validateCafeteriaAccess } from './admin.routes.js';
 
 // Helper to verify auth token
 async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -61,17 +62,9 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
 
       const { cafeteriaId } = request.params;
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       const templates = await prisma.menuTemplate.findMany({
         where: { cafeteriaId },
@@ -132,6 +125,10 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
       if (!decoded) return;
 
       const { cafeteriaId, templateId } = request.params;
+
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       const template = await prisma.menuTemplate.findUnique({
         where: { id: templateId },
@@ -198,17 +195,9 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
       const { cafeteriaId } = request.params;
       const body = createTemplateSchema.parse(request.body);
 
-      // Check cafeteria exists
-      const cafeteria = await prisma.cafeteria.findUnique({
-        where: { id: cafeteriaId },
-      });
-
-      if (!cafeteria) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Cafeteria no encontrada',
-        });
-      }
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       // Create template with items in a transaction
       const template = await prisma.$transaction(async (tx) => {
@@ -297,6 +286,10 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
       const { cafeteriaId, templateId } = request.params;
       const body = updateTemplateSchema.parse(request.body);
 
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+
       // Check template exists
       const existingTemplate = await prisma.menuTemplate.findUnique({
         where: { id: templateId },
@@ -378,6 +371,10 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, templateId } = request.params;
 
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
+
       // Check template exists
       const existingTemplate = await prisma.menuTemplate.findUnique({
         where: { id: templateId },
@@ -418,6 +415,10 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, templateId } = request.params;
       const body = addItemSchema.parse(request.body);
+
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       // Check template exists
       const template = await prisma.menuTemplate.findUnique({
@@ -515,6 +516,10 @@ export async function menuTemplatesRoutes(app: FastifyInstance) {
       if (!decoded) return;
 
       const { cafeteriaId, templateId, itemId } = request.params;
+
+      // Validate cafeteria access
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      if (!result) return;
 
       // Check template exists
       const template = await prisma.menuTemplate.findUnique({

@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireRole } from '../middleware/authorization.js';
 import prisma from '../utils/prisma.js';
+import { getSchoolAdminSchoolId } from './admin.routes.js';
 
 // =============================================================================
 // Validation Schemas
@@ -43,6 +44,50 @@ function normalizeRut(rut: string): string {
   return rut.replace(/[.-]/g, '').toLowerCase();
 }
 
+/**
+ * Get the school ID for a cafeteria operator or school admin
+ * For school_admin: use schoolId from token or SchoolAdmin table
+ * For cafeteria_operator: infer from their transaction history (operators work in one school)
+ *
+ * SECURITY NOTE: This is a temporary workaround. The proper solution is to add a
+ * CafeteriaOperator table that links userId -> cafeteriaId -> schoolId
+ */
+async function getOperatorSchoolId(
+  userId: string,
+  role: string,
+  tokenSchoolId?: string
+): Promise<string | null> {
+  // For school_admin, use the schoolId from token or fetch from SchoolAdmin table
+  if (role === 'school_admin') {
+    return tokenSchoolId || await getSchoolAdminSchoolId(userId);
+  }
+
+  // For cafeteria_operator, we don't have a direct relationship in the DB
+  // As a workaround, we look at their transaction history to infer their school
+  // This assumes operators only work in one school (which should be enforced)
+  if (role === 'cafeteria_operator') {
+    const transaction = await prisma.transaction.findFirst({
+      where: { validatedBy: userId },
+      include: {
+        cafeteria: {
+          select: { schoolId: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (transaction?.cafeteria?.schoolId) {
+      return transaction.cafeteria.schoolId;
+    }
+
+    // If no transactions yet, we cannot determine the school
+    // In production, this should be handled by requiring proper operator-school relationship
+    return null;
+  }
+
+  return null;
+}
+
 // =============================================================================
 // Routes
 // =============================================================================
@@ -59,8 +104,24 @@ export async function casinoRoutes(app: FastifyInstance) {
     {
       preHandler: [authenticate, requireRole('cafeteria_operator', 'school_admin')],
     },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
+        const user = request.user!;
+
+        // Get operator's school ID
+        const operatorSchoolId = await getOperatorSchoolId(
+          user.userId,
+          user.role,
+          user.schoolId
+        );
+
+        if (!operatorSchoolId) {
+          return reply.status(403).send({
+            success: false,
+            message: 'Operador sin colegio asignado',
+          });
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -71,6 +132,10 @@ export async function casinoRoutes(app: FastifyInstance) {
             },
             pickupDate: {
               gte: today,
+            },
+            // SECURITY FIX: Filter orders by operator's school
+            cafeteria: {
+              schoolId: operatorSchoolId,
             },
           },
           include: {
@@ -100,19 +165,33 @@ export async function casinoRoutes(app: FastifyInstance) {
         return reply.send({
           success: true,
           data: {
-            orders: orders.map((order) => ({
-              id: order.id,
-              status: order.status,
-              pickupDate: order.pickupDate,
-              pickupTime: order.pickupTime,
-              total: order.total,
-              items: order.items ? JSON.parse(order.items) : [],
-              ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
-              comments: order.comments,
-              student: order.student,
-              cafeteria: order.cafeteria,
-              createdAt: order.createdAt,
-            })),
+            orders: orders.map((order) => {
+              let items = [];
+              let ticketsUsed = null;
+              try {
+                items = order.items ? JSON.parse(order.items) : [];
+              } catch (e) {
+                console.error('Error parsing order items:', e);
+              }
+              try {
+                ticketsUsed = order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null;
+              } catch (e) {
+                console.error('Error parsing tickets used:', e);
+              }
+              return {
+                id: order.id,
+                status: order.status,
+                pickupDate: order.pickupDate,
+                pickupTime: order.pickupTime,
+                total: order.total,
+                items,
+                ticketsUsed,
+                comments: order.comments,
+                student: order.student,
+                cafeteria: order.cafeteria,
+                createdAt: order.createdAt,
+              };
+            }),
             totalOrders: orders.length,
           },
         });
@@ -205,13 +284,19 @@ export async function casinoRoutes(app: FastifyInstance) {
           });
 
           // Create transaction record
+          let itemCount = 0;
+          try {
+            itemCount = JSON.parse(order.items).length;
+          } catch (e) {
+            console.error('Error parsing order items for description:', e);
+          }
           const transaction = await tx.transaction.create({
             data: {
               walletId: wallet!.id,
               cafeteriaId: order.cafeteriaId,
               type: 'purchase',
               amount: order.total,
-              description: `Pedido validado - ${JSON.parse(order.items).length} items`,
+              description: `Pedido validado - ${itemCount} items`,
               items: order.items,
               ticketsUsed: order.ticketsUsed,
               source: 'app',
@@ -417,6 +502,14 @@ export async function casinoRoutes(app: FastifyInstance) {
           };
         });
 
+        // Parse items safely
+        let parsedItems = [];
+        try {
+          parsedItems = JSON.parse(result.transaction.items!);
+        } catch (e) {
+          console.error('Error parsing transaction items:', e);
+        }
+
         return reply.status(201).send({
           success: true,
           message: `Compra de $${totalAmount.toLocaleString('es-CL')} procesada exitosamente`,
@@ -425,7 +518,7 @@ export async function casinoRoutes(app: FastifyInstance) {
               id: result.transaction.id,
               type: result.transaction.type,
               amount: result.transaction.amount,
-              items: JSON.parse(result.transaction.items!),
+              items: parsedItems,
               source: result.transaction.source,
               validationMethod: result.transaction.validationMethod,
               createdAt: result.transaction.createdAt,
@@ -483,6 +576,21 @@ export async function casinoRoutes(app: FastifyInstance) {
     async (request, reply) => {
       try {
         const { rut } = request.params;
+        const user = request.user!;
+
+        // Get operator's school ID
+        const operatorSchoolId = await getOperatorSchoolId(
+          user.userId,
+          user.role,
+          user.schoolId
+        );
+
+        if (!operatorSchoolId) {
+          return reply.status(403).send({
+            success: false,
+            message: 'Operador sin colegio asignado',
+          });
+        }
 
         // Normalize RUT (remove dots, keep hyphen for comparison)
         const normalizedRut = normalizeRut(rut);
@@ -490,6 +598,7 @@ export async function casinoRoutes(app: FastifyInstance) {
         const rutWithHyphen = rut.replace(/\./g, ''); // Remove only dots
 
         // Find student (try both normalized and with hyphen)
+        // SECURITY FIX: Filter by operator's school
         const student = await prisma.student.findFirst({
           where: {
             OR: [
@@ -498,6 +607,7 @@ export async function casinoRoutes(app: FastifyInstance) {
               { rut: rut }, // Original input
             ],
             active: true,
+            schoolId: operatorSchoolId, // SECURITY: Only show students from operator's school
           },
           include: {
             school: {
@@ -790,19 +900,27 @@ export async function casinoRoutes(app: FastifyInstance) {
           orderBy: { createdAt: 'desc' },
         });
 
-        const consumptions = transactions.map(tx => ({
-          id: tx.id,
-          student: tx.wallet.student ? {
-            id: tx.wallet.student.id,
-            fullName: `${tx.wallet.student.firstName} ${tx.wallet.student.lastName}`,
-            rut: tx.wallet.student.rut,
-            grade: tx.wallet.student.grade,
-            section: tx.wallet.student.section,
-          } : null,
-          ticketsUsed: tx.ticketsUsed ? JSON.parse(tx.ticketsUsed) : [],
-          description: tx.description,
-          createdAt: tx.createdAt,
-        }));
+        const consumptions = transactions.map(tx => {
+          let ticketsUsed = [];
+          try {
+            ticketsUsed = tx.ticketsUsed ? JSON.parse(tx.ticketsUsed) : [];
+          } catch (e) {
+            console.error('Error parsing tickets used:', e);
+          }
+          return {
+            id: tx.id,
+            student: tx.wallet.student ? {
+              id: tx.wallet.student.id,
+              fullName: `${tx.wallet.student.firstName} ${tx.wallet.student.lastName}`,
+              rut: tx.wallet.student.rut,
+              grade: tx.wallet.student.grade,
+              section: tx.wallet.student.section,
+            } : null,
+            ticketsUsed,
+            description: tx.description,
+            createdAt: tx.createdAt,
+          };
+        });
 
         return reply.send({
           success: true,
