@@ -15,7 +15,7 @@ export default function EditPackagePage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
-  const [type, setType] = useState<'balance' | 'ticket'>('balance')
+  const [type, setType] = useState<'balance' | 'ticket'>('ticket')
   const [ticketCount, setTicketCount] = useState('')
   const [ticketType, setTicketType] = useState('')
   const [active, setActive] = useState(true)
@@ -46,8 +46,8 @@ export default function EditPackagePage() {
     if (data) {
       setName(data.name || '')
       setDescription(data.description || '')
-      setPrice(String(data.price / 100))
-      setType(data.type || 'balance')
+      setPrice(String(data.price))
+      setType('ticket') // Solo tickets habilitado
       setTicketCount(data.ticketCount ? String(data.ticketCount) : '')
       setTicketType(data.ticketType || '')
       setActive(data.active)
@@ -92,8 +92,8 @@ export default function EditPackagePage() {
       return
     }
 
-    const priceInCents = Math.round(parseFloat(price) * 100)
-    if (isNaN(priceInCents) || priceInCents <= 0) {
+    const priceValue = parseInt(price)
+    if (isNaN(priceValue) || priceValue <= 0) {
       setError('El precio debe ser mayor a 0')
       return
     }
@@ -110,10 +110,18 @@ export default function EditPackagePage() {
       }
     }
 
+    // DEBUG: Verificar valores antes de enviar
+    console.log('[DEBUG] Actualizando paquete:', {
+      ticketCount,
+      parsedCount: parseInt(ticketCount),
+      price,
+      parsedPrice: priceValue
+    })
+
     updateMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,
-      price: priceInCents,
+      price: priceValue,
       type,
       ticketCount: type === 'ticket' ? parseInt(ticketCount) : null,
       ticketType: type === 'ticket' ? ticketType.trim() : null,
@@ -207,24 +215,14 @@ export default function EditPackagePage() {
               <input
                 type="radio"
                 name="type"
-                value="balance"
-                checked={type === 'balance'}
-                onChange={() => setType('balance')}
-                className="h-4 w-4 text-blue-600 border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Saldo</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="type"
                 value="ticket"
-                checked={type === 'ticket'}
-                onChange={() => setType('ticket')}
+                checked={true}
+                readOnly
                 className="h-4 w-4 text-blue-600 border-gray-300"
               />
               <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Tickets</span>
             </label>
+            {/* Opción de Saldo eliminada - sistema simplificado a solo tickets */}
           </div>
         </div>
 
@@ -238,7 +236,7 @@ export default function EditPackagePage() {
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             min="0"
-            step="100"
+            step="1000"
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
             required
           />

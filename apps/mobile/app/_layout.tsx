@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
 
@@ -48,7 +50,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle routing based on auth state
   useEffect(() => {
-    if (!isInitialized) return;
+    console.log('[AUTH] useEffect triggered:', { isInitialized, isAuthenticated, segments });
+
+    if (!isInitialized) {
+      console.log('[AUTH] Not initialized yet, skipping');
+      return;
+    }
 
     const inAuthGroup = segments[0] === 'register' || segments[0] === 'login';
     const isPublicRoute = segments[0] === 'forgot-password' || segments[0] === 'reset-password';
@@ -59,12 +66,18 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     const isProtectedRoute = protectedRoutes.includes(segments[0] as string);
     const isInTabs = segments[0] === '(tabs)';
 
+    console.log('[AUTH] Route check:', { isInTabs, isProtectedRoute, isRoot, segment0: segments[0] });
+
     if (isAuthenticated && (inAuthGroup || isRoot)) {
       // Redirect authenticated users to tabs (home)
+      console.log('[AUTH] Redirecting to tabs (authenticated user on auth page)');
       router.replace('/(tabs)');
     } else if (!isAuthenticated && (isProtectedRoute || isInTabs)) {
       // Redirect unauthenticated users to splash for protected routes
+      console.log('[AUTH] Redirecting to splash (unauthenticated on protected route)');
       router.replace('/');
+    } else {
+      console.log('[AUTH] No redirect needed');
     }
   }, [isAuthenticated, segments, isInitialized]);
 
@@ -90,9 +103,26 @@ const styles = StyleSheet.create({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    ...MaterialCommunityIcons.font,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>
+      <PaperProvider
+        theme={theme}
+        settings={{
+          icon: props => <MaterialCommunityIcons {...props} />,
+        }}
+      >
         <SafeAreaProvider>
           <StatusBar style="dark" />
           <AuthProvider>

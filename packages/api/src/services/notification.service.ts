@@ -46,12 +46,14 @@ class NotificationService {
       });
 
       // In production, send to push notification service (Expo, Firebase, etc.)
-      // For now, we just log the notification
-      console.log(`[NotificationService] Notification created for user ${userId}:`, {
-        title,
-        body,
-        tokensCount: pushTokens.length,
-      });
+      // For now, we just log the notification in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[NotificationService] Notification created for user ${userId}:`, {
+          title,
+          body,
+          tokensCount: pushTokens.length,
+        });
+      }
 
       // TODO: In production, integrate with Expo Push Notification Service
       // await this.sendPushNotifications(pushTokens, { title, body, data });

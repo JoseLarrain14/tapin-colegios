@@ -11,7 +11,6 @@ import {
   Download,
   X,
   Ticket,
-  DollarSign,
   CreditCard,
   Activity,
   RefreshCw,
@@ -93,17 +92,23 @@ export default function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
 
-  // Filters
-  const [dateFrom, setDateFrom] = useState<string>('')
-  const [dateTo, setDateTo] = useState<string>('')
-  const [typeFilter, setTypeFilter] = useState<string[]>([])
-  const [methodFilter, setMethodFilter] = useState<string[]>([])
-  const [search, setSearch] = useState<string>('')
-  const [searchDebounced, setSearchDebounced] = useState<string>('')
+  // Search state (separate to avoid infinite loops in useEffect)
+  const [search, setSearch] = useState('')
+  const [searchDebounced, setSearchDebounced] = useState('')
 
-  // Debounce search
+  // PERFORMANCE: Consolidated filter state to reduce re-renders
+  const [filters, setFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    typeFilter: [] as string[],
+    methodFilter: [] as string[],
+  })
+
+  // Debounce search (using separate state to avoid infinite loops)
   useEffect(() => {
-    const timer = setTimeout(() => setSearchDebounced(search), 300)
+    const timer = setTimeout(() => {
+      setSearchDebounced(search)
+    }, 300)
     return () => clearTimeout(timer)
   }, [search])
 
@@ -115,7 +120,7 @@ export default function TransactionsPage() {
     queryKey: ['admin-transactions-stats', today],
     queryFn: async () => {
       const res = await apiClient.adminTransactions.stats({ dateFrom: today, dateTo: today })
-      console.log('[Frontend] Stats received:', res.data.data)  // AGREGAR ESTE LOG
+      // PERFORMANCE: Removed debug console.log
       return res.data.data as Stats
     },
   })
@@ -130,17 +135,17 @@ export default function TransactionsPage() {
       case 'recharges':
         return 'deposit'
       default:
-        return typeFilter.length === 1 ? typeFilter[0] : undefined
+        return filters.typeFilter.length === 1 ? filters.typeFilter[0] : undefined
     }
   }
 
   // Fetch transactions
   const { data: transactionsData, isLoading: transactionsLoading, refetch } = useQuery({
-    queryKey: ['admin-transactions', page, limit, dateFrom, dateTo, activeTab, typeFilter, searchDebounced],
+    queryKey: ['admin-transactions', page, limit, filters.dateFrom, filters.dateTo, activeTab, filters.typeFilter, searchDebounced],
     queryFn: async () => {
       const params: Record<string, any> = { page, limit }
-      if (dateFrom) params.dateFrom = dateFrom
-      if (dateTo) params.dateTo = dateTo
+      if (filters.dateFrom) params.dateFrom = filters.dateFrom
+      if (filters.dateTo) params.dateTo = filters.dateTo
       if (searchDebounced) params.search = searchDebounced
 
       const type = getTypeForTab()
@@ -195,11 +200,14 @@ export default function TransactionsPage() {
 
   // Clear filters
   const clearFilters = () => {
-    setDateFrom('')
-    setDateTo('')
-    setTypeFilter([])
-    setMethodFilter([])
     setSearch('')
+    setSearchDebounced('')
+    setFilters({
+      dateFrom: '',
+      dateTo: '',
+      typeFilter: [],
+      methodFilter: [],
+    })
     setPage(1)
   }
 
@@ -207,8 +215,8 @@ export default function TransactionsPage() {
   const handleExport = async () => {
     try {
       const params: Record<string, any> = {}
-      if (dateFrom) params.dateFrom = dateFrom
-      if (dateTo) params.dateTo = dateTo
+      if (filters.dateFrom) params.dateFrom = filters.dateFrom
+      if (filters.dateTo) params.dateTo = filters.dateTo
       if (searchDebounced) params.search = searchDebounced
       const type = getTypeForTab()
       if (type) params.type = type
@@ -263,7 +271,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Tickets Validados */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
@@ -277,23 +285,6 @@ export default function TransactionsPage() {
             </div>
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
               <Ticket className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Ventas del Día */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Ventas del Día
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {statsLoading ? '...' : formatCurrency(statsData?.totalSales || 0)}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
@@ -338,7 +329,6 @@ export default function TransactionsPage() {
         {[
           { id: 'all', label: 'Todas' },
           { id: 'tickets', label: 'Tickets Hoy' },
-          { id: 'sales', label: 'Ventas' },
           { id: 'recharges', label: 'Recargas' },
         ].map((tab) => (
           <button
@@ -412,9 +402,9 @@ export default function TransactionsPage() {
                 </label>
                 <input
                   type="date"
-                  value={dateFrom}
+                  value={filters.dateFrom}
                   onChange={(e) => {
-                    setDateFrom(e.target.value)
+                    setFilters(prev => ({ ...prev, dateFrom: e.target.value }))
                     setPage(1)
                   }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -428,9 +418,9 @@ export default function TransactionsPage() {
                 </label>
                 <input
                   type="date"
-                  value={dateTo}
+                  value={filters.dateTo}
                   onChange={(e) => {
-                    setDateTo(e.target.value)
+                    setFilters(prev => ({ ...prev, dateTo: e.target.value }))
                     setPage(1)
                   }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -443,9 +433,9 @@ export default function TransactionsPage() {
                   Tipo
                 </label>
                 <select
-                  value={typeFilter[0] || ''}
+                  value={filters.typeFilter[0] || ''}
                   onChange={(e) => {
-                    setTypeFilter(e.target.value ? [e.target.value] : [])
+                    setFilters(prev => ({ ...prev, typeFilter: e.target.value ? [e.target.value] : [] }))
                     setPage(1)
                   }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -465,9 +455,9 @@ export default function TransactionsPage() {
                   Método
                 </label>
                 <select
-                  value={methodFilter[0] || ''}
+                  value={filters.methodFilter[0] || ''}
                   onChange={(e) => {
-                    setMethodFilter(e.target.value ? [e.target.value] : [])
+                    setFilters(prev => ({ ...prev, methodFilter: e.target.value ? [e.target.value] : [] }))
                     setPage(1)
                   }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -482,7 +472,7 @@ export default function TransactionsPage() {
             </div>
 
             {/* Clear Filters */}
-            {(dateFrom || dateTo || typeFilter.length || methodFilter.length || search) && (
+            {(filters.dateFrom || filters.dateTo || filters.typeFilter.length || filters.methodFilter.length || search) && (
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={clearFilters}
@@ -599,7 +589,7 @@ export default function TransactionsPage() {
                   No hay transacciones
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {search || dateFrom || dateTo
+                  {search || filters.dateFrom || filters.dateTo
                     ? 'No se encontraron transacciones con los filtros aplicados'
                     : 'Aún no hay transacciones registradas'}
                 </p>

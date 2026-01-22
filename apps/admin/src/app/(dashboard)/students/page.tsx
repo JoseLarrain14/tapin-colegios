@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
 import { Plus, X, Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react'
 
 // RUT validation functions
@@ -76,16 +75,11 @@ interface Student {
   dailyLimit: number
   active: boolean
   createdAt: string
-  balance?: number
   totalTickets?: number
   school?: {
     id: string
     name: string
     code: string
-  }
-  wallet?: {
-    id: string
-    balance: number
   }
   tickets?: Record<string, number> | Array<{
     ticketType: string
@@ -212,12 +206,6 @@ export default function StudentsPage() {
     if (filterActive !== 'all' && String(student.active) !== filterActive) return false
     return true
   })
-
-  // Get balance from either format
-  const getBalance = (student: Student) => {
-    if (typeof student.balance === 'number') return student.balance
-    return student.wallet?.balance || 0
-  }
 
   // Get total tickets from either format
   const getTotalTickets = (student: Student) => {
@@ -362,7 +350,7 @@ export default function StudentsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Estudiantes</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{students.length}</p>
@@ -370,12 +358,6 @@ export default function StudentsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Activos</p>
           <p className="text-2xl font-bold text-green-600">{students.filter(s => s.active).length}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Saldo Total</p>
-          <p className="text-2xl font-bold text-blue-600">
-            {formatCurrency(students.reduce((sum, s) => sum + getBalance(s), 0))}
-          </p>
         </div>
       </div>
 
@@ -401,9 +383,6 @@ export default function StudentsPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Sección
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Saldo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Tickets
@@ -446,15 +425,6 @@ export default function StudentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {student.section || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${
-                        getBalance(student) >= 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {formatCurrency(getBalance(student))}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {getTicketsDisplay(student)}

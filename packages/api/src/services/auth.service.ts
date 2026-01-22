@@ -236,7 +236,10 @@ export class AuthService {
     });
 
     if (!user) {
-      console.log('[FORGOT PASSWORD] Email not found: ' + email);
+      // Log for debugging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[FORGOT PASSWORD] Email not found: ' + email);
+      }
       return { message: 'Si el correo existe, recibiras un enlace para restablecer tu contrasena' };
     }
 
@@ -257,19 +260,22 @@ export class AuthService {
       },
     });
 
-    const resetLink = 'http://localhost:8081/reset-password?token=' + resetToken;
-    console.log('');
-    console.log('========================================================================');
-    console.log('              PASSWORD RESET REQUEST                                    ');
-    console.log('========================================================================');
-    console.log('  Email: ' + email);
-    console.log('  Token: ' + resetToken);
-    console.log('  Expires: ' + expiresAt.toISOString());
-    console.log('------------------------------------------------------------------------');
-    console.log('  Reset Link (copy this):');
-    console.log('  ' + resetLink);
-    console.log('========================================================================');
-    console.log('');
+    // Only log reset token in development for testing purposes
+    if (process.env.NODE_ENV === 'development') {
+      const resetLink = 'http://localhost:8081/reset-password?token=' + resetToken;
+      console.log('');
+      console.log('========================================================================');
+      console.log('              PASSWORD RESET REQUEST (DEV ONLY)                        ');
+      console.log('========================================================================');
+      console.log('  Email: ' + email);
+      console.log('  Token: ' + resetToken);
+      console.log('  Expires: ' + expiresAt.toISOString());
+      console.log('------------------------------------------------------------------------');
+      console.log('  Reset Link (copy this):');
+      console.log('  ' + resetLink);
+      console.log('========================================================================');
+      console.log('');
+    }
 
     return { message: 'Si el correo existe, recibiras un enlace para restablecer tu contrasena' };
   }

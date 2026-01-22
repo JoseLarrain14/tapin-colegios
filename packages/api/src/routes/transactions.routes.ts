@@ -122,30 +122,44 @@ export async function transactionsRoutes(app: FastifyInstance) {
       ]);
 
       // Format response
-      const formattedTransactions = transactions.map((tx) => ({
-        id: tx.id,
-        type: tx.type,
-        amount: tx.amount,
-        description: tx.description,
-        items: tx.items ? JSON.parse(tx.items) : null,
-        ticketsUsed: tx.ticketsUsed ? JSON.parse(tx.ticketsUsed) : null,
-        validationMethod: tx.validationMethod,
-        source: tx.source,
-        createdAt: tx.createdAt,
-        student: {
-          id: tx.wallet.student.id,
-          firstName: tx.wallet.student.firstName,
-          lastName: tx.wallet.student.lastName,
-          fullName: `${tx.wallet.student.firstName} ${tx.wallet.student.lastName}`,
-          rut: tx.wallet.student.rut,
-          grade: tx.wallet.student.grade,
-          section: tx.wallet.student.section,
-          photoUrl: tx.wallet.student.photoUrl,
-          school: tx.wallet.student.school,
-        },
-        cafeteria: tx.cafeteria,
-        validator: tx.validator,
-      }));
+      const formattedTransactions = transactions.map((tx) => {
+        let items = null;
+        let ticketsUsed = null;
+        try {
+          items = tx.items ? JSON.parse(tx.items) : null;
+        } catch (e) {
+          console.error('Error parsing transaction items:', e);
+        }
+        try {
+          ticketsUsed = tx.ticketsUsed ? JSON.parse(tx.ticketsUsed) : null;
+        } catch (e) {
+          console.error('Error parsing tickets used:', e);
+        }
+        return {
+          id: tx.id,
+          type: tx.type,
+          amount: tx.amount,
+          description: tx.description,
+          items,
+          ticketsUsed,
+          validationMethod: tx.validationMethod,
+          source: tx.source,
+          createdAt: tx.createdAt,
+          student: {
+            id: tx.wallet.student.id,
+            firstName: tx.wallet.student.firstName,
+            lastName: tx.wallet.student.lastName,
+            fullName: `${tx.wallet.student.firstName} ${tx.wallet.student.lastName}`,
+            rut: tx.wallet.student.rut,
+            grade: tx.wallet.student.grade,
+            section: tx.wallet.student.section,
+            photoUrl: tx.wallet.student.photoUrl,
+            school: tx.wallet.student.school,
+          },
+          cafeteria: tx.cafeteria,
+          validator: tx.validator,
+        };
+      });
 
       const totalPages = Math.ceil(total / limit);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Surface, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,17 +14,73 @@ interface Cafeteria {
   schoolName: string;
 }
 
+// PERFORMANCE: Consolidated state with reducer to prevent multiple re-renders
+interface CafeteriaState {
+  loading: boolean;
+  cafeteria: Cafeteria | null;
+  menuItems: MenuItem[];
+  selectedDay: number;
+  weekOffset: number;
+  students: Student[];
+  selectedStudent: Student | null;
+  networkError: string | null;
+  retrying: boolean;
+}
+
+type CafeteriaAction =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_CAFETERIA'; payload: Cafeteria | null }
+  | { type: 'SET_MENU_ITEMS'; payload: MenuItem[] }
+  | { type: 'SET_SELECTED_DAY'; payload: number }
+  | { type: 'SET_WEEK_OFFSET'; payload: number }
+  | { type: 'SET_STUDENTS'; payload: Student[] }
+  | { type: 'SET_SELECTED_STUDENT'; payload: Student | null }
+  | { type: 'SET_NETWORK_ERROR'; payload: string | null }
+  | { type: 'SET_RETRYING'; payload: boolean }
+  | { type: 'SET_DATA'; payload: Partial<CafeteriaState> };
+
+function cafeteriaReducer(state: CafeteriaState, action: CafeteriaAction): CafeteriaState {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_CAFETERIA':
+      return { ...state, cafeteria: action.payload };
+    case 'SET_MENU_ITEMS':
+      return { ...state, menuItems: action.payload };
+    case 'SET_SELECTED_DAY':
+      return { ...state, selectedDay: action.payload };
+    case 'SET_WEEK_OFFSET':
+      return { ...state, weekOffset: action.payload };
+    case 'SET_STUDENTS':
+      return { ...state, students: action.payload };
+    case 'SET_SELECTED_STUDENT':
+      return { ...state, selectedStudent: action.payload };
+    case 'SET_NETWORK_ERROR':
+      return { ...state, networkError: action.payload };
+    case 'SET_RETRYING':
+      return { ...state, retrying: action.payload };
+    case 'SET_DATA':
+      return { ...state, ...action.payload };
+    default:
+      return state;
+  }
+}
+
+const initialState: CafeteriaState = {
+  loading: true,
+  cafeteria: null,
+  menuItems: [],
+  selectedDay: new Date().getDay() || 7,
+  weekOffset: 0,
+  students: [],
+  selectedStudent: null,
+  networkError: null,
+  retrying: false,
+};
+
 export default function CafeteriaTab() {
   const { accessToken } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay() || 7);
-  const [weekOffset, setWeekOffset] = useState<number>(0);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [networkError, setNetworkError] = useState<string | null>(null);
-  const [retrying, setRetrying] = useState(false);
+  const [state, dispatch] = useReducer(cafeteriaReducer, initialState);
 
   const dayNames = ['', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
   const fullDayNames = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
@@ -36,14 +92,14 @@ export default function CafeteriaTab() {
 
     // Calculate Monday of the current/offset week
     const monday = new Date(today);
-    monday.setDate(today.getDate() - (currentDay - 1) + (weekOffset * 7));
+    monday.setDate(today.getDate() - (currentDay - 1) + (state.weekOffset * 7));
 
     // Calculate Friday
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
 
     return { monday, friday };
-  }, [weekOffset]);
+  }, [state.weekOffset]);
 
   // Get date for a specific day in the current week view
   const getDayDate = useCallback((day: number): Date => {
@@ -59,14 +115,14 @@ export default function CafeteriaTab() {
   };
 
   const handlePreviousWeek = () => {
-    if (weekOffset > 0) {
-      setWeekOffset(prev => prev - 1);
+    if (state.weekOffset > 0) {
+      dispatch({ type: 'SET_WEEK_OFFSET', payload: state.weekOffset - 1 });
     }
   };
 
   const handleNextWeek = () => {
-    if (weekOffset < 4) {
-      setWeekOffset(prev => prev + 1);
+    if (state.weekOffset < 4) {
+      dispatch({ type: 'SET_WEEK_OFFSET', payload: state.weekOffset + 1 });
     }
   };
 
@@ -75,8 +131,7 @@ export default function CafeteriaTab() {
     if (!accessToken) return;
 
     try {
-      setLoading(true);
-      setNetworkError(null);
+      dispatch({ type: 'SET_DATA', payload: { loading: true, networkError: null } });
 
       // Get students
       const studentsResponse = await apiService.getStudents(accessToken);
@@ -87,7 +142,7 @@ export default function CafeteriaTab() {
             errorMsg.toLowerCase().includes('internet') ||
             errorMsg.toLowerCase().includes('timeout') ||
             errorMsg.toLowerCase().includes('servidor')) {
-          setNetworkError(errorMsg);
+          dispatch({ type: 'SET_NETWORK_ERROR', payload: errorMsg });
           return;
         }
       }
@@ -96,10 +151,10 @@ export default function CafeteriaTab() {
         const studentList = Array.isArray(studentsResponse.data)
           ? studentsResponse.data
           : (studentsResponse.data as any).students || [];
-        setStudents(studentList);
+        dispatch({ type: 'SET_STUDENTS', payload: studentList });
 
         if (studentList.length > 0) {
-          setSelectedStudent(studentList[0]);
+          dispatch({ type: 'SET_SELECTED_STUDENT', payload: studentList[0] });
 
           // Get student details to find cafeteria
           const studentResponse = await apiService.getStudent(studentList[0].id, accessToken);
@@ -109,14 +164,15 @@ export default function CafeteriaTab() {
 
             // Find cafeteria from student's school
             if (studentData.cafeteria) {
-              setCafeteria({
+              const cafeteriaData = {
                 id: studentData.cafeteria.id,
                 name: studentData.cafeteria.name,
                 schoolName: student.school.name,
-              });
+              };
+              dispatch({ type: 'SET_CAFETERIA', payload: cafeteriaData });
 
               // Load menu for selected day
-              await loadMenuForDay(studentData.cafeteria.id, selectedDay);
+              await loadMenuForDay(studentData.cafeteria.id, state.selectedDay);
             }
           }
         }
@@ -129,19 +185,19 @@ export default function CafeteriaTab() {
           errorMsg.toLowerCase().includes('internet') ||
           errorMsg.toLowerCase().includes('timeout') ||
           errorMsg.toLowerCase().includes('servidor')) {
-        setNetworkError(errorMsg);
+        dispatch({ type: 'SET_NETWORK_ERROR', payload: errorMsg });
       } else {
-        setNetworkError('Error de conexion. Verifica tu internet.');
+        dispatch({ type: 'SET_NETWORK_ERROR', payload: 'Error de conexion. Verifica tu internet.' });
       }
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [accessToken, selectedDay]);
+  }, [accessToken, state.selectedDay]);
 
   const handleRetry = async () => {
-    setRetrying(true);
+    dispatch({ type: 'SET_RETRYING', payload: true });
     await loadData();
-    setRetrying(false);
+    dispatch({ type: 'SET_RETRYING', payload: false });
   };
 
   useEffect(() => {
@@ -150,10 +206,10 @@ export default function CafeteriaTab() {
 
   // Reload menu when week changes
   useEffect(() => {
-    if (cafeteria) {
-      loadMenuForDay(cafeteria.id, selectedDay);
+    if (state.cafeteria) {
+      loadMenuForDay(state.cafeteria.id, state.selectedDay);
     }
-  }, [weekOffset, cafeteria?.id]);
+  }, [state.weekOffset, state.cafeteria?.id]);
 
   // Get full date string for a specific day (YYYY-MM-DD format)
   const getDateString = useCallback((day: number): string => {
@@ -186,38 +242,38 @@ export default function CafeteriaTab() {
           available: true,
           availableDays: [day],
         }));
-        setMenuItems(menuItemsList);
+        dispatch({ type: 'SET_MENU_ITEMS', payload: menuItemsList });
       } else {
-        setMenuItems([]);
+        dispatch({ type: 'SET_MENU_ITEMS', payload: [] });
       }
     } catch (error) {
       console.error('Load menu error:', error);
-      setMenuItems([]);
+      dispatch({ type: 'SET_MENU_ITEMS', payload: [] });
     }
   };
 
   const handleDaySelect = async (day: number) => {
-    setSelectedDay(day);
-    if (cafeteria) {
-      await loadMenuForDay(cafeteria.id, day);
+    dispatch({ type: 'SET_SELECTED_DAY', payload: day });
+    if (state.cafeteria) {
+      await loadMenuForDay(state.cafeteria.id, day);
     }
   };
 
   // Network error state
-  if (networkError) {
+  if (state.networkError) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <NetworkError
-          message={networkError}
+          message={state.networkError}
           onRetry={handleRetry}
-          retrying={retrying}
+          retrying={state.retrying}
         />
       </SafeAreaView>
     );
   }
 
   // Loading state
-  if (loading) {
+  if (state.loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
@@ -235,28 +291,28 @@ export default function CafeteriaTab() {
         <View style={styles.header}>
           <Text style={styles.title}>Menu del Dia</Text>
           <Text style={styles.subtitle}>
-            {cafeteria ? cafeteria.name : 'Menu del casino escolar'}
+            {state.cafeteria ? state.cafeteria.name : 'Menu del casino escolar'}
           </Text>
         </View>
 
         {/* Student selector */}
-        {students.length > 0 && (
+        {state.students.length > 0 && (
           <Surface style={styles.studentSelectorCard} elevation={1}>
             <Text style={styles.selectorLabel}>Viendo menu para:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.studentList}>
-                {students.map(student => (
+                {state.students.map(student => (
                   <TouchableOpacity
                     key={student.id}
-                    onPress={() => setSelectedStudent(student)}
+                    onPress={() => dispatch({ type: 'SET_SELECTED_STUDENT', payload: student })}
                     style={[
                       styles.studentChip,
-                      selectedStudent?.id === student.id && styles.studentChipActive,
+                      state.selectedStudent?.id === student.id && styles.studentChipActive,
                     ]}
                   >
                     <Text style={[
                       styles.studentChipText,
-                      selectedStudent?.id === student.id && styles.studentChipTextActive,
+                      state.selectedStudent?.id === student.id && styles.studentChipTextActive,
                     ]}>
                       {student.firstName}
                     </Text>
@@ -273,19 +329,19 @@ export default function CafeteriaTab() {
           <View style={styles.weekNavigation}>
             <TouchableOpacity
               onPress={handlePreviousWeek}
-              style={[styles.weekNavButton, weekOffset === 0 && styles.weekNavButtonDisabled]}
-              disabled={weekOffset === 0}
+              style={[styles.weekNavButton, state.weekOffset === 0 && styles.weekNavButtonDisabled]}
+              disabled={state.weekOffset === 0}
             >
               <MaterialCommunityIcons
                 name="chevron-left"
                 size={28}
-                color={weekOffset === 0 ? colors.textMuted : colors.primary}
+                color={state.weekOffset === 0 ? colors.textMuted : colors.primary}
               />
             </TouchableOpacity>
 
             <View style={styles.weekDateRange}>
               <Text style={styles.weekTitle}>
-                {weekOffset === 0 ? 'Esta semana' : weekOffset === 1 ? 'Proxima semana' : `En ${weekOffset} semanas`}
+                {state.weekOffset === 0 ? 'Esta semana' : state.weekOffset === 1 ? 'Proxima semana' : `En ${state.weekOffset} semanas`}
               </Text>
               <Text style={styles.weekDates}>
                 {formatShortDate(getWeekDateRange().monday)} - {formatShortDate(getWeekDateRange().friday)}
@@ -294,13 +350,13 @@ export default function CafeteriaTab() {
 
             <TouchableOpacity
               onPress={handleNextWeek}
-              style={[styles.weekNavButton, weekOffset >= 4 && styles.weekNavButtonDisabled]}
-              disabled={weekOffset >= 4}
+              style={[styles.weekNavButton, state.weekOffset >= 4 && styles.weekNavButtonDisabled]}
+              disabled={state.weekOffset >= 4}
             >
               <MaterialCommunityIcons
                 name="chevron-right"
                 size={28}
-                color={weekOffset >= 4 ? colors.textMuted : colors.primary}
+                color={state.weekOffset >= 4 ? colors.textMuted : colors.primary}
               />
             </TouchableOpacity>
           </View>
@@ -314,13 +370,13 @@ export default function CafeteriaTab() {
                 onPress={() => handleDaySelect(day)}
                 style={[
                   styles.dayButton,
-                  selectedDay === day && styles.dayButtonActive,
+                  state.selectedDay === day && styles.dayButtonActive,
                 ]}
               >
                 <Text
                   style={[
                     styles.dayText,
-                    selectedDay === day && styles.dayTextActive,
+                    state.selectedDay === day && styles.dayTextActive,
                   ]}
                 >
                   {dayNames[day]}
@@ -328,7 +384,7 @@ export default function CafeteriaTab() {
                 <Text
                   style={[
                     styles.dayDateText,
-                    selectedDay === day && styles.dayDateTextActive,
+                    state.selectedDay === day && styles.dayDateTextActive,
                   ]}
                 >
                   {getDayDate(day).getDate()}
@@ -339,10 +395,10 @@ export default function CafeteriaTab() {
         </Surface>
 
         {/* Menu items */}
-        {menuItems.length > 0 ? (
+        {state.menuItems.length > 0 ? (
           <View style={styles.menuSection}>
-            <Text style={styles.menuTitle}>Menu para {fullDayNames[selectedDay]}</Text>
-            {menuItems.map(item => (
+            <Text style={styles.menuTitle}>Menu para {fullDayNames[state.selectedDay]}</Text>
+            {state.menuItems.map(item => (
               <Surface key={item.id} style={styles.menuItemCard} elevation={1}>
                 <View style={styles.menuItemContent}>
                   <View style={styles.menuItemInfo}>
@@ -361,8 +417,8 @@ export default function CafeteriaTab() {
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={styles.emptyTitle}>No hay menu disponible</Text>
             <Text style={styles.emptyText}>
-              {cafeteria
-                ? `No hay items de menu disponibles para ${fullDayNames[selectedDay]}.`
+              {state.cafeteria
+                ? `No hay items de menu disponibles para ${fullDayNames[state.selectedDay]}.`
                 : 'No se encontro una cafeteria para el colegio de tu hijo.'
               }
             </Text>

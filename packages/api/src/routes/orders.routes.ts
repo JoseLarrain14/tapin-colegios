@@ -98,20 +98,40 @@ export async function ordersRoutes(app: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          orders: orders.map(order => ({
-            id: order.id,
-            student: order.student,
-            cafeteria: order.cafeteria,
-            status: order.status,
-            pickupDate: order.pickupDate,
-            pickupTime: order.pickupTime,
-            items: JSON.parse(order.items),
-            total: order.total,
-            comments: order.comments,
-            ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt,
-          })),
+          orders: orders.map(order => {
+            try {
+              return {
+                id: order.id,
+                student: order.student,
+                cafeteria: order.cafeteria,
+                status: order.status,
+                pickupDate: order.pickupDate,
+                pickupTime: order.pickupTime,
+                items: JSON.parse(order.items),
+                total: order.total,
+                comments: order.comments,
+                ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+              };
+            } catch (parseError) {
+              console.error('Error parsing order data:', parseError);
+              return {
+                id: order.id,
+                student: order.student,
+                cafeteria: order.cafeteria,
+                status: order.status,
+                pickupDate: order.pickupDate,
+                pickupTime: order.pickupTime,
+                items: [],
+                total: order.total,
+                comments: order.comments,
+                ticketsUsed: null,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+              };
+            }
+          }),
           totalOrders: orders.length,
         },
       });
@@ -162,23 +182,44 @@ export async function ordersRoutes(app: FastifyInstance) {
         });
       }
 
-      return reply.send({
-        success: true,
-        data: {
-          id: order.id,
-          student: order.student,
-          cafeteria: order.cafeteria,
-          status: order.status,
-          pickupDate: order.pickupDate,
-          pickupTime: order.pickupTime,
-          items: JSON.parse(order.items),
-          total: order.total,
-          comments: order.comments,
-          ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
-          createdAt: order.createdAt,
-          updatedAt: order.updatedAt,
-        },
-      });
+      try {
+        return reply.send({
+          success: true,
+          data: {
+            id: order.id,
+            student: order.student,
+            cafeteria: order.cafeteria,
+            status: order.status,
+            pickupDate: order.pickupDate,
+            pickupTime: order.pickupTime,
+            items: JSON.parse(order.items),
+            total: order.total,
+            comments: order.comments,
+            ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+          },
+        });
+      } catch (parseError) {
+        console.error('Error parsing order data:', parseError);
+        return reply.send({
+          success: true,
+          data: {
+            id: order.id,
+            student: order.student,
+            cafeteria: order.cafeteria,
+            status: order.status,
+            pickupDate: order.pickupDate,
+            pickupTime: order.pickupTime,
+            items: [],
+            total: order.total,
+            comments: order.comments,
+            ticketsUsed: null,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+          },
+        });
+      }
     } catch (error) {
       console.error('Get order error:', error);
       return reply.status(500).send({
@@ -420,6 +461,20 @@ export async function ordersRoutes(app: FastifyInstance) {
         }
       }
 
+      // Parse items and tickets safely
+      let parsedItems = [];
+      let parsedTickets = null;
+      try {
+        parsedItems = JSON.parse(order.items);
+      } catch (parseError) {
+        console.error('Error parsing order items:', parseError);
+      }
+      try {
+        parsedTickets = order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null;
+      } catch (parseError) {
+        console.error('Error parsing tickets used:', parseError);
+      }
+
       return reply.status(201).send({
         success: true,
         message: 'Pedido creado exitosamente',
@@ -430,10 +485,10 @@ export async function ordersRoutes(app: FastifyInstance) {
           status: order.status,
           pickupDate: order.pickupDate,
           pickupTime: order.pickupTime,
-          items: JSON.parse(order.items),
+          items: parsedItems,
           total: order.total,
           comments: order.comments,
-          ticketsUsed: order.ticketsUsed ? JSON.parse(order.ticketsUsed) : null,
+          ticketsUsed: parsedTickets,
           createdAt: order.createdAt,
         },
       });
@@ -506,6 +561,14 @@ export async function ordersRoutes(app: FastifyInstance) {
         },
       });
 
+      // Parse items safely
+      let parsedItems = [];
+      try {
+        parsedItems = JSON.parse(order.items);
+      } catch (parseError) {
+        console.error('Error parsing order items:', parseError);
+      }
+
       return reply.send({
         success: true,
         message: 'Pedido actualizado exitosamente',
@@ -516,7 +579,7 @@ export async function ordersRoutes(app: FastifyInstance) {
           status: order.status,
           pickupDate: order.pickupDate,
           pickupTime: order.pickupTime,
-          items: JSON.parse(order.items),
+          items: parsedItems,
           total: order.total,
           comments: order.comments,
           updatedAt: order.updatedAt,
@@ -637,7 +700,12 @@ export async function ordersRoutes(app: FastifyInstance) {
 
       // Add orders
       orders.forEach(order => {
-        const items = JSON.parse(order.items);
+        let items = [];
+        try {
+          items = JSON.parse(order.items);
+        } catch (parseError) {
+          console.error('Error parsing order items for export:', parseError);
+        }
         const itemCount = items.length;
         transactions.push({
           type: 'Pedido',

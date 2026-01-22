@@ -80,6 +80,14 @@ function NewPackageForm() {
       }
     }
 
+    // DEBUG: Verificar valores antes de enviar
+    console.log('[DEBUG] Creando paquete:', {
+      ticketCount,
+      parsedCount: parseInt(ticketCount),
+      price,
+      parsedPrice: parseInt(price)
+    })
+
     createMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,

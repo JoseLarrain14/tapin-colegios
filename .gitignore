@@ -46,7 +46,7 @@ web-build/
 .metro-health-check*
 
 # Prisma
-packages/api/prisma/migrations/dev.db
+packages/api/prisma/dev.db
 
 # Test coverage
 coverage/
@@ -84,7 +84,9 @@ tmpclaude-*
 
 # Bases de datos locales
 *.db
-!packages/api/prisma/*.db
+
+# Archivos de Windows malformados
+C:*
 
 # Archivos de prueba manual
 test-*.json

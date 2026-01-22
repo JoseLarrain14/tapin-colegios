@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { Text, Surface, ActivityIndicator, Button, Dialog, Portal, Paragraph } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -52,7 +52,6 @@ export default function HistoryTab() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [totalSpent, setTotalSpent] = useState(0);
-  const [exporting, setExporting] = useState(false);
 
   // Cancel order state
   const [cancelDialogVisible, setCancelDialogVisible] = useState(false);
@@ -291,64 +290,6 @@ export default function HistoryTab() {
     setSelectedOrder(null);
   };
 
-  const handleExport = async () => {
-    if (!accessToken) return;
-
-    setExporting(true);
-    try {
-      // Pass selectedStudent's ID to filter the export
-      const result = await apiService.exportTransactionsCsv(accessToken, selectedStudent?.id);
-      if (result.success && result.url) {
-        // For web, open the URL with auth header via fetch and download
-        if (Platform.OS === 'web') {
-          try {
-            const response = await fetch(result.url, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-              },
-            });
-
-            if (!response.ok) {
-              throw new Error('Error al descargar el archivo');
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `transacciones_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            Alert.alert('Exito', 'Archivo CSV descargado correctamente');
-          } catch (fetchError) {
-            console.error('Download error:', fetchError);
-            Alert.alert('Error', 'No se pudo descargar el archivo');
-          }
-        } else {
-          // For native, use Linking to open the URL
-          const supported = await Linking.canOpenURL(result.url);
-          if (supported) {
-            await Linking.openURL(result.url);
-          } else {
-            Alert.alert('Error', 'No se puede abrir el enlace de descarga');
-          }
-        }
-      } else {
-        Alert.alert('Error', result.message || 'Error al exportar transacciones');
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert('Error', 'Error al exportar transacciones');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  // Filter transactions by selected student
   // Helper to get available months from transactions
   const getAvailableMonths = () => {
     const monthsSet = new Set<string>();
@@ -837,7 +778,13 @@ export default function HistoryTab() {
             Resumen{quickDateFilter === 'today' ? ' - Hoy' : quickDateFilter === 'week' ? ' - Esta semana' : quickDateFilter === 'month' ? ' - Este mes' : selectedMonth ? ` - ${formatMonth(selectedMonth)}` : ''}
           </Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total gastado:</Text>
+            <Text style={styles.summaryLabel}>Total pagado:</Text>
+            <Text style={styles.summaryValue}>
+              {formatCLP(filteredTransactions.filter(t => t.isPositive).reduce((sum, t) => sum + t.amount, 0))}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Tickets usados:</Text>
             <Text style={styles.summaryValue}>
               {formatCLP(filteredTransactions.filter(t => !t.isPositive).reduce((sum, t) => sum + t.amount, 0))}
             </Text>
@@ -847,23 +794,6 @@ export default function HistoryTab() {
             <Text style={styles.summaryValue}>{filteredTransactions.length}</Text>
           </View>
         </Surface>
-
-        {/* Export button */}
-        {transactions.length > 0 && (
-          <Button
-            mode="outlined"
-            onPress={handleExport}
-            loading={exporting}
-            disabled={exporting}
-            icon="download"
-            style={styles.exportButton}
-            contentStyle={styles.exportButtonContent}
-            labelStyle={styles.exportButtonLabel}
-            testID="export-button"
-          >
-            {exporting ? 'Exportando...' : 'Exportar a CSV'}
-          </Button>
-        )}
 
         {/* Transactions list */}
         {filteredTransactions.length > 0 ? (
@@ -1113,18 +1043,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: colors.card,
     marginBottom: spacing.md,
-  },
-  exportButton: {
-    marginBottom: spacing.lg,
-    borderColor: colors.primary,
-    borderRadius: borderRadius.md,
-  },
-  exportButtonContent: {
-    paddingVertical: spacing.xs,
-  },
-  exportButtonLabel: {
-    color: colors.primary,
-    fontSize: 14,
   },
   summaryTitle: {
     fontSize: 16,

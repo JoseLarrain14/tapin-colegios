@@ -384,12 +384,6 @@ export async function adminRoutes(app: FastifyInstance) {
                 code: true,
               },
             },
-            wallet: {
-              select: {
-                id: true,
-                balance: true,
-              },
-            },
             tickets: {
               select: {
                 ticketType: true,
@@ -420,7 +414,6 @@ export async function adminRoutes(app: FastifyInstance) {
         dailyLimit: student.dailyLimit,
         active: student.active,
         school: student.school,
-        balance: student.wallet?.balance || 0,
         tickets: student.tickets.reduce((acc, t) => {
           acc[t.ticketType] = t.quantity;
           return acc;
@@ -983,6 +976,16 @@ export async function adminRoutes(app: FastifyInstance) {
         orderBy: { completedAt: 'desc' },
       });
 
+      // 8.1. Create Set of Payment IDs that already have a WalletLog reference (to avoid duplicates)
+      const walletLogPaymentIds = new Set(
+        walletLogs
+          .filter(log => log.type === 'deposit' && log.referenceId)
+          .map(log => log.referenceId)
+      );
+
+      // 8.2. Create Map of Payments for quick lookup when enriching WalletLogs
+      const paymentsMap = new Map(payments.map(p => [p.id, p]));
+
       // 9. Normalize all transactions into a unified format
       interface UnifiedTransaction {
         id: string;
@@ -1035,6 +1038,9 @@ export async function adminRoutes(app: FastifyInstance) {
         const student = log.wallet.student;
         const studentName = `${student.firstName} ${student.lastName}`;
 
+        // Look up related Payment if this WalletLog has a referenceId
+        const relatedPayment = log.referenceId ? paymentsMap.get(log.referenceId) : null;
+
         normalizedTransactions.push({
           id: log.id,
           date: log.createdAt,
@@ -1045,13 +1051,21 @@ export async function adminRoutes(app: FastifyInstance) {
           studentRut: student.rut,
           studentGrade: student.grade,
           method: null,
-          operatorName: null,
+          operatorName: relatedPayment?.guardian
+            ? `${relatedPayment.guardian.firstName} ${relatedPayment.guardian.lastName}`
+            : null,
           source: 'wallet',
         });
       }
 
       // Add Payment records (search is now handled at Prisma query level)
+      // Skip Payments that already have a WalletLog reference to avoid duplicates
       for (const payment of payments) {
+        // Skip if this Payment already has a WalletLog associated with it
+        if (walletLogPaymentIds.has(payment.id)) {
+          continue;
+        }
+
         const student = payment.student;
         const studentName = `${student.firstName} ${student.lastName}`;
 

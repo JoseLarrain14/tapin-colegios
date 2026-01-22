@@ -31,6 +31,8 @@ export default function POSPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [lastConsume, setLastConsume] = useState<ConsumeResult | null>(null)
+  // PERFORMANCE: Track tab visibility to pause polling
+  const [isTabVisible, setIsTabVisible] = useState(true)
 
   // Debounce search input
   useEffect(() => {
@@ -39,6 +41,16 @@ export default function POSPage() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  // PERFORMANCE: Track page visibility to pause polling when tab is not visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState === 'visible')
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
 
   // Fetch students when search has at least 2 characters
   const { data, isLoading, error } = useQuery({
@@ -77,13 +89,14 @@ export default function POSPage() {
   })
 
   // Fetch today's consumptions
+  // PERFORMANCE: Only poll when tab is visible to save resources
   const { data: consumptionsData, refetch: refetchConsumptions } = useQuery({
     queryKey: ['pos-consumptions'],
     queryFn: async () => {
       const response = await apiClient.casino.consumptions()
       return response.data
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: isTabVisible ? 30000 : false, // Only refresh when tab is visible
   })
 
   const students: Student[] = data?.data || []

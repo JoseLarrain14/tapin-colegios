@@ -1,0 +1,214 @@
+{
+  "projectName": "Sincronizacion Wallet-Tickets",
+  "branchName": "feature/wallet-tickets-sync",
+  "description": "Sistema de sincronizacion entre saldo del wallet y tickets del estudiante. Al consumir un ticket, el balance baja proporcionalmente segun el precio unitario del ticket.",
+  "userStories": [
+    {
+      "id": "US-200",
+      "title": "Agregar campo pricePerTicket al modelo StudentTicket",
+      "description": "Agregar el campo pricePerTicket al modelo StudentTicket para almacenar el precio unitario de cada ticket",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Modelo StudentTicket tiene nuevo campo: pricePerTicket Int @default(0) @map(\"price_per_ticket\")",
+        "El campo esta ubicado despues de quantity y antes de expiresAt",
+        "npx prisma format ejecuta sin errores",
+        "npx prisma validate ejecuta sin errores"
+      ],
+      "filesToModify": ["packages/api/prisma/schema.prisma"],
+      "verification": "cd packages/api && npx prisma format && npx prisma validate",
+      "passes": true
+    },
+    {
+      "id": "US-201",
+      "title": "Crear migracion y limpiar tickets existentes",
+      "description": "Crear la migracion de Prisma y limpiar datos existentes para partir desde cero",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Ejecutar DELETE FROM student_tickets antes de migrar",
+        "Migracion creada con nombre add_price_per_ticket",
+        "Columna price_per_ticket existe en tabla student_tickets",
+        "npx prisma migrate status muestra migraciones aplicadas"
+      ],
+      "filesToModify": ["packages/api/prisma/migrations/"],
+      "verification": "cd packages/api && npx prisma migrate dev --name add_price_per_ticket",
+      "passes": true
+    },
+    {
+      "id": "US-202",
+      "title": "Regenerar cliente Prisma y verificar tipos",
+      "description": "Regenerar el cliente Prisma y verificar que TypeScript compila correctamente",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "npx prisma generate ejecuta sin errores",
+        "Tipo StudentTicket incluye pricePerTicket: number",
+        "npx tsc --noEmit en packages/api compila sin errores",
+        "pnpm build:api completa exitosamente"
+      ],
+      "filesToModify": [],
+      "verification": "cd packages/api && npx prisma generate && npx tsc --noEmit",
+      "passes": true
+    },
+    {
+      "id": "US-203",
+      "title": "Modificar creacion de tickets en payments.routes.ts",
+      "description": "Actualizar la logica de compra de paquetes para calcular y guardar el pricePerTicket",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Al crear ticket nuevo: pricePerTicket = Math.floor(rechargePackage.price / rechargePackage.ticketCount)",
+        "Al actualizar tickets existentes, calcular precio promedio ponderado",
+        "Formula: newPricePerTicket = Math.floor((totalExistingValue + totalNewValue) / totalQuantity)",
+        "Campo pricePerTicket se guarda en base de datos",
+        "Codigo compila sin errores TypeScript"
+      ],
+      "filesToModify": ["packages/api/src/routes/payments.routes.ts"],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "passes": true
+    },
+    {
+      "id": "US-204",
+      "title": "Modificar consumo de tickets en casino.routes.ts",
+      "description": "Actualizar endpoint /casino/consume para descontar el valor del ticket del balance",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Se calcula ticketValue = ticket.pricePerTicket * body.quantity",
+        "Se actualiza Wallet.balance restando ticketValue",
+        "Se usa Math.max(0, balanceBefore - ticketValue) para evitar balance negativo",
+        "Campo amount en Transaction ahora es ticketValue (antes era 0)",
+        "Codigo compila sin errores TypeScript"
+      ],
+      "filesToModify": ["packages/api/src/routes/casino.routes.ts"],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "passes": true
+    },
+    {
+      "id": "US-205",
+      "title": "Crear WalletLog al consumir tickets",
+      "description": "Agregar creacion de WalletLog cuando se consume un ticket para mantener auditoria",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Se crea WalletLog con type: purchase",
+        "Campo amount es negativo (-ticketValue)",
+        "Se registra balanceBefore y balanceAfter correctamente",
+        "Descripcion indica consumo: Consumo de X ticket(s) de Y",
+        "WalletLog se crea dentro de la misma transaccion atomica"
+      ],
+      "filesToModify": ["packages/api/src/routes/casino.routes.ts"],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "passes": true
+    },
+    {
+      "id": "US-206",
+      "title": "Actualizar respuesta del endpoint /casino/consume",
+      "description": "Modificar respuesta del endpoint para incluir informacion del wallet actualizado",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Respuesta incluye campo wallet con: previousBalance, newBalance",
+        "Campo consumption incluye: ticketValue, totalDeducted",
+        "Codigo compila sin errores",
+        "pnpm build:api completa exitosamente"
+      ],
+      "filesToModify": ["packages/api/src/routes/casino.routes.ts"],
+      "verification": "cd packages/api && npx tsc --noEmit && pnpm build",
+      "passes": true
+    },
+    {
+      "id": "US-207",
+      "title": "Actualizar API de students para incluir valor de tickets",
+      "description": "Modificar respuestas de API de estudiantes para incluir precio y valor total de tickets",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "En GET /students, array tickets incluye: pricePerTicket, totalValue",
+        "totalValue = quantity * pricePerTicket",
+        "Campo incluido en listado y detalle de estudiante",
+        "Codigo compila sin errores"
+      ],
+      "filesToModify": ["packages/api/src/routes/students.routes.ts"],
+      "verification": "cd packages/api && npx tsc --noEmit && pnpm build",
+      "passes": true
+    },
+    {
+      "id": "US-208",
+      "title": "Test de integracion - Compra de paquete",
+      "description": "Verificar que al comprar un paquete de tickets, se guarda el pricePerTicket correctamente",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Iniciar API con pnpm dev:api",
+        "POST a /api/v1/payments/init con paquete de tickets",
+        "Verificar en BD que student_tickets.price_per_ticket > 0",
+        "Valor es igual a package.price / package.ticketCount"
+      ],
+      "filesToModify": [],
+      "verification": "sqlite3 packages/api/prisma/dev.db \"SELECT student_id, ticket_type, quantity, price_per_ticket FROM student_tickets LIMIT 5;\"",
+      "passes": true
+    },
+    {
+      "id": "US-209",
+      "title": "Test de integracion - Consumo de ticket",
+      "description": "Verificar que al consumir un ticket, el balance baja proporcionalmente",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Tener estudiante con tickets y balance > 0",
+        "POST a /api/v1/casino/consume para consumir 1 ticket",
+        "Verificar que Wallet.balance bajo en pricePerTicket",
+        "Verificar que se creo WalletLog con el consumo",
+        "Verificar que Transaction tiene amount > 0"
+      ],
+      "filesToModify": [],
+      "verification": "sqlite3 packages/api/prisma/dev.db \"SELECT type, amount, description FROM wallet_logs ORDER BY created_at DESC LIMIT 5;\"",
+      "passes": true
+    },
+    {
+      "id": "US-210",
+      "title": "Test E2E con Playwright - Flujo completo",
+      "description": "Crear test E2E que verifique el flujo completo desde compra hasta consumo con verificacion visual",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Test navega al admin panel como school_admin",
+        "Va a seccion de estudiantes",
+        "Verifica que se muestra saldo y tickets",
+        "Simula compra de paquete via API",
+        "Verifica que saldo subio",
+        "Simula consumo de ticket via API",
+        "Verifica que saldo bajo proporcionalmente",
+        "Toma screenshots de cada paso como evidencia"
+      ],
+      "filesToModify": ["apps/admin/e2e/wallet-tickets-sync.spec.ts"],
+      "verification": "cd apps/admin && npx playwright test wallet-tickets-sync.spec.ts",
+      "visualVerification": "Screenshots guardados en apps/admin/e2e/screenshots/",
+      "passes": true
+    },
+    {
+      "id": "US-211",
+      "title": "Actualizar UI Mobile para mostrar valor de tickets",
+      "description": "Actualizar app mobile para mostrar valor monetario de los tickets del estudiante",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Tipo StudentTicket incluye pricePerTicket y totalValue",
+        "UI muestra valor monetario junto a cantidad de tickets",
+        "Formato: 5 tickets ($40,000)",
+        "Codigo compila sin errores",
+        "App se visualiza correctamente en Expo"
+      ],
+      "filesToModify": ["apps/mobile/app/(tabs)/index.tsx", "apps/mobile/src/services/api.ts"],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "Abrir app en Expo y verificar que muestra valor de tickets",
+      "passes": true
+    },
+    {
+      "id": "US-212",
+      "title": "Documentar en AGENTS.md",
+      "description": "Agregar los aprendizajes de esta implementacion al archivo AGENTS.md",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Nueva seccion: Iteracion 4 - Sincronizacion Wallet-Tickets",
+        "Documentar patron de precio promedio ponderado",
+        "Documentar relacion entre tickets y balance",
+        "Incluir ejemplo de codigo del consumo con descuento",
+        "Documentar flujo: compra -> tickets -> consumo -> balance"
+      ],
+      "filesToModify": ["AGENTS.md"],
+      "verification": "grep -n \"Iteracion 4\" AGENTS.md",
+      "passes": true
+    }
+  ]
+}

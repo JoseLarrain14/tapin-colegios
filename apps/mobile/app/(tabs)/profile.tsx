@@ -84,8 +84,20 @@ export default function ProfileTab() {
   };
 
   const handleLogout = async () => {
+    console.log('[LOGOUT] Button pressed, calling logout()...');
     await logout();
+    console.log('[LOGOUT] logout() completed, forcing navigation...');
+
+    // En web, usar window.location para forzar navegación completa
+    if (typeof window !== 'undefined' && window.location) {
+      console.log('[LOGOUT] Using window.location for web');
+      window.location.href = '/';
+      return;
+    }
+
+    // En native, usar router
     router.replace('/');
+    console.log('[LOGOUT] replace(/) called');
   };
 
   const handleEditProfile = () => {

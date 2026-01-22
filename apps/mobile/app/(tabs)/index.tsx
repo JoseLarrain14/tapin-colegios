@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-nat
 import { Text, Button, Surface, Avatar, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
 import { apiService, Student } from '../../src/services/api';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
@@ -200,6 +201,16 @@ export default function HomeTab() {
                   </View>
                   <Text style={styles.addStudentText}>Agregar</Text>
                 </TouchableOpacity>
+                {/* View All Students Button */}
+                <TouchableOpacity
+                  onPress={handleViewStudents}
+                  style={styles.addStudentAvatarContainer}
+                >
+                  <View style={styles.viewStudentsCircle}>
+                    <MaterialCommunityIcons name="account-group" size={24} color={colors.primary} />
+                  </View>
+                  <Text style={styles.addStudentText}>Ver todos</Text>
+                </TouchableOpacity>
               </ScrollView>
             </View>
 
@@ -247,7 +258,7 @@ export default function HomeTab() {
                       mode="outlined"
                       onPress={handleViewStudents}
                       style={styles.detailsButton}
-                      icon="eye"
+                      icon="account-group"
                     >
                       Ver detalles
                     </Button>
@@ -274,31 +285,7 @@ export default function HomeTab() {
               </Surface>
             )}
 
-            {/* Quick Actions */}
-            <Surface style={styles.quickActionsCard} elevation={1}>
-              <Text style={styles.sectionTitle}>Acciones rapidas</Text>
-              <View style={styles.quickActionsRow}>
-                <TouchableOpacity style={styles.quickActionItem} onPress={handleViewStudents}>
-                  <View style={styles.quickActionIcon}>
-                    <Text style={styles.quickActionIconText}>👨‍👩‍👧‍👦</Text>
-                  </View>
-                  <Text style={styles.quickActionLabel}>Estudiantes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.quickActionItem} onPress={() => router.push('/(tabs)/history')}>
-                  <View style={styles.quickActionIcon}>
-                    <Text style={styles.quickActionIconText}>📜</Text>
-                  </View>
-                  <Text style={styles.quickActionLabel}>Historial</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.quickActionItem} onPress={() => router.push('/(tabs)/cafeteria')}>
-                  <View style={styles.quickActionIcon}>
-                    <Text style={styles.quickActionIconText}>🍽️</Text>
-                  </View>
-                  <Text style={styles.quickActionLabel}>Menu</Text>
-                </TouchableOpacity>
-              </View>
-            </Surface>
-          </>
+                      </>
         ) : (
           <>
             {/* Welcome Card - Only show when no students */}
@@ -583,6 +570,19 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: spacing.xs,
   },
+  viewStudentsCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  viewStudentsIcon: {
+    fontSize: 24,
+  },
   // Balance Card Styles
   balanceCard: {
     padding: spacing.lg,
@@ -701,35 +701,4 @@ const styles = StyleSheet.create({
   },
   statsButton: {
   },
-  // Quick Actions Styles
-  quickActionsCard: {
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.card,
-    marginBottom: spacing.lg,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  quickActionItem: {
-    alignItems: 'center',
-    padding: spacing.sm,
-  },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  quickActionIconText: {
-    fontSize: 24,
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-});
+  });

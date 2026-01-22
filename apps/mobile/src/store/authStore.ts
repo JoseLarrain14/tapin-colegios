@@ -188,6 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    console.log('[STORE] logout() called');
     try {
       const { refreshToken, accessToken } = get();
 
@@ -204,11 +205,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await apiService.logout(refreshToken);
       }
     } catch (error) {
+      console.log('[STORE] logout() API error (ignored):', error);
       // Ignore logout errors
     } finally {
       // Clear auth token from API client headers
       apiService.clearAuthToken();
       get().clearAuth();
+      console.log('[STORE] clearAuth() completed, isAuthenticated should be false now');
     }
   },
 

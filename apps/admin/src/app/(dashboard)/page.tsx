@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { apiClient } from '@/lib/api'
-import { School, Users, Receipt, TrendingUp, Loader2, GraduationCap, Wallet, Ticket } from 'lucide-react'
+import { School, Users, Receipt, TrendingUp, Loader2, GraduationCap, Ticket } from 'lucide-react'
 
 /**
  * Dashboard Home Page
@@ -20,7 +20,6 @@ interface DashboardStats {
   activeSchools: { value: number; change: string }
   totalUsers: { value: number; change: string }
   activeStudents: { value: number; change: string }
-  totalBalance: { value: number; formatted: string }
   totalTickets: { value: number }
   transactionsToday: { value: number; change: string }
   revenueThisMonth: { value: number; formatted: string; change: string }
@@ -94,14 +93,6 @@ export default function DashboardPage() {
       icon: Users,
       change: stats.totalUsers.change,
       color: 'bg-green-500',
-    },
-    // Saldo Total (US-037)
-    {
-      label: 'Saldo Total',
-      value: stats.totalBalance.formatted,
-      icon: Wallet,
-      change: '',
-      color: 'bg-emerald-500',
     },
     // Tickets Totales (US-037)
     {
