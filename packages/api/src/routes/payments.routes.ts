@@ -545,16 +545,22 @@ export async function paymentsRoutes(app: FastifyInstance) {
           },
         });
 
-        // Update wallet balance
+        // Determine if this is a ticket package (tickets don't affect balance)
+        const isTicketPackage = rechargePackage && rechargePackage.type === 'ticket' && rechargePackage.ticketCount;
+
+        // Update wallet balance ONLY for non-ticket packages
         const balanceBefore = wallet!.balance;
-        const balanceAfter = balanceBefore + body.amount;
+        const balanceAfter = isTicketPackage ? balanceBefore : balanceBefore + body.amount;
 
-        const updatedWallet = await tx.wallet.update({
-          where: { id: wallet!.id },
-          data: { balance: balanceAfter },
-        });
+        let updatedWallet = wallet!;
+        if (!isTicketPackage) {
+          updatedWallet = await tx.wallet.update({
+            where: { id: wallet!.id },
+            data: { balance: balanceAfter },
+          });
+        }
 
-        // Create wallet log
+        // Create wallet log with appropriate description
         const walletLog = await tx.walletLog.create({
           data: {
             walletId: wallet!.id,
@@ -563,35 +569,38 @@ export async function paymentsRoutes(app: FastifyInstance) {
             balanceBefore,
             balanceAfter,
             referenceId: completedPayment.id,
-            description: rechargePackage
-              ? `Recarga: ${rechargePackage.name}`
-              : `Recarga de saldo: $${body.amount.toLocaleString('es-CL')}`,
+            description: isTicketPackage
+              ? `Compra de ${rechargePackage!.ticketCount} tickets de ${rechargePackage!.ticketType || 'general'} por $${body.amount.toLocaleString('es-CL')}`
+              : rechargePackage
+                ? `Recarga: ${rechargePackage.name}`
+                : `Recarga de saldo: $${body.amount.toLocaleString('es-CL')}`,
           },
         });
 
-        // If package has tickets, add them to student
-        if (rechargePackage && rechargePackage.type === 'ticket' && rechargePackage.ticketCount) {
+        // If package has tickets, add them to student (simplified - no pricePerTicket)
+        if (isTicketPackage) {
           // Check if student already has tickets of this type
           const existingTicket = await tx.studentTicket.findFirst({
             where: {
               studentId: body.studentId,
-              ticketType: rechargePackage.ticketType || 'general',
+              ticketType: rechargePackage!.ticketType || 'general',
             },
           });
 
           if (existingTicket) {
+            // Simply add the new tickets to existing quantity
             await tx.studentTicket.update({
               where: { id: existingTicket.id },
               data: {
-                quantity: existingTicket.quantity + rechargePackage.ticketCount,
+                quantity: existingTicket.quantity + rechargePackage!.ticketCount!,
               },
             });
           } else {
             await tx.studentTicket.create({
               data: {
                 studentId: body.studentId,
-                ticketType: rechargePackage.ticketType || 'general',
-                quantity: rechargePackage.ticketCount,
+                ticketType: rechargePackage!.ticketType || 'general',
+                quantity: rechargePackage!.ticketCount!,
               },
             });
           }

@@ -619,7 +619,7 @@ export async function casinoRoutes(app: FastifyInstance) {
           });
         }
 
-        // Ensure wallet exists
+        // Ensure wallet exists (for transaction reference only - balance not affected)
         let wallet = student.wallet;
         if (!wallet) {
           wallet = await prisma.wallet.create({
@@ -630,9 +630,9 @@ export async function casinoRoutes(app: FastifyInstance) {
           });
         }
 
-        // Process consumption in a transaction
+        // Process consumption in a transaction (NO balance changes, only ticket decrement)
         const result = await prisma.$transaction(async (tx) => {
-          // Decrement ticket quantity
+          // Decrement ticket quantity only
           const updatedTicket = await tx.studentTicket.update({
             where: { id: ticket.id },
             data: {
@@ -640,14 +640,14 @@ export async function casinoRoutes(app: FastifyInstance) {
             },
           });
 
-          // Create transaction record
+          // Create transaction record (amount: 0 because tickets have no monetary value now)
           const transaction = await tx.transaction.create({
             data: {
               walletId: wallet!.id,
               cafeteriaId: cafeteria.id,
               type: 'purchase',
-              amount: 0, // Ticket consumption doesn't affect balance
-              description: `Consumo de ${body.quantity} ticket(s) de ${body.ticketType}`,
+              amount: 0, // Tickets no longer have monetary value
+              description: `Se resto ${body.quantity} ticket(s) de ${body.ticketType} - ${student.firstName} comio`,
               ticketsUsed: JSON.stringify([{ type: body.ticketType, quantity: body.quantity }]),
               validatedBy: userId,
               validationMethod: 'rut_search',
@@ -672,7 +672,7 @@ export async function casinoRoutes(app: FastifyInstance) {
 
         return reply.status(201).send({
           success: true,
-          message: `Consumo registrado: ${body.quantity} ticket(s) de ${body.ticketType}`,
+          message: `Se resto ${body.quantity} ticket(s) de ${body.ticketType} - ${student.firstName} comio`,
           data: {
             student: {
               id: student.id,

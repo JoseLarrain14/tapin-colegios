@@ -119,9 +119,14 @@ Este script:
 
 ### Acceso a Servicios
 
-- **API Server**: http://localhost:3000
-- **API Documentation**: http://localhost:3000/documentation
-- **Expo DevTools**: Ver terminal para codigo QR
+| Servicio | URL |
+|----------|-----|
+| API Server | http://localhost:3001 |
+| API Documentation | http://localhost:3001/documentation |
+| Admin Panel | http://localhost:3000 |
+| Mobile App (Web) | http://localhost:8081 |
+
+> **Nota:** Ver [docs/DEVELOPMENT-GUIDE.md](./docs/DEVELOPMENT-GUIDE.md) para guia completa de desarrollo, credenciales de prueba y solucion de problemas.
 
 ## Roles de Usuario
 
@@ -170,17 +175,23 @@ Este script:
 
 ### Backend (packages/api/.env)
 ```env
-DATABASE_URL="postgresql://..."
+DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-secret-key"
 JWT_EXPIRES_IN="15m"
 REFRESH_TOKEN_EXPIRES_IN="7d"
-PORT=3000
+PORT=3001
+HOST=0.0.0.0
 NODE_ENV="development"
+```
+
+### Admin (apps/admin/.env.local)
+```env
+NEXT_PUBLIC_API_URL="http://localhost:3001/api/v1"
 ```
 
 ### Mobile (apps/mobile/.env)
 ```env
-EXPO_PUBLIC_API_URL="http://localhost:3000/api/v1"
+EXPO_PUBLIC_API_URL="http://localhost:3001/api/v1"
 EXPO_PUBLIC_ENV="development"
 ```
 

@@ -26,7 +26,7 @@ const helpCategories = [
 6. Selecciona la fecha y hora de retiro
 7. Confirma el pedido
 
-El saldo sera descontado automaticamente de la billetera del estudiante.`,
+Se descontaran los tickets correspondientes de la cuenta del estudiante.`,
       },
       {
         id: 'cancelar-pedido',
@@ -38,7 +38,7 @@ El saldo sera descontado automaticamente de la billetera del estudiante.`,
 3. Toca el boton "Cancelar" en la tarjeta del pedido
 4. Confirma la cancelacion
 
-El saldo sera reintegrado automaticamente a la billetera del estudiante.
+Los tickets seran reintegrados automaticamente a la cuenta del estudiante.
 
 Nota: No puedes cancelar pedidos que ya esten "Listos para retirar" o "Entregados".`,
       },
@@ -93,52 +93,51 @@ Los horarios pueden variar segun el colegio. Consulta con la administracion del 
     ],
   },
   {
-    id: 'saldo',
-    name: 'Saldo y Pagos',
-    icon: '💰',
-    description: 'Recargas, saldo y metodos de pago',
+    id: 'tickets',
+    name: 'Tickets y Pagos',
+    icon: '🎟️',
+    description: 'Compra de tickets y metodos de pago',
     articles: [
       {
-        id: 'recargar-saldo',
-        title: 'Como recargar saldo',
-        content: `Para recargar saldo en la billetera de un estudiante:
+        id: 'comprar-tickets',
+        title: 'Como comprar tickets',
+        content: `Para comprar tickets para un estudiante:
 
 1. Ve a la pantalla principal
 2. Selecciona el estudiante
 3. Toca el boton "Recargar"
-4. Ingresa el monto a recargar
+4. Selecciona un paquete de tickets
 5. Selecciona el metodo de pago (WebPay, transferencia, etc.)
 6. Completa el proceso de pago
 
-El saldo se actualizara automaticamente una vez confirmado el pago.`,
+Los tickets se agregaran automaticamente una vez confirmado el pago.`,
       },
       {
-        id: 'ver-saldo',
-        title: 'Como ver el saldo actual',
-        content: `Puedes ver el saldo de varias formas:
+        id: 'ver-tickets',
+        title: 'Como ver los tickets disponibles',
+        content: `Puedes ver los tickets de varias formas:
 
-1. En la pantalla principal: El saldo aparece debajo del nombre del estudiante seleccionado
-2. En la lista de estudiantes: Cada estudiante muestra su saldo actual
-3. En el historial: Puedes ver las transacciones y movimientos de saldo
+1. En la pantalla principal: Los tickets aparecen debajo del nombre del estudiante seleccionado
+2. En la lista de estudiantes: Cada estudiante muestra sus tickets disponibles
+3. En el historial de tickets: Puedes ver las compras y consumos
 
-El saldo se actualiza en tiempo real con cada compra o recarga.`,
+Los tickets se actualizan en tiempo real con cada compra o consumo.`,
       },
       {
-        id: 'historial-transacciones',
-        title: 'Ver historial de transacciones',
-        content: `Para ver el historial de transacciones:
+        id: 'historial-tickets',
+        title: 'Ver historial de tickets',
+        content: `Para ver el historial de tickets:
 
 1. Ve a la pestaña "Historial"
 2. Usa los filtros para buscar por:
    - Estudiante
    - Mes
-   - Tipo de transaccion
+   - Tipo de movimiento
 
-Cada transaccion muestra:
+Cada movimiento muestra:
 - Fecha y hora
-- Tipo (compra, recarga, reembolso)
-- Monto
-- Saldo resultante`,
+- Tipo (compra de tickets, consumo)
+- Cantidad de tickets`,
       },
     ],
   },
@@ -175,7 +174,7 @@ Tu correo electronico no puede ser modificado.`,
    - El sistema buscara al estudiante en la base de datos del colegio
 4. Confirma la asociacion
 
-El estudiante quedara vinculado a tu cuenta y podras gestionar su saldo y pedidos.`,
+El estudiante quedara vinculado a tu cuenta y podras gestionar sus tickets y pedidos.`,
       },
     ],
   },
@@ -191,7 +190,7 @@ El estudiante quedara vinculado a tu cuenta y podras gestionar su saldo y pedido
         content: `Recibiras notificaciones automaticas cuando:
 
 - Tu hijo realice una compra
-- El saldo este bajo (menos de $5.000)
+- Los tickets esten por agotarse
 - El estado de un pedido cambie
 - Haya promociones o novedades
 

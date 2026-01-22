@@ -215,47 +215,23 @@ export default function HomeTab() {
                   </View>
                 </View>
 
-                {/* Show balance only if not tickets_only mode */}
-                {selectedStudent.school.businessModel !== 'tickets_only' && (
-                  <View style={styles.balanceAmountContainer}>
-                    <Text style={styles.balanceLabel}>Saldo disponible</Text>
-                    <Text style={[
-                      styles.balanceAmount,
-                      selectedStudent.balance > 0 ? styles.positiveBalance : selectedStudent.balance < 0 ? styles.negativeBalance : styles.zeroBalance
-                    ]}>
-                      {formatCLP(selectedStudent.balance)}
-                    </Text>
+                {/* Show tickets */}
+                <View style={styles.ticketsContainer}>
+                  <Text style={styles.ticketsLabel}>Tickets disponibles:</Text>
+                  <View style={styles.ticketsList}>
+                    {selectedStudent.tickets && selectedStudent.tickets.length > 0 ? (
+                      selectedStudent.tickets.map((ticket, index) => (
+                        <View key={index} style={styles.ticketBadge}>
+                          <Text style={styles.ticketText}>
+                            {ticket.quantity}x {ticket.type}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noTicketsText}>Sin tickets disponibles</Text>
+                    )}
                   </View>
-                )}
-
-                {selectedStudent.dailyLimit > 0 && selectedStudent.school.businessModel !== 'tickets_only' && (
-                  <View style={styles.limitContainer}>
-                    <Text style={styles.limitLabel}>Limite diario:</Text>
-                    <Text style={styles.limitValue}>{formatCLP(selectedStudent.dailyLimit)}</Text>
-                  </View>
-                )}
-
-                {/* Show tickets if available or if tickets_only mode */}
-                {((selectedStudent.tickets && selectedStudent.tickets.length > 0) || selectedStudent.school.businessModel === 'tickets_only') && (
-                  <View style={styles.ticketsContainer}>
-                    <Text style={styles.ticketsLabel}>
-                      {selectedStudent.school.businessModel === 'tickets_only' ? 'Tickets:' : 'Tickets disponibles:'}
-                    </Text>
-                    <View style={styles.ticketsList}>
-                      {selectedStudent.tickets && selectedStudent.tickets.length > 0 ? (
-                        selectedStudent.tickets.map((ticket, index) => (
-                          <View key={index} style={styles.ticketBadge}>
-                            <Text style={styles.ticketText}>
-                              {ticket.quantity}x {ticket.type}
-                            </Text>
-                          </View>
-                        ))
-                      ) : (
-                        <Text style={styles.noTicketsText}>Sin tickets disponibles</Text>
-                      )}
-                    </View>
-                  </View>
-                )}
+                </View>
 
                 <View>
                   <View style={styles.balanceActionsRow}>
@@ -276,26 +252,24 @@ export default function HomeTab() {
                       Ver detalles
                     </Button>
                   </View>
-                  {selectedStudent.school.businessModel !== 'tickets_only' && (
-                    <View style={styles.balanceActionsSecondary}>
-                      <Button
-                        mode="text"
-                        onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
-                        style={styles.historyButton}
-                        icon="history"
-                      >
-                        Ver historial
-                      </Button>
-                      <Button
-                        mode="text"
-                        onPress={() => router.push(`/spending-stats?studentId=${selectedStudent.id}`)}
-                        style={styles.statsButton}
-                        icon="chart-bar"
-                      >
-                        Ver estadisticas
-                      </Button>
-                    </View>
-                  )}
+                  <View style={styles.balanceActionsSecondary}>
+                    <Button
+                      mode="text"
+                      onPress={() => router.push(`/wallet-history?studentId=${selectedStudent.id}`)}
+                      style={styles.historyButton}
+                      icon="history"
+                    >
+                      Historial de tickets
+                    </Button>
+                    <Button
+                      mode="text"
+                      onPress={() => router.push(`/spending-stats?studentId=${selectedStudent.id}`)}
+                      style={styles.statsButton}
+                      icon="chart-bar"
+                    >
+                      Consumos
+                    </Button>
+                  </View>
                 </View>
               </Surface>
             )}
@@ -373,7 +347,7 @@ export default function HomeTab() {
                 2. Selecciona el colegio de cada estudiante
               </Text>
               <Text style={styles.nextStepsText}>
-                3. Carga saldo o compra tickets de almuerzo
+                3. Compra tickets de almuerzo para tus estudiantes
               </Text>
             </Surface>
 

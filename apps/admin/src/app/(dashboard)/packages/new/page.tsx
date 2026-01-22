@@ -166,23 +166,13 @@ function NewPackageForm() {
                 type="radio"
                 name="type"
                 value="ticket"
-                checked={type === 'ticket'}
-                onChange={() => setType('ticket')}
+                checked={true}
+                readOnly
                 className="h-4 w-4 text-blue-600 border-gray-300"
               />
               <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Tickets</span>
             </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="type"
-                value="balance"
-                checked={type === 'balance'}
-                onChange={() => setType('balance')}
-                className="h-4 w-4 text-blue-600 border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Saldo</span>
-            </label>
+            {/* Opcion de Saldo eliminada - sistema simplificado a solo tickets */}
           </div>
         </div>
 

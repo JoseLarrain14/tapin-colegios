@@ -369,3 +369,440 @@ Estudiante Sofia: balance=$10000, tickets=6 lunch, RUT=22222222-2 (válido)
 | US-037 | Cards "Saldo Total: $15.000" y "Tickets: 16" | VERIFICADO |
 
 **Estado Final:** Todas las 8 user stories implementadas y verificadas visualmente.
+
+---
+
+## Iteration 4 - Sistema de Calendario de Menu (Enero 2026)
+
+### US-100 a US-103: Modelos Prisma para Menu Planning
+
+**Modelos Agregados:**
+- `MenuTemplate` - Template reutilizable con nombre, descripcion, color
+- `MenuTemplateItem` - Items dentro de un template (relacion M:N con MenuItem)
+- `WeeklyPattern` - Patron semanal (unico por cafeteria)
+- `WeeklyPatternDay` - Dia del patron (1-5 = Lun-Vie)
+- `WeeklyPatternItem` - Items en un dia del patron
+- `DailyMenuAssignment` - Asignacion de menu a fecha especifica
+- `DailyMenuAssignmentItem` - Items en una asignacion diaria
+
+**Relaciones Agregadas:**
+- MenuItem tiene: templateItems, patternItems, assignmentItems
+- Cafeteria tiene: menuTemplates, weeklyPattern (opcional), dailyAssignments
+
+**Verificacion:**
+- `npx prisma db push` ejecutado sin errores
+- `npx prisma generate` exitoso
+- `npx tsc --noEmit` sin errores
+
+**Commit:** d76c930
+
+### US-104 a US-107: APIs de Templates y Menu Planning
+
+**Endpoints Creados:**
+
+**menu-templates.routes.ts** (nuevo archivo):
+- GET /api/v1/menu-templates/:cafeteriaId - Lista templates con items
+- POST /api/v1/menu-templates/:cafeteriaId - Crea template
+- PUT /api/v1/menu-templates/:cafeteriaId/:templateId - Actualiza template
+- DELETE /api/v1/menu-templates/:cafeteriaId/:templateId - Elimina template
+- POST /api/v1/menu-templates/:cafeteriaId/:templateId/items - Agrega item
+- DELETE /api/v1/menu-templates/:cafeteriaId/:templateId/items/:itemId - Quita item
+
+**menu-planning.routes.ts** (nuevo archivo):
+- GET /api/v1/menu-planning/:cafeteriaId/weekly-pattern - Patron semanal con dias e items
+- PUT /api/v1/menu-planning/:cafeteriaId/weekly-pattern/day/:dayOfWeek - Actualiza dia
+- GET /api/v1/menu-planning/:cafeteriaId/calendar?from=&to= - Asignaciones en rango
+- GET /api/v1/menu-planning/:cafeteriaId/date/:date - Menu para fecha especifica
+- PUT /api/v1/menu-planning/:cafeteriaId/date/:date - Crea/actualiza asignacion
+- DELETE /api/v1/menu-planning/:cafeteriaId/date/:date - Elimina asignacion
+- GET /api/v1/menu-planning/:cafeteriaId/resolve/:date - Resuelve menu (assignment > pattern > default)
+
+**Patron de Resolucion de Menu:**
+```typescript
+// Logica de prioridad:
+// 1. Buscar DailyMenuAssignment para la fecha
+// 2. Si no existe, buscar WeeklyPattern para el dia de la semana
+// 3. Si no hay patron, usar MenuItem.availableDays (sistema legacy)
+const assignment = await prisma.dailyMenuAssignment.findUnique({
+  where: { cafeteriaId_date: { cafeteriaId, date } }
+});
+if (assignment) return { source: 'assignment', items };
+
+const pattern = await prisma.weeklyPattern.findUnique({ where: { cafeteriaId } });
+if (pattern) return { source: 'pattern', items };
+
+return { source: 'default', items: await getDefaultMenu(dayOfWeek) };
+```
+
+**Commit:** 0d79e7b
+
+---
+
+### US-110 a US-112: Dependencias y API Client Methods
+
+**Dependencias Instaladas (apps/admin):**
+- @dnd-kit/core - Core drag-and-drop
+- @dnd-kit/sortable - Listas ordenables
+- @dnd-kit/utilities - Utilidades CSS
+- date-fns - Manejo de fechas
+
+**API Client Methods (apps/admin/src/lib/api.ts):**
+```typescript
+// Templates
+apiClient.menuTemplates = {
+  list: (cafeteriaId) => api.get(`/menu-templates/${cafeteriaId}`),
+  create: (cafeteriaId, data) => api.post(`/menu-templates/${cafeteriaId}`, data),
+  update: (cafeteriaId, id, data) => api.put(`/menu-templates/${cafeteriaId}/${id}`, data),
+  delete: (cafeteriaId, id) => api.delete(`/menu-templates/${cafeteriaId}/${id}`),
+  addItem: (cafeteriaId, id, menuItemId) => api.post(`/menu-templates/${cafeteriaId}/${id}/items`, { menuItemId }),
+  removeItem: (cafeteriaId, id, itemId) => api.delete(`/menu-templates/${cafeteriaId}/${id}/items/${itemId}`)
+};
+
+// Planning
+apiClient.menuPlanning = {
+  getWeeklyPattern: (cafeteriaId) => api.get(`/menu-planning/${cafeteriaId}/weekly-pattern`),
+  updatePatternDay: (cafeteriaId, day, items) => api.put(`/menu-planning/${cafeteriaId}/weekly-pattern/day/${day}`, { menuItemIds: items }),
+  getCalendar: (cafeteriaId, from, to) => api.get(`/menu-planning/${cafeteriaId}/calendar`, { params: { from, to } }),
+  getDateMenu: (cafeteriaId, date) => api.get(`/menu-planning/${cafeteriaId}/date/${date}`),
+  setDateMenu: (cafeteriaId, date, items) => api.put(`/menu-planning/${cafeteriaId}/date/${date}`, { menuItemIds: items }),
+  clearDateMenu: (cafeteriaId, date) => api.delete(`/menu-planning/${cafeteriaId}/date/${date}`)
+};
+```
+
+**Commit:** 0d79e7b
+
+---
+
+### US-120 a US-132: Pagina de Calendario con Drag-and-Drop
+
+**Archivo:** `apps/admin/src/app/(dashboard)/menu/calendar/page.tsx`
+
+**Estructura de la Pagina:**
+- Layout 2 columnas: calendario (70%) + sidebar (30%)
+- Header con navegacion de mes (< Enero 2026 >)
+- Grid 7 columnas (Lun-Dom) con dias del mes
+- Sidebar con platos disponibles y templates
+- Seccion colapsable de patron semanal
+
+**Componentes Implementados:**
+
+1. **CalendarGrid** - Grid mensual con dias
+   - Dias del mes anterior/siguiente en gris
+   - Dia actual con borde azul
+   - Sabados/domingos en fondo gris
+   - Indicadores: circulo azul (asignacion), verde punteado (patron)
+
+2. **DraggableItem** - Platos/templates arrastrables
+   - Usa useDraggable de @dnd-kit/core
+   - Muestra nombre, precio, categoria
+   - Feedback visual durante drag
+
+3. **DroppableDay** - Dias que reciben drops
+   - Usa useDroppable de @dnd-kit/core
+   - Highlight cuando item esta sobre el dia
+   - Llama setDateMenu al soltar
+
+4. **DayDetailModal** - Modal al click en dia
+   - Muestra fecha formateada
+   - Lista platos asignados
+   - Boton X para quitar cada plato
+   - Indicador de fuente (asignacion/patron)
+
+5. **WeeklyPatternSection** - Patron semanal
+   - 5 columnas (Lun-Vie)
+   - Cada columna es droppable
+   - Boton X para quitar del patron
+
+**Patron DnD-Kit:**
+```typescript
+<DndContext onDragEnd={handleDragEnd} sensors={sensors}>
+  <div className="flex">
+    {/* Sidebar con draggables */}
+    <aside className="w-1/3">
+      {menuItems.map(item => (
+        <DraggableItem key={item.id} item={item} />
+      ))}
+    </aside>
+
+    {/* Calendario con droppables */}
+    <main className="w-2/3">
+      {days.map(day => (
+        <DroppableDay key={day.date} date={day.date} />
+      ))}
+    </main>
+  </div>
+</DndContext>
+
+function handleDragEnd(event: DragEndEvent) {
+  const { active, over } = event;
+  if (!over) return;
+
+  const itemId = active.id;
+  const date = over.id;
+
+  // Mutacion para asignar item a fecha
+  setDateMenuMutation.mutate({ date, itemId });
+}
+```
+
+**Commit:** 2cfb0ab
+
+---
+
+### US-140 a US-142: Integracion Mobile con Menu Calendar
+
+**Archivo:** `apps/mobile/src/services/api.ts`
+
+**Nuevo Metodo:**
+```typescript
+getMenuByDate: async (cafeteriaId: string, date: string) => {
+  const response = await api.get(`/menu-planning/${cafeteriaId}/resolve/${date}`);
+  return response.data; // { source, items, date, dayOfWeek }
+}
+```
+
+**Archivo:** `apps/mobile/app/(tabs)/cafeteria.tsx`
+
+**Cambios:**
+- getPickupDate() ahora retorna formato YYYY-MM-DD
+- loadMenuForDay() usa getMenuByDate en vez de getMenuByDay
+- Indicador opcional "(Menu especial)" si source='assignment'
+
+**Patron de Fecha con date-fns:**
+```typescript
+import { format } from 'date-fns';
+
+function getPickupDate(selectedDay: string): string {
+  const today = new Date();
+  const dayIndex = DAYS.indexOf(selectedDay);
+  const targetDate = addDays(today, dayIndex - today.getDay() + 1);
+  return format(targetDate, 'yyyy-MM-dd');
+}
+```
+
+**Commit:** eec3f41
+
+---
+
+### US-150: Link de Calendario en Pagina de Menu
+
+**Archivo:** `apps/admin/src/app/(dashboard)/menu/page.tsx`
+
+**Cambio:**
+- Agregado boton "Calendario" junto a "Nuevo Plato"
+- Icono Calendar de lucide-react
+- Estilo outline (secundario)
+- Navega a /menu/calendar
+
+```tsx
+<div className="flex gap-2">
+  <Link href="/menu/calendar">
+    <Button variant="outline">
+      <Calendar className="h-4 w-4 mr-2" />
+      Calendario
+    </Button>
+  </Link>
+  <Link href="/menu/new">
+    <Button>
+      <Plus className="h-4 w-4 mr-2" />
+      Nuevo Plato
+    </Button>
+  </Link>
+</div>
+```
+
+**Commit:** 4623b46
+
+---
+
+### Tests E2E con Playwright para Menu Calendar
+
+**Archivo:** `apps/admin/e2e/menu-calendar.spec.ts`
+
+**Tests Implementados:**
+1. Navegacion a /menu/calendar desde /menu
+2. Visualizacion del grid de calendario
+3. Sidebar con platos disponibles
+4. Indicadores de menu en dias
+5. Modal de detalle de dia
+
+**Screenshots Generados:**
+- `screenshots/us-120-calendar-page.png`
+- `screenshots/us-121-calendar-grid.png`
+- `screenshots/us-123-sidebar-items.png`
+- `screenshots/us-150-menu-nav.png`
+
+**Commit:** e83ce70
+
+---
+
+## Iteration 5 - Sincronizacion Wallet-Tickets (Enero 2026)
+
+### US-200 a US-202: Schema y Migracion
+
+**Archivo:** `packages/api/prisma/schema.prisma`
+
+**Campo Agregado:**
+```prisma
+model StudentTicket {
+  id             String    @id @default(uuid())
+  studentId      String    @map("student_id")
+  ticketType     String    @map("ticket_type")
+  quantity       Int       @default(0)
+  pricePerTicket Int       @default(0) @map("price_per_ticket")
+  expiresAt      DateTime? @map("expires_at")
+  // ...
+}
+```
+
+**Migracion:** `add_price_per_ticket`
+- Columna `price_per_ticket` agregada a `student_tickets`
+- Tickets existentes eliminados para partir limpio
+
+---
+
+### US-203: Creacion de Tickets con Precio
+
+**Archivo:** `packages/api/src/routes/payments.routes.ts`
+
+**Logica Implementada:**
+```typescript
+// Calcular precio por ticket
+const pricePerTicket = Math.floor(rechargePackage.price / rechargePackage.ticketCount);
+
+// Si ya tiene tickets, calcular promedio ponderado
+if (existingTicket) {
+  const totalExistingValue = existingTicket.quantity * existingTicket.pricePerTicket;
+  const totalNewValue = rechargePackage.ticketCount * pricePerTicket;
+  const totalQuantity = existingTicket.quantity + rechargePackage.ticketCount;
+  const newPricePerTicket = Math.floor((totalExistingValue + totalNewValue) / totalQuantity);
+
+  await tx.studentTicket.update({
+    where: { id: existingTicket.id },
+    data: { quantity: totalQuantity, pricePerTicket: newPricePerTicket }
+  });
+} else {
+  await tx.studentTicket.create({
+    data: { studentId, ticketType, quantity: rechargePackage.ticketCount, pricePerTicket }
+  });
+}
+```
+
+---
+
+### US-204 a US-206: Consumo con Descuento de Balance
+
+**Archivo:** `packages/api/src/routes/casino.routes.ts`
+
+**Logica Implementada:**
+```typescript
+// Calcular valor del ticket consumido
+const ticketValue = ticket.pricePerTicket * body.quantity;
+const balanceBefore = wallet.balance;
+const balanceAfter = Math.max(0, balanceBefore - ticketValue);
+
+// Actualizar wallet
+await tx.wallet.update({
+  where: { id: wallet.id },
+  data: { balance: balanceAfter }
+});
+
+// Crear WalletLog para auditoria
+await tx.walletLog.create({
+  data: {
+    walletId: wallet.id,
+    type: 'purchase',
+    amount: -ticketValue,
+    balanceBefore,
+    balanceAfter,
+    description: `Consumo de ${body.quantity} ticket(s) de ${body.ticketType}`
+  }
+});
+
+// Transaction con amount real
+await tx.transaction.create({
+  data: { ...transactionData, amount: ticketValue }
+});
+```
+
+**Respuesta Actualizada:**
+```typescript
+return {
+  success: true,
+  consumption: {
+    ticketValue: ticket.pricePerTicket,
+    totalDeducted: ticketValue
+  },
+  wallet: {
+    previousBalance: balanceBefore,
+    newBalance: balanceAfter
+  },
+  // ... resto de datos
+};
+```
+
+---
+
+### US-207: API Students con Valor de Tickets
+
+**Archivo:** `packages/api/src/routes/students.routes.ts`
+
+**Respuesta Actualizada:**
+```typescript
+tickets: studentTickets.map(t => ({
+  type: t.ticketType,
+  quantity: t.quantity,
+  pricePerTicket: t.pricePerTicket,
+  totalValue: t.quantity * t.pricePerTicket,
+  expiresAt: t.expiresAt
+}))
+```
+
+---
+
+### US-211: UI Mobile con Valor de Tickets
+
+**Archivo:** `apps/mobile/app/(tabs)/index.tsx`
+
+**Tipo Actualizado:**
+```typescript
+interface StudentTicket {
+  type: string;
+  quantity: number;
+  pricePerTicket: number;
+  totalValue: number;
+  expiresAt: string | null;
+}
+```
+
+**UI:**
+```tsx
+{selectedStudent.tickets.map((ticket) => (
+  <View style={styles.ticketBadge}>
+    <Text style={styles.ticketText}>
+      {ticket.quantity}x {ticket.type}
+      {ticket.totalValue > 0 && ` (${formatCLP(ticket.totalValue)})`}
+    </Text>
+  </View>
+))}
+// Resultado: "9x almuerzo ($72.000)"
+```
+
+---
+
+### Archivos Modificados (Wallet-Tickets)
+
+| Archivo | User Stories |
+|---------|--------------|
+| packages/api/prisma/schema.prisma | US-200 |
+| packages/api/src/routes/payments.routes.ts | US-203 |
+| packages/api/src/routes/casino.routes.ts | US-204, US-205, US-206 |
+| packages/api/src/routes/students.routes.ts | US-207 |
+| apps/mobile/app/(tabs)/index.tsx | US-211 |
+| apps/mobile/src/services/api.ts | US-211 |
+
+### Build Status
+
+- API: OK (tsc compilado sin errores)
+- Admin: OK (Next.js build exitoso)
+- Mobile: OK (TypeScript sin errores)

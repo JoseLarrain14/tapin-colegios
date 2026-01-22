@@ -149,7 +149,7 @@ export default function RechargeScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScreenHeader title="Recargar Saldo" />
+        <ScreenHeader title="Comprar Tickets" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando...</Text>
@@ -161,15 +161,15 @@ export default function RechargeScreen() {
   if (success) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScreenHeader title="Recargar Saldo" showBackButton={false} />
+        <ScreenHeader title="Comprar Tickets" showBackButton={false} />
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <Surface style={styles.successCard} elevation={2}>
             <View style={styles.successIconContainer}>
               <MaterialCommunityIcons name="check-circle" size={80} color={colors.success} />
             </View>
-            <Text style={styles.successTitle}>Pago Exitoso!</Text>
+            <Text style={styles.successTitle}>Compra Exitosa!</Text>
             <Text style={styles.successText}>
-              Tu recarga de {formatCLP(getAmount())} se ha procesado correctamente.
+              Tu compra de tickets por {formatCLP(getAmount())} se ha procesado correctamente.
             </Text>
 
             <View style={styles.successDetails}>
@@ -180,17 +180,19 @@ export default function RechargeScreen() {
                 </Text>
               </View>
               <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Monto recargado:</Text>
+                <Text style={styles.successLabel}>Monto pagado:</Text>
                 <Text style={[styles.successValue, styles.amountSuccess]}>
-                  +{formatCLP(getAmount())}
+                  {formatCLP(getAmount())}
                 </Text>
               </View>
-              <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Nuevo saldo:</Text>
-                <Text style={[styles.successValue, styles.balanceValue]}>
-                  {formatCLP(newBalance)}
-                </Text>
-              </View>
+              {selectedPackage && (
+                <View style={styles.successRow}>
+                  <Text style={styles.successLabel}>Tickets agregados:</Text>
+                  <Text style={[styles.successValue, styles.balanceValue]}>
+                    +{selectedPackage.ticketCount} {selectedPackage.ticketType || 'general'}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Button
@@ -218,7 +220,7 @@ export default function RechargeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Recargar Saldo" />
+      <ScreenHeader title="Comprar Tickets" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {error ? (
           <Surface style={styles.errorCard} elevation={1}>
@@ -243,76 +245,24 @@ export default function RechargeScreen() {
                     <Text style={styles.studentSchool}>{student.school.name}</Text>
                   </View>
                 </View>
-                {/* Show balance only for non tickets_only schools */}
-                {student.school.businessModel !== 'tickets_only' && (
-                  <View style={styles.currentBalance}>
-                    <Text style={styles.currentBalanceLabel}>Saldo actual</Text>
-                    <Text style={styles.currentBalanceValue}>{formatCLP(student.balance)}</Text>
-                  </View>
-                )}
-                {/* Show tickets for tickets_only schools */}
-                {student.school.businessModel === 'tickets_only' && student.tickets && student.tickets.length > 0 && (
-                  <View style={styles.currentBalance}>
-                    <Text style={styles.currentBalanceLabel}>Tickets actuales</Text>
-                    {student.tickets.map((ticket, idx) => (
+                {/* Show current tickets */}
+                <View style={styles.currentBalance}>
+                  <Text style={styles.currentBalanceLabel}>Tickets actuales</Text>
+                  {student.tickets && student.tickets.length > 0 ? (
+                    student.tickets.map((ticket, idx) => (
                       <Text key={idx} style={styles.currentBalanceValue}>{ticket.quantity}x {ticket.type}</Text>
-                    ))}
-                  </View>
-                )}
-              </Surface>
-            )}
-
-            {/* Quick Amount Selection - hide for tickets_only schools */}
-            {student?.school.businessModel !== 'tickets_only' && (
-              <Surface style={styles.section} elevation={1}>
-                <Text style={styles.sectionTitle}>Selecciona un monto</Text>
-                <View style={styles.quickAmountsGrid}>
-                  {quickAmounts.map((amount) => (
-                    <TouchableOpacity
-                      key={amount}
-                      style={[
-                        styles.quickAmountButton,
-                        useCustomAmount && customAmount === amount.toString() && styles.quickAmountSelected,
-                      ]}
-                      onPress={() => handleQuickAmountSelect(amount)}
-                    >
-                      <Text style={[
-                        styles.quickAmountText,
-                        useCustomAmount && customAmount === amount.toString() && styles.quickAmountTextSelected,
-                      ]}>
-                        {formatCLP(amount)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                    ))
+                  ) : (
+                    <Text style={styles.currentBalanceValue}>Sin tickets</Text>
+                  )}
                 </View>
               </Surface>
             )}
 
-            {/* Custom Amount - hide for tickets_only schools */}
-            {student?.school.businessModel !== 'tickets_only' && (
-              <Surface style={styles.section} elevation={1}>
-                <Text style={styles.sectionTitle}>O ingresa otro monto</Text>
-                <TextInput
-                  mode="outlined"
-                  label="Monto personalizado"
-                  value={customAmount ? formatCLP(parseInt(customAmount, 10)) : ''}
-                  onChangeText={handleAmountChange}
-                  keyboardType="numeric"
-                  left={<TextInput.Icon icon="currency-usd" />}
-                  style={styles.customAmountInput}
-                  outlineColor={colors.border}
-                  activeOutlineColor={colors.primary}
-                />
-                <Text style={styles.minAmountHint}>Monto minimo: $1.000</Text>
-              </Surface>
-            )}
-
-            {/* Packages Section (if available) */}
+            {/* Packages Section */}
             {packages.length > 0 && (
               <Surface style={styles.section} elevation={1}>
-                <Text style={styles.sectionTitle}>
-                  {student?.school.businessModel === 'tickets_only' ? 'Paquetes de tickets' : 'Paquetes disponibles'}
-                </Text>
+                <Text style={styles.sectionTitle}>Paquetes de tickets disponibles</Text>
                 {packages.map((pkg) => (
                   <TouchableOpacity
                     key={pkg.id}
@@ -405,14 +355,14 @@ export default function RechargeScreen() {
               <Surface style={styles.summaryCard} elevation={2}>
                 <Text style={styles.summaryTitle}>Resumen</Text>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Monto a recargar:</Text>
+                  <Text style={styles.summaryLabel}>Precio:</Text>
                   <Text style={styles.summaryValue}>{formatCLP(getAmount())}</Text>
                 </View>
-                {student && (
+                {selectedPackage && selectedPackage.ticketCount && (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Nuevo saldo estimado:</Text>
+                    <Text style={styles.summaryLabel}>Tickets a agregar:</Text>
                     <Text style={[styles.summaryValue, styles.newBalanceValue]}>
-                      {formatCLP(student.balance + getAmount())}
+                      +{selectedPackage.ticketCount} {selectedPackage.ticketType || 'general'}
                     </Text>
                   </View>
                 )}

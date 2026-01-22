@@ -242,10 +242,10 @@ export default function SpendingStatsScreen() {
                 </Text>
               </View>
               <View style={styles.summaryItem}>
-                <MaterialCommunityIcons name="wallet" size={24} color={colors.success} />
-                <Text style={styles.summaryLabel}>Saldo Actual</Text>
+                <MaterialCommunityIcons name="ticket" size={24} color={colors.success} />
+                <Text style={styles.summaryLabel}>Consumos</Text>
                 <Text style={[styles.summaryValue, styles.balanceValue]}>
-                  {formatCLP(stats.summary.currentBalance)}
+                  {stats.summary.transactionCount} tickets
                 </Text>
               </View>
             </View>

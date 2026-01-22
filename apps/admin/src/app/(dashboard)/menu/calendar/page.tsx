@@ -263,8 +263,16 @@ export default function MenuCalendarPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplate, setNewTemplate] = useState({ name: '', description: '', color: '#3B82F6', menuItemIds: [] as string[] })
 
-  // TODO: Get from auth context
-  const cafeteriaId = 'demo-cafeteria'
+  // Get admin config (school and cafeteria) - dynamic cafeteriaId
+  const { data: configData, isLoading: configLoading } = useQuery({
+    queryKey: ['admin-config'],
+    queryFn: async () => {
+      const response = await apiClient.admin.config()
+      return response.data
+    },
+  })
+
+  const cafeteriaId = configData?.data?.cafeteria?.id
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -276,9 +284,10 @@ export default function MenuCalendarPage() {
   const { data: menuData, isLoading: menuLoading } = useQuery({
     queryKey: ['menu', cafeteriaId],
     queryFn: async () => {
-      const response = await apiClient.menu.list(cafeteriaId)
+      const response = await apiClient.menu.list(cafeteriaId!)
       return response.data
     },
+    enabled: !!cafeteriaId,
   })
 
   // Fetch calendar assignments for current month
@@ -288,67 +297,82 @@ export default function MenuCalendarPage() {
   const { data: calendarData } = useQuery({
     queryKey: ['menuCalendar', cafeteriaId, monthStart, monthEnd],
     queryFn: async () => {
-      const response = await apiClient.menuPlanning.getCalendar(cafeteriaId, monthStart, monthEnd)
+      const response = await apiClient.menuPlanning.getCalendar(cafeteriaId!, monthStart, monthEnd)
       return response.data
     },
+    enabled: !!cafeteriaId,
   })
 
   // Fetch weekly pattern
   const { data: patternData } = useQuery({
     queryKey: ['weeklyPattern', cafeteriaId],
     queryFn: async () => {
-      const response = await apiClient.menuPlanning.getWeeklyPattern(cafeteriaId)
+      const response = await apiClient.menuPlanning.getWeeklyPattern(cafeteriaId!)
       return response.data
     },
+    enabled: !!cafeteriaId,
   })
 
   // Fetch templates
   const { data: templatesData } = useQuery({
     queryKey: ['menuTemplates', cafeteriaId],
     queryFn: async () => {
-      const response = await apiClient.menuTemplates.list(cafeteriaId)
+      const response = await apiClient.menuTemplates.list(cafeteriaId!)
       return response.data
     },
+    enabled: !!cafeteriaId,
   })
 
   // Mutation for setting date menu
   const setDateMenuMutation = useMutation({
     mutationFn: async ({ date, menuItemIds, note }: { date: string; menuItemIds: string[]; note?: string }) => {
-      return apiClient.menuPlanning.setDateMenu(cafeteriaId, date, menuItemIds, note)
+      return apiClient.menuPlanning.setDateMenu(cafeteriaId!, date, menuItemIds, note)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuCalendar', cafeteriaId] })
+      queryClient.invalidateQueries({ queryKey: ['menuCalendar', cafeteriaId!] })
+    },
+    onError: (error) => {
+      console.error('Error al actualizar menu:', error)
+      alert('Error al actualizar el menu. Por favor intenta de nuevo.')
     },
   })
 
   // Mutation for clearing date menu
   const clearDateMenuMutation = useMutation({
     mutationFn: async (date: string) => {
-      return apiClient.menuPlanning.clearDateMenu(cafeteriaId, date)
+      return apiClient.menuPlanning.clearDateMenu(cafeteriaId!, date)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuCalendar', cafeteriaId] })
+      queryClient.invalidateQueries({ queryKey: ['menuCalendar', cafeteriaId!] })
       setSelectedDate(null)
+    },
+    onError: (error) => {
+      console.error('Error al limpiar menu:', error)
+      alert('Error al limpiar el menu. Por favor intenta de nuevo.')
     },
   })
 
   // Mutation for updating pattern day
   const updatePatternDayMutation = useMutation({
     mutationFn: async ({ dayOfWeek, menuItemIds }: { dayOfWeek: number; menuItemIds: string[] }) => {
-      return apiClient.menuPlanning.updatePatternDay(cafeteriaId, dayOfWeek, menuItemIds)
+      return apiClient.menuPlanning.updatePatternDay(cafeteriaId!, dayOfWeek, menuItemIds)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['weeklyPattern', cafeteriaId] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyPattern', cafeteriaId!] })
+    },
+    onError: (error) => {
+      console.error('Error al actualizar patron:', error)
+      alert('Error al actualizar el patron semanal. Por favor intenta de nuevo.')
     },
   })
 
   // Mutation for creating template
   const createTemplateMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; color?: string; menuItemIds?: string[] }) => {
-      return apiClient.menuTemplates.create(cafeteriaId, data)
+      return apiClient.menuTemplates.create(cafeteriaId!, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuTemplates', cafeteriaId] })
+      queryClient.invalidateQueries({ queryKey: ['menuTemplates', cafeteriaId!] })
       setShowTemplateModal(false)
       setNewTemplate({ name: '', description: '', color: '#3B82F6', menuItemIds: [] })
     },
@@ -508,10 +532,22 @@ export default function MenuCalendarPage() {
     }
   }
 
-  if (menuLoading) {
+  if (configLoading || menuLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!cafeteriaId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <Calendar className="w-12 h-12 text-gray-400 mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sin cafetería configurada</h2>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          No se encontró una cafetería asociada a tu cuenta.
+        </p>
       </div>
     )
   }

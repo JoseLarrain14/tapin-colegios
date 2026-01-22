@@ -178,22 +178,6 @@ export default function StudentsScreen() {
                 <Text style={styles.metaLabel}>Colegio</Text>
                 <Text style={styles.metaValue}>{student.school.name}</Text>
               </View>
-              <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Saldo</Text>
-                <Text style={[
-                  styles.metaValue,
-                  student.balance > 0 ? styles.positiveBalance :
-                  student.balance < 0 ? styles.negativeBalance : styles.zeroBalance
-                ]}>
-                  {formatCLP(student.balance)}
-                </Text>
-              </View>
-              {student.dailyLimit > 0 && (
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Limite diario</Text>
-                  <Text style={styles.metaValue}>{formatCLP(student.dailyLimit)}</Text>
-                </View>
-              )}
             </View>
 
             {student.tickets && student.tickets.length > 0 && (

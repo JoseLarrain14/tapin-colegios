@@ -21,17 +21,25 @@ export default function EditPackagePage() {
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // TODO: Get cafeteriaId from auth context
-  const cafeteriaId = 'demo-cafeteria'
+  // Obtener cafeteriaId dinámicamente desde la configuración del admin
+  const { data: configData, isLoading: isLoadingConfig } = useQuery({
+    queryKey: ['admin-config'],
+    queryFn: async () => {
+      const response = await apiClient.admin.config()
+      return response.data
+    },
+  })
+  const cafeteriaId = configData?.data?.cafeteria?.id
 
   const { data, isLoading } = useQuery({
-    queryKey: ['package', packageId],
+    queryKey: ['package', packageId, cafeteriaId],
     queryFn: async () => {
-      const response = await apiClient.packages.list(cafeteriaId)
+      const response = await apiClient.packages.list(cafeteriaId!)
       // API returns { success, data: { cafeteria, packages, totalPackages } }
       const packages = Array.isArray(response.data?.data?.packages) ? response.data.data.packages : []
       return packages.find((pkg: { id: string }) => pkg.id === packageId)
     },
+    enabled: !!cafeteriaId,
   })
 
   useEffect(() => {
@@ -48,6 +56,7 @@ export default function EditPackagePage() {
 
   const updateMutation = useMutation({
     mutationFn: async (updateData: Record<string, unknown>) => {
+      if (!cafeteriaId) throw new Error('No cafeteria configured')
       const response = await apiClient.packages.update(cafeteriaId, packageId, updateData)
       return response.data
     },
@@ -62,6 +71,7 @@ export default function EditPackagePage() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      if (!cafeteriaId) throw new Error('No cafeteria configured')
       await apiClient.packages.delete(cafeteriaId, packageId)
     },
     onSuccess: () => {
@@ -117,10 +127,23 @@ export default function EditPackagePage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoadingConfig || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!cafeteriaId) {
+    return (
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+          Configuración Requerida
+        </h3>
+        <p className="text-yellow-700 dark:text-yellow-300">
+          No hay una cafetería configurada para tu colegio.
+        </p>
       </div>
     )
   }

@@ -129,7 +129,7 @@ export default function HistoryTab() {
       const paymentTransactions: TransactionItem[] = payments.map((payment: Payment) => ({
         id: payment.id,
         type: 'payment' as const,
-        title: payment.package ? `Recarga: ${payment.package.name}` : 'Recarga de saldo',
+        title: payment.package ? `Compra: ${payment.package.name}` : 'Compra de tickets',
         description: payment.student ? `Para ${payment.student.firstName}` : 'Recarga',
         amount: payment.amount,
         isPositive: true,
@@ -247,7 +247,7 @@ export default function HistoryTab() {
       if (response.success) {
         Alert.alert(
           'Pedido cancelado',
-          'Tu pedido ha sido cancelado y el saldo ha sido reembolsado.',
+          'Tu pedido ha sido cancelado y los tickets han sido devueltos.',
           [{ text: 'OK' }]
         );
         // Reload data to get updated balances and statuses
@@ -516,7 +516,7 @@ export default function HistoryTab() {
           <Dialog.Title>Cancelar pedido</Dialog.Title>
           <Dialog.Content>
             <Paragraph>
-              ¿Estas seguro que deseas cancelar este pedido? El saldo sera reembolsado a tu cuenta.
+              ¿Estas seguro que deseas cancelar este pedido? Los tickets seran devueltos a tu cuenta.
             </Paragraph>
             {orderToCancel && (
               <View style={styles.cancelDialogDetails}>

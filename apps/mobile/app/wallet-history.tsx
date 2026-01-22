@@ -123,7 +123,7 @@ export default function WalletHistoryScreen() {
   if (networkError) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScreenHeader title="Historial de Billetera" />
+        <ScreenHeader title="Historial de Tickets" />
         <NetworkError
           message={networkError}
           onRetry={handleRetry}
@@ -137,7 +137,7 @@ export default function WalletHistoryScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScreenHeader title="Historial de Billetera" />
+        <ScreenHeader title="Historial de Tickets" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
@@ -149,7 +149,7 @@ export default function WalletHistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
-        title="Historial de Billetera"
+        title="Historial de Tickets"
         rightAction={
           student ? (
             <View style={{ paddingRight: spacing.sm }}>
@@ -173,17 +173,18 @@ export default function WalletHistoryScreen() {
         }
       >
 
-        {/* Current Balance Card */}
+        {/* Current Tickets Card */}
         <Surface style={styles.balanceCard} elevation={2}>
-          <Text style={styles.balanceLabel}>Saldo Actual</Text>
-          <Text style={[
-            styles.balanceAmount,
-            currentBalance > 0 ? styles.positiveBalance :
-            currentBalance < 0 ? styles.negativeBalance :
-            styles.zeroBalance
-          ]}>
-            {formatCLP(currentBalance)}
-          </Text>
+          <Text style={styles.balanceLabel}>Tickets Actuales</Text>
+          {student?.tickets && student.tickets.length > 0 ? (
+            student.tickets.map((ticket, idx) => (
+              <Text key={idx} style={[styles.balanceAmount, styles.positiveBalance]}>
+                {ticket.quantity}x {ticket.type}
+              </Text>
+            ))
+          ) : (
+            <Text style={[styles.balanceAmount, styles.zeroBalance]}>Sin tickets</Text>
+          )}
         </Surface>
 
         {/* Wallet Logs List */}
@@ -214,12 +215,6 @@ export default function WalletHistoryScreen() {
                   </View>
                 </View>
                 <View style={styles.logDetails}>
-                  <View style={styles.balanceChange}>
-                    <Text style={styles.balanceChangeLabel}>Saldo:</Text>
-                    <Text style={styles.balanceChangeValue}>
-                      {formatCLP(log.balanceBefore)} → {formatCLP(log.balanceAfter)}
-                    </Text>
-                  </View>
                   <Text style={styles.logDate}>
                     {formatDateTime(log.createdAt)}
                   </Text>
@@ -236,7 +231,7 @@ export default function WalletHistoryScreen() {
             />
             <Text style={styles.emptyTitle}>Sin movimientos</Text>
             <Text style={styles.emptyText}>
-              Aun no hay movimientos registrados en la billetera. Los depositos, compras y ajustes apareceran aqui.
+              Aun no hay compras ni consumos de tickets registrados. Las compras y consumos apareceran aqui.
             </Text>
           </Surface>
         )}

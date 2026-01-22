@@ -30,10 +30,10 @@ model School {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  students     Student[]
-  cafeterias   Cafeteria[]
-  schoolAdmins SchoolAdmin[]
-  preferredByGuardians Guardian[] @relation("PreferredSchool")
+  students             Student[]
+  cafeterias           Cafeteria[]
+  schoolAdmins         SchoolAdmin[]
+  preferredByGuardians Guardian[]    @relation("PreferredSchool")
 
   @@map("schools")
 }
@@ -49,13 +49,13 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastLogin     DateTime? @map("last_login")
 
-  guardian              Guardian?
-  refreshTokens         RefreshToken[]
-  pushTokens            PushToken[]
-  notifications         Notification[]
-  schoolAdmin           SchoolAdmin?
-  operatedTransactions  Transaction[]
-  passwordResetTokens   PasswordResetToken[]
+  guardian             Guardian?
+  refreshTokens        RefreshToken[]
+  pushTokens           PushToken[]
+  notifications        Notification[]
+  schoolAdmin          SchoolAdmin?
+  operatedTransactions Transaction[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@index([email])
   @@map("users")
@@ -73,22 +73,22 @@ model SchoolAdmin {
 }
 
 model Guardian {
-  id           String   @id @default(uuid())
-  userId       String   @unique @map("user_id")
-  rut          String?
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
-  phone        String?
-  relationship String   @default("guardian") // father, mother, guardian, other
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  rut               String?
+  firstName         String   @map("first_name")
+  lastName          String   @map("last_name")
+  phone             String?
+  relationship      String   @default("guardian") // father, mother, guardian, other
   preferredSchoolId String?  @map("preferred_school_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   preferredSchool School?           @relation("PreferredSchool", fields: [preferredSchoolId], references: [id])
-  students GuardianStudent[]
-  orders   Order[]
-  payments Payment[]
+  students        GuardianStudent[]
+  orders          Order[]
+  payments        Payment[]
 
   @@index([rut])
   @@map("guardians")
@@ -296,7 +296,7 @@ model RechargePackage {
   name        String
   description String?
   price       Int
-  type        String   // ticket, balance
+  type        String // ticket, balance
   ticketCount Int?     @map("ticket_count")
   ticketType  String?  @map("ticket_type")
   active      Boolean  @default(true)
@@ -346,7 +346,7 @@ model StudentTicket {
 model WalletLog {
   id            String   @id @default(uuid())
   walletId      String   @map("wallet_id")
-  type          String   // deposit, purchase, refund, adjustment
+  type          String // deposit, purchase, refund, adjustment
   amount        Int
   balanceBefore Int      @map("balance_before")
   balanceAfter  Int      @map("balance_after")
@@ -363,14 +363,14 @@ model Transaction {
   id               String   @id @default(uuid())
   walletId         String   @map("wallet_id")
   cafeteriaId      String   @map("cafeteria_id")
-  type             String   // purchase, refund, adjustment
+  type             String // purchase, refund, adjustment
   amount           Int
   description      String?
-  items            String?  // JSON string
+  items            String? // JSON string
   ticketsUsed      String?  @map("tickets_used") // JSON string
   validatedBy      String?  @map("validated_by")
   validationMethod String?  @map("validation_method") // fingerprint, rut_search, qr_code, app_order
-  source           String   // app, casino
+  source           String // app, casino
   createdAt        DateTime @default(now()) @map("created_at")
 
   wallet    Wallet    @relation(fields: [walletId], references: [id])
@@ -393,7 +393,7 @@ model Order {
   status      String   @default("pending") // pending, confirmed, preparing, ready, delivered, cancelled
   pickupDate  DateTime @map("pickup_date")
   pickupTime  String?  @map("pickup_time")
-  items       String   // JSON string
+  items       String // JSON string
   total       Int
   comments    String?
   ticketsUsed String?  @map("tickets_used") // JSON string: {ticketType, quantity}
@@ -420,10 +420,10 @@ model Payment {
   walletId          String    @map("wallet_id")
   rechargePackageId String?   @map("recharge_package_id")
   amount            Int
-  gateway           String    // webpay, flow, fintoc, mock
+  gateway           String // webpay, flow, fintoc, mock
   gatewayTxId       String?   @map("gateway_tx_id")
   status            String    @default("pending") // pending, processing, completed, failed, refunded
-  metadata          String?   // JSON string
+  metadata          String? // JSON string
   errorMessage      String?   @map("error_message")
   createdAt         DateTime  @default(now()) @map("created_at")
   completedAt       DateTime? @map("completed_at")
@@ -460,7 +460,7 @@ model Notification {
   userId    String   @map("user_id")
   title     String
   body      String
-  data      String?  // JSON string
+  data      String? // JSON string
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 

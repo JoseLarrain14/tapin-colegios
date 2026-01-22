@@ -395,8 +395,16 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, date } = request.params;
 
-      // Parse date
-      const targetDate = new Date(date);
+      // Parse date as local time (not UTC) to avoid timezone issues
+      const dateParts = date.split('-');
+      if (dateParts.length !== 3) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Fecha invalida. Use formato YYYY-MM-DD',
+        });
+      }
+      const [year, month, day] = dateParts.map(Number);
+      const targetDate = new Date(year, month - 1, day); // Local timezone
       if (isNaN(targetDate.getTime())) {
         return reply.status(400).send({
           success: false,
@@ -492,8 +500,16 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       const { cafeteriaId, date } = request.params;
       const body = setDateMenuSchema.parse(request.body);
 
-      // Parse date
-      const targetDate = new Date(date);
+      // Parse date as local time (not UTC) to avoid timezone issues
+      const dateParts = date.split('-');
+      if (dateParts.length !== 3) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Fecha invalida. Use formato YYYY-MM-DD',
+        });
+      }
+      const [year, month, day] = dateParts.map(Number);
+      const targetDate = new Date(year, month - 1, day); // Local timezone
       if (isNaN(targetDate.getTime())) {
         return reply.status(400).send({
           success: false,
@@ -626,8 +642,16 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, date } = request.params;
 
-      // Parse date
-      const targetDate = new Date(date);
+      // Parse date as local time (not UTC) to avoid timezone issues
+      const dateParts = date.split('-');
+      if (dateParts.length !== 3) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Fecha invalida. Use formato YYYY-MM-DD',
+        });
+      }
+      const [year, month, day] = dateParts.map(Number);
+      const targetDate = new Date(year, month - 1, day); // Local timezone
       if (isNaN(targetDate.getTime())) {
         return reply.status(400).send({
           success: false,
@@ -652,9 +676,10 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       });
 
       if (!assignment) {
-        return reply.status(404).send({
-          success: false,
-          message: 'No hay asignacion para esta fecha',
+        // Idempotent: if no assignment exists, consider it already cleared
+        return reply.send({
+          success: true,
+          message: `No habia asignacion para ${date}. Se usa el patron semanal.`,
         });
       }
 
@@ -693,8 +718,16 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
 
       const { cafeteriaId, date } = request.params;
 
-      // Parse date
-      const targetDate = new Date(date);
+      // Parse date as local time (not UTC) to avoid timezone issues
+      const dateParts = date.split('-');
+      if (dateParts.length !== 3) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Fecha invalida. Use formato YYYY-MM-DD',
+        });
+      }
+      const [year, month, day] = dateParts.map(Number);
+      const targetDate = new Date(year, month - 1, day); // Local timezone
       if (isNaN(targetDate.getTime())) {
         return reply.status(400).send({
           success: false,
@@ -782,8 +815,11 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         },
       });
 
-      if (pattern && pattern.days.length > 0 && pattern.days[0].items.length > 0) {
+      // If weekly pattern exists and is active, use it (even if items is empty for this day)
+      if (pattern && pattern.active) {
         const patternDay = pattern.days[0];
+        const items = patternDay?.items || [];
+
         return reply.send({
           success: true,
           data: {
@@ -796,7 +832,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
             dayOfWeek,
             dayName: DAY_NAMES[dayOfWeek],
             source: 'pattern',
-            items: patternDay.items.map(item => ({
+            items: items.map(item => ({
               id: item.menuItem.id,
               name: item.menuItem.name,
               description: item.menuItem.description,
@@ -804,12 +840,14 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
               category: item.menuItem.category,
               imageUrl: item.menuItem.imageUrl,
             })),
-            totalItems: patternDay.items.length,
+            totalItems: items.length,
           },
         });
       }
 
-      // 3. Fallback to available items based on availableDays
+      // 3. Fallback ONLY if no weekly pattern exists
+      // This ensures that once a cafeteria sets up a weekly pattern,
+      // only configured days will show items
       const menuItems = await prisma.menuItem.findMany({
         where: {
           cafeteriaId,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 
 
@@ -35,11 +35,19 @@ export default function NewMenuItemPage() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>(['breakfast', 'lunch', 'snack'])
   const [error, setError] = useState<string | null>(null)
 
-  // TODO: Get cafeteriaId from auth context
-  const cafeteriaId = 'demo-cafeteria'
+  // Obtener cafeteriaId dinámicamente desde la configuración del admin
+  const { data: configData, isLoading: isLoadingConfig } = useQuery({
+    queryKey: ['admin-config'],
+    queryFn: async () => {
+      const response = await apiClient.admin.config()
+      return response.data
+    },
+  })
+  const cafeteriaId = configData?.data?.cafeteria?.id
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
+      if (!cafeteriaId) throw new Error('No cafeteria configured')
       const response = await apiClient.menu.create(cafeteriaId, data)
       return response.data
     },
@@ -55,6 +63,11 @@ export default function NewMenuItemPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!cafeteriaId) {
+      setError('No hay cafetería configurada')
+      return
+    }
 
     if (!name.trim()) {
       setError('El nombre es requerido')
@@ -83,8 +96,8 @@ export default function NewMenuItemPage() {
       price: priceInCents,
       category: category.trim() || null,
       available,
-      availableDays: JSON.stringify(selectedDays),
-      availableTimeSlots: JSON.stringify(selectedSlots),
+      availableDays: selectedDays,
+      availableTimeSlots: selectedSlots,
     })
   }
 
@@ -97,6 +110,27 @@ export default function NewMenuItemPage() {
   const toggleSlot = (slot: string) => {
     setSelectedSlots(prev =>
       prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot]
+    )
+  }
+
+  if (isLoadingConfig) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!cafeteriaId) {
+    return (
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+          Configuración Requerida
+        </h3>
+        <p className="text-yellow-700 dark:text-yellow-300">
+          No hay una cafetería configurada para tu colegio.
+        </p>
+      </div>
     )
   }
 
