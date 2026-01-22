@@ -61,7 +61,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Get or create weekly pattern
       let pattern = await prisma.weeklyPattern.findUnique({
@@ -167,7 +167,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Get or create weekly pattern
       let pattern = await prisma.weeklyPattern.findUnique({
@@ -296,7 +296,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Parse dates
       const fromDate = from ? new Date(from) : new Date();
@@ -395,7 +395,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Set time to start of day for comparison
       targetDate.setHours(0, 0, 0, 0);
@@ -493,7 +493,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Set time to start of day
       targetDate.setHours(0, 0, 0, 0);
@@ -628,7 +628,7 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
       // Validate cafeteria access
       const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
       if (!result) return;
-      const { cafeteria } = result;
+      // Access validated
 
       // Set time to start of day
       targetDate.setHours(0, 0, 0, 0);
@@ -706,8 +706,8 @@ export async function menuPlanningRoutes(app: FastifyInstance) {
         });
       }
 
-      // Validate cafeteria access and get cafeteria with school
-      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply);
+      // Validate cafeteria access (read mode allows guardians to see menu)
+      const result = await validateCafeteriaAccess(cafeteriaId, decoded, reply, 'read');
       if (!result) return;
 
       // Fetch cafeteria with school relation for response
