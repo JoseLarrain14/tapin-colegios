@@ -170,11 +170,36 @@ export async function getSchoolAdminSchoolId(userId: string): Promise<string | n
   return schoolAdmin?.schoolId || null;
 }
 
+// Helper to get school IDs for a guardian's students
+async function getGuardianSchoolIds(userId: string): Promise<string[]> {
+  const guardian = await prisma.guardian.findUnique({
+    where: { userId },
+    include: {
+      students: {
+        include: {
+          student: {
+            select: { schoolId: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!guardian) return [];
+
+  // Get unique school IDs from all students
+  const schoolIds = guardian.students.map(gs => gs.student.schoolId);
+  return [...new Set(schoolIds)];
+}
+
 // Helper to validate cafeteria access by school (exported for use in other routes)
+// accessMode: 'write' (default) - only super_admin and school_admin
+//             'read' - also allows guardians with students in the school
 export async function validateCafeteriaAccess(
   cafeteriaId: string,
   decoded: { userId: string; role: string; schoolId?: string },
-  reply: FastifyReply
+  reply: FastifyReply,
+  accessMode: 'read' | 'write' = 'write'
 ): Promise<{ cafeteria: any; schoolId: string } | null> {
   const cafeteria = await prisma.cafeteria.findUnique({
     where: { id: cafeteriaId },
@@ -194,18 +219,27 @@ export async function validateCafeteriaAccess(
     return { cafeteria, schoolId: cafeteria.schoolId };
   }
 
-  // Get user's school ID
-  const userSchoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
-
-  if (!userSchoolId || cafeteria.schoolId !== userSchoolId) {
-    reply.status(403).send({
-      success: false,
-      message: 'No tienes acceso a esta cafeteria',
-    });
-    return null;
+  // School admin: verify school access (read and write)
+  if (decoded.role === 'school_admin') {
+    const userSchoolId = decoded.schoolId || await getSchoolAdminSchoolId(decoded.userId);
+    if (userSchoolId && cafeteria.schoolId === userSchoolId) {
+      return { cafeteria, schoolId: userSchoolId };
+    }
   }
 
-  return { cafeteria, schoolId: userSchoolId };
+  // Guardian: verify they have a student in this school (read only)
+  if (decoded.role === 'guardian' && accessMode === 'read') {
+    const guardianSchoolIds = await getGuardianSchoolIds(decoded.userId);
+    if (guardianSchoolIds.includes(cafeteria.schoolId)) {
+      return { cafeteria, schoolId: cafeteria.schoolId };
+    }
+  }
+
+  reply.status(403).send({
+    success: false,
+    message: 'No tienes acceso a esta cafeteria',
+  });
+  return null;
 }
 
 // Interface for import row
