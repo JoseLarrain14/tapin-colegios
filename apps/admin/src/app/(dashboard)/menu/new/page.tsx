@@ -85,11 +85,6 @@ export default function NewMenuItemPage() {
       return
     }
 
-    if (selectedSlots.length === 0) {
-      setError('Selecciona al menos un horario')
-      return
-    }
-
     createMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,
@@ -226,29 +221,6 @@ export default function NewMenuItemPage() {
                 }`}
               >
                 {day.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Horarios disponibles */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Horarios disponibles *
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {TIME_SLOTS.map(slot => (
-              <button
-                key={slot.value}
-                type="button"
-                onClick={() => toggleSlot(slot.value)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  selectedSlots.includes(slot.value)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
-                }`}
-              >
-                {slot.label}
               </button>
             ))}
           </div>

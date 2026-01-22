@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
@@ -31,7 +32,7 @@ import {
   parseISO,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, X, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Calendar, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -262,6 +263,7 @@ export default function MenuCalendarPage() {
   const [showPatternSection, setShowPatternSection] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplate, setNewTemplate] = useState({ name: '', description: '', color: '#3B82F6', menuItemIds: [] as string[] })
+  const [editingTemplate, setEditingTemplate] = useState<MenuTemplate | null>(null)
 
   // Get admin config (school and cafeteria) - dynamic cafeteriaId
   const { data: configData, isLoading: configLoading } = useQuery({
@@ -373,6 +375,19 @@ export default function MenuCalendarPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menuTemplates', cafeteriaId!] })
+      setShowTemplateModal(false)
+      setNewTemplate({ name: '', description: '', color: '#3B82F6', menuItemIds: [] })
+    },
+  })
+
+  // Mutation for updating template
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ templateId, data }: { templateId: string; data: { name?: string; description?: string | null; color?: string | null } }) => {
+      return apiClient.menuTemplates.update(cafeteriaId!, templateId, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuTemplates', cafeteriaId!] })
+      setEditingTemplate(null)
       setShowTemplateModal(false)
       setNewTemplate({ name: '', description: '', color: '#3B82F6', menuItemIds: [] })
     },
@@ -557,14 +572,23 @@ export default function MenuCalendarPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Calendar className="w-6 h-6" />
-              Calendario de Menú
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Planifica el menú arrastrando platos al calendario
-            </p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/menu"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              title="Volver a productos"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-6 h-6" />
+                Calendario de Menú
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Planifica el menú arrastrando platos al calendario
+              </p>
+            </div>
           </div>
         </div>
 
@@ -721,7 +745,27 @@ export default function MenuCalendarPage() {
 
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {templates.map((template) => (
-                  <DraggableMenuItem key={template.id} item={template} type="template" />
+                  <div key={template.id} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <DraggableMenuItem item={template} type="template" />
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingTemplate(template)
+                        setNewTemplate({
+                          name: template.name,
+                          description: template.description || '',
+                          color: template.color || '#3B82F6',
+                          menuItemIds: template.items.map(i => i.menuItemId)
+                        })
+                        setShowTemplateModal(true)
+                      }}
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                      title="Editar template"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
                 {templates.length === 0 && (
                   <div className="text-center text-gray-500 dark:text-gray-400 py-4">
@@ -822,16 +866,20 @@ export default function MenuCalendarPage() {
           </div>
         )}
 
-        {/* Create Template Modal */}
+        {/* Create/Edit Template Modal */}
         {showTemplateModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg m-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Nuevo Template
+                  {editingTemplate ? 'Editar Template' : 'Nuevo Template'}
                 </h3>
                 <button
-                  onClick={() => setShowTemplateModal(false)}
+                  onClick={() => {
+                    setShowTemplateModal(false)
+                    setEditingTemplate(null)
+                    setNewTemplate({ name: '', description: '', color: '#3B82F6', menuItemIds: [] })
+                  }}
                   className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 >
                   <X className="w-5 h-5" />
@@ -930,21 +978,36 @@ export default function MenuCalendarPage() {
                 <button
                   onClick={() => {
                     if (newTemplate.name.trim()) {
-                      createTemplateMutation.mutate({
-                        name: newTemplate.name,
-                        description: newTemplate.description || undefined,
-                        color: newTemplate.color,
-                        menuItemIds: newTemplate.menuItemIds,
-                      })
+                      if (editingTemplate) {
+                        updateTemplateMutation.mutate({
+                          templateId: editingTemplate.id,
+                          data: {
+                            name: newTemplate.name,
+                            description: newTemplate.description || null,
+                            color: newTemplate.color,
+                          }
+                        })
+                      } else {
+                        createTemplateMutation.mutate({
+                          name: newTemplate.name,
+                          description: newTemplate.description || undefined,
+                          color: newTemplate.color,
+                          menuItemIds: newTemplate.menuItemIds,
+                        })
+                      }
                     }
                   }}
-                  disabled={!newTemplate.name.trim() || createTemplateMutation.isPending}
+                  disabled={!newTemplate.name.trim() || createTemplateMutation.isPending || updateTemplateMutation.isPending}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {createTemplateMutation.isPending ? 'Guardando...' : 'Guardar Template'}
+                  {(createTemplateMutation.isPending || updateTemplateMutation.isPending) ? 'Guardando...' : (editingTemplate ? 'Guardar Cambios' : 'Guardar Template')}
                 </button>
                 <button
-                  onClick={() => setShowTemplateModal(false)}
+                  onClick={() => {
+                    setShowTemplateModal(false)
+                    setEditingTemplate(null)
+                    setNewTemplate({ name: '', description: '', color: '#3B82F6', menuItemIds: [] })
+                  }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Cancelar

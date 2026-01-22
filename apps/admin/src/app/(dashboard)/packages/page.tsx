@@ -23,7 +23,7 @@ interface RechargePackage {
 
 export default function PackagesPage() {
   const queryClient = useQueryClient()
-  const [filterType, setFilterType] = useState<'all' | 'ticket' | 'balance'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'ticket'>('all')
   const [filterActive, setFilterActive] = useState<'all' | 'true' | 'false'>('all')
 
   // Get admin config (school and cafeteria)
@@ -136,11 +136,10 @@ export default function PackagesPage() {
           </label>
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as 'all' | 'ticket' | 'balance')}
+            onChange={(e) => setFilterType(e.target.value as 'all' | 'ticket')}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
           >
             <option value="all">Todos</option>
-            <option value="balance">Saldo</option>
             <option value="ticket">Tickets</option>
           </select>
         </div>
@@ -203,22 +202,15 @@ export default function PackagesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        pkg.type === 'balance'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                      }`}>
-                        {pkg.type === 'balance' ? 'Saldo' : 'Tickets'}
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                        Tickets
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {formatCurrency(pkg.price)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {pkg.type === 'balance'
-                        ? formatCurrency(pkg.price)
-                        : `${pkg.ticketCount} tickets de ${pkg.ticketType}`
-                      }
+                      {pkg.ticketCount} tickets de {pkg.ticketType}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button

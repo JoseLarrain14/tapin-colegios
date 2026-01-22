@@ -228,9 +228,6 @@ export default function MenuPage() {
                     Días
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Horarios
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Estado
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -257,9 +254,6 @@ export default function MenuPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {parseDays(item.availableDays).map(d => DAYS[d - 1]).join(', ')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {parseTimeSlots(item.availableTimeSlots).map(s => TIME_SLOTS[s] || s).join(', ')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
