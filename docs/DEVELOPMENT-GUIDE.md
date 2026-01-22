@@ -2,6 +2,29 @@
 
 Esta guia explica como levantar el sistema completo para desarrollo local.
 
+## Inicio Rapido (TL;DR)
+
+```bash
+# Terminal 1 - API (INICIAR PRIMERO)
+pnpm run dev:api
+# Esperar mensaje: "Server is running on http://0.0.0.0:3001"
+
+# Terminal 2 - Admin Panel
+pnpm run dev:admin
+# Esperar mensaje: "Ready in Xs" -> http://localhost:3000
+
+# Terminal 3 - Mobile App
+cd apps/mobile && npx expo start --clear
+# Esperar mensaje: "Waiting on http://localhost:8081" (o puerto disponible)
+# Bundling inicial toma ~20-30 segundos
+```
+
+**Credenciales rapidas:**
+- Admin: `admin@colegio.cl` / `admin123`
+- Mobile: `apoderado@test.cl` / `apoderado123`
+
+---
+
 ## Arquitectura del Sistema
 
 El proyecto es un **monorepo** con tres aplicaciones principales:
@@ -10,7 +33,9 @@ El proyecto es un **monorepo** con tres aplicaciones principales:
 |----------|-----------|--------|-------------|
 | **API (Backend)** | `packages/api` | 3001 | Fastify + Prisma + SQLite |
 | **Admin Panel** | `apps/admin` | 3000 | Next.js - Panel de administracion |
-| **Mobile App** | `apps/mobile` | 8081 | Expo/React Native - App para apoderados |
+| **Mobile App** | `apps/mobile` | 8081* | Expo/React Native - App para apoderados |
+
+*Si el puerto 8081 está ocupado, Expo usará 8082, 8083, etc. Ver terminal para el puerto actual.
 
 ## Prerequisitos
 
@@ -76,7 +101,9 @@ Una vez levantados los servicios:
 | API Health Check | http://localhost:3001/health |
 | API Documentation (Swagger) | http://localhost:3001/documentation |
 | Admin Panel | http://localhost:3000 |
-| Mobile App (Web) | http://localhost:8081 |
+| Mobile App (Web) | http://localhost:8081 (o puerto asignado por Expo) |
+
+**Nota:** Si Expo muestra "Waiting on http://localhost:8090", usar ese puerto en lugar de 8081.
 
 ## Credenciales de Prueba
 
@@ -180,6 +207,41 @@ cd apps/mobile && npx expo start --clear
 ### Mobile muestra pantalla en blanco
 
 Esperar a que Metro Bundler termine de compilar (puede tomar 20-30 segundos la primera vez). Observar la terminal para ver el progreso del bundling.
+
+### Mobile App - Optimizaciones de Rendimiento (Enero 2025)
+
+Se realizaron las siguientes optimizaciones para mejorar el tiempo de inicio:
+
+1. **metro.config.js** - Configuración para monorepo pnpm
+2. **theme.ts shadows** - Compatibilidad con web usando `boxShadow`
+3. **Imágenes PNG** - Regeneradas con tamaños correctos (1024x1024, etc.)
+
+Si el bundling toma más de 60 segundos, verificar que estos archivos existan:
+- `apps/mobile/metro.config.js`
+- `apps/mobile/assets/icon.png` (debe ser ~5KB, no 111 bytes)
+
+### Mobile App - Puerto Ocupado
+
+Si el puerto 8081 está ocupado, Expo usará automáticamente otro puerto (8082, 8083, etc.).
+
+```bash
+# Iniciar en puerto específico
+cd apps/mobile && npx expo start --clear --port 8090
+
+# O dejar que Expo elija automáticamente
+cd apps/mobile && npx expo start --clear
+```
+
+### Mobile App - Limpiar Caché Completo
+
+Si hay problemas de bundling persistentes:
+
+```bash
+cd apps/mobile
+rm -rf .expo
+rm -rf node_modules/.cache
+npx expo start --clear
+```
 
 ### Mobile muestra productos que no estan en el calendario
 
@@ -328,8 +390,77 @@ Ver documentacion completa en: http://localhost:3001/documentation
 ## Archivos de Referencia
 
 - `AGENTS.md` - Patrones y convenciones del proyecto
-- `progress.txt` - Log detallado de implementaciones
 - `packages/api/prisma/schema.prisma` - Modelos de base de datos
+
+## Archivos de Configuracion Mobile App
+
+Estos archivos son importantes para el correcto funcionamiento de la Mobile App:
+
+| Archivo | Proposito |
+|---------|-----------|
+| `apps/mobile/metro.config.js` | Configuracion de Metro para monorepo pnpm |
+| `apps/mobile/app.json` | Configuracion de Expo (nombre, iconos, plugins) |
+| `apps/mobile/src/constants/theme.ts` | Colores, spacing, shadows del tema |
+| `apps/mobile/assets/create-assets.js` | Script para regenerar iconos PNG |
+| `apps/mobile/app/(tabs)/_layout.tsx` | Layout de tabs con iconos |
+
+### Cambios Criticos para Web (Enero 2025)
+
+**1. package.json** - Debe incluir `@expo/vector-icons`:
+```json
+"dependencies": {
+  "@expo/vector-icons": "^14.0.0",
+  ...
+}
+```
+
+**2. metro.config.js** - Debe existir con esta configuracion:
+```javascript
+const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
+
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '../..');
+
+const config = getDefaultConfig(projectRoot);
+config.watchFolders = [workspaceRoot];
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+];
+config.resolver.unstable_enablePackageExports = false;
+
+module.exports = config;
+```
+
+**3. theme.ts shadows** - Usa `createShadow()` para compatibilidad web:
+```typescript
+import { Platform } from 'react-native';
+
+const createShadow = (offsetY: number, blur: number, opacity: number, elevation: number) => {
+  if (Platform.OS === 'web') {
+    return { boxShadow: `0px ${offsetY}px ${blur}px rgba(0, 0, 0, ${opacity})` };
+  }
+  return {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: offsetY },
+    shadowOpacity: opacity,
+    shadowRadius: blur,
+    elevation,
+  };
+};
+```
+
+### Regenerar Iconos (si hay errores de imagen)
+
+Si ves errores "Crc error" durante el bundling:
+
+```bash
+cd apps/mobile/assets
+node create-assets.js
+```
+
+Esto regenera icon.png, splash.png, adaptive-icon.png y favicon.png con tamaños correctos.
 
 ## Contacto
 

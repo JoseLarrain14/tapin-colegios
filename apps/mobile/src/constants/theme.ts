@@ -1,6 +1,8 @@
 // Tap In Colegios - Theme Constants
 // Based on OrderEAT design reference
 
+import { Platform } from 'react-native';
+
 export const colors = {
   // Primary colors - #C9384E chosen for WCAG AA compliance (5.05:1 contrast with white)
   primary: '#C9384E',
@@ -124,29 +126,27 @@ export const typography = {
   },
 } as const;
 
+// Helper to create cross-platform shadows
+const createShadow = (offsetY: number, blur: number, opacity: number, elevation: number) => {
+  if (Platform.OS === 'web') {
+    return {
+      boxShadow: `0px ${offsetY}px ${blur}px rgba(0, 0, 0, ${opacity})`,
+    };
+  }
+  return {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: offsetY },
+    shadowOpacity: opacity,
+    shadowRadius: blur,
+    elevation,
+  };
+};
+
 export const shadows = {
-  sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-} as const;
+  sm: createShadow(1, 2, 0.05, 1),
+  md: createShadow(2, 4, 0.1, 2),
+  lg: createShadow(4, 8, 0.15, 4),
+};
 
 export const theme = {
   colors,
