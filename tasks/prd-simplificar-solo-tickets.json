@@ -1,0 +1,1275 @@
+{
+  "projectName": "Simplificar Sistema Solo Tickets",
+  "branchName": "feature/simplificar-solo-tickets",
+  "description": "Eliminar el concepto de 'saldo' de la UI y simplificar el sistema a solo tickets. Cuando se compran tickets, NO se actualiza el balance. Cuando se valida un ticket, solo se resta del contador de tickets. El historial muestra compras y consumos de tickets.",
+  "userStories": [
+    {
+      "id": "US-100",
+      "title": "Eliminar campo pricePerTicket del modelo StudentTicket",
+      "description": "Eliminar el campo pricePerTicket del schema de Prisma ya que no se usara mas",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "En schema.prisma, modelo StudentTicket NO tiene campo pricePerTicket",
+        "La linea 337 con 'pricePerTicket Int @default(0) @map(\"price_per_ticket\")' fue eliminada",
+        "npx prisma format ejecuta sin errores",
+        "npx prisma validate ejecuta sin errores"
+      ],
+      "filesToModify": [
+        "packages/api/prisma/schema.prisma"
+      ],
+      "verification": "cd packages/api && npx prisma format && npx prisma validate",
+      "visualVerification": "N/A - cambio de schema",
+      "passes": true
+    },
+    {
+      "id": "US-101",
+      "title": "Ejecutar migracion de Prisma para eliminar columna",
+      "description": "Crear y ejecutar migracion que elimine la columna price_per_ticket de la tabla student_tickets",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Se creo archivo de migracion en prisma/migrations/",
+        "La migracion contiene: ALTER TABLE student_tickets DROP COLUMN price_per_ticket",
+        "npx prisma migrate dev ejecuta sin errores",
+        "La base de datos ya no tiene la columna price_per_ticket"
+      ],
+      "filesToModify": [
+        "packages/api/prisma/migrations/*"
+      ],
+      "verification": "cd packages/api && npx prisma migrate dev --name remove_price_per_ticket",
+      "visualVerification": "N/A - migracion de BD",
+      "passes": true
+    },
+    {
+      "id": "US-102",
+      "title": "Regenerar cliente Prisma y verificar tipos",
+      "description": "Regenerar el cliente de Prisma para actualizar los tipos TypeScript",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "npx prisma generate ejecuta sin errores",
+        "El tipo StudentTicket ya NO tiene pricePerTicket",
+        "npx tsc --noEmit en packages/api muestra errores de tipos (esperado, se arreglaran en US-110+)"
+      ],
+      "filesToModify": [],
+      "verification": "cd packages/api && npx prisma generate",
+      "visualVerification": "N/A - generacion de tipos",
+      "passes": true
+    },
+    {
+      "id": "US-110",
+      "title": "Identificar logica actual de creacion de tickets en payments.routes.ts",
+      "description": "Leer y documentar la logica actual que crea tickets y actualiza pricePerTicket",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Identificar lineas 549-608 donde se procesa pago de tickets",
+        "Documentar: actualmente calcula pricePerTicket ponderado",
+        "Documentar: actualmente actualiza wallet.balance",
+        "Crear comentario TODO marcando las lineas a modificar"
+      ],
+      "filesToModify": [],
+      "verification": "grep -n 'pricePerTicket\\|weightedAverage' packages/api/src/routes/payments.routes.ts",
+      "visualVerification": "N/A - tarea de investigacion",
+      "passes": true
+    },
+    {
+      "id": "US-111",
+      "title": "Eliminar calculo de pricePerTicket ponderado",
+      "description": "Eliminar toda la logica que calcula el precio ponderado de tickets",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Eliminar variable pricePerTicket = Math.floor(rechargePackage.price / rechargePackage.ticketCount)",
+        "Eliminar calculo de totalExistingValue",
+        "Eliminar calculo de totalNewValue",
+        "Eliminar calculo de newPricePerTicket con weighted average",
+        "El archivo compila con npx tsc --noEmit (puede tener otros errores)"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/payments.routes.ts"
+      ],
+      "verification": "grep -c 'pricePerTicket' packages/api/src/routes/payments.routes.ts | grep -q '^0$' && echo 'OK: pricePerTicket eliminado'",
+      "visualVerification": "N/A - cambio interno",
+      "passes": true
+    },
+    {
+      "id": "US-112",
+      "title": "No actualizar wallet.balance para paquetes tipo ticket",
+      "description": "Modificar la logica para que los paquetes tipo ticket NO actualicen el balance de la wallet",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Si rechargePackage.type === 'ticket', NO ejecutar wallet.update con balance",
+        "El balance de la wallet permanece igual antes y despues de comprar tickets",
+        "Solo actualizar balance si rechargePackage.type === 'balance' o no hay paquete",
+        "Agregar condicion: if (!rechargePackage || rechargePackage.type === 'balance')"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/payments.routes.ts"
+      ],
+      "verification": "grep -A5 'wallet.update' packages/api/src/routes/payments.routes.ts | grep -q 'type.*balance'",
+      "visualVerification": "N/A - cambio de logica backend",
+      "passes": true
+    },
+    {
+      "id": "US-113",
+      "title": "Simplificar logica de suma de tickets",
+      "description": "Simplificar la logica para solo sumar quantity de tickets sin calcular precios",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Si existe StudentTicket: quantity = existingTicket.quantity + rechargePackage.ticketCount",
+        "Si NO existe: crear StudentTicket con quantity = rechargePackage.ticketCount",
+        "NO incluir pricePerTicket en el update ni create",
+        "El codigo es mas simple y legible"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/payments.routes.ts"
+      ],
+      "verification": "cd packages/api && npx tsc --noEmit 2>&1 | grep -v 'pricePerTicket' || echo 'Compilacion OK o errores no relacionados'",
+      "visualVerification": "N/A - simplificacion de codigo",
+      "passes": true
+    },
+    {
+      "id": "US-114",
+      "title": "Actualizar WalletLog para compras de tickets",
+      "description": "Modificar el WalletLog que se crea al comprar tickets para que tenga descripcion apropiada",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "WalletLog.description incluye: 'Compra de X tickets de [tipo]'",
+        "WalletLog.amount = precio del paquete (para registro)",
+        "WalletLog.balanceBefore y balanceAfter son iguales (no cambio de balance)",
+        "WalletLog.type = 'deposit' o nuevo tipo 'ticket_purchase'"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/payments.routes.ts"
+      ],
+      "verification": "grep -n 'Compra de.*tickets' packages/api/src/routes/payments.routes.ts",
+      "visualVerification": "N/A - formato de log",
+      "passes": true
+    },
+    {
+      "id": "US-115",
+      "title": "Verificar compilacion de payments.routes.ts",
+      "description": "Asegurar que el archivo compila sin errores de TypeScript",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "cd packages/api && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a pricePerTicket en el archivo",
+        "La logica de pago funciona correctamente"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/payments.routes.ts"
+      ],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-120",
+      "title": "Identificar logica actual de consumo de tickets en casino.routes.ts",
+      "description": "Leer y documentar la logica actual que consume tickets y deduce balance",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Identificar POST /consume endpoint (lineas 634-682 aprox)",
+        "Documentar: actualmente calcula ticketValue = ticket.pricePerTicket * quantity",
+        "Documentar: actualmente deduce ticketValue del wallet.balance",
+        "Documentar: crea WalletLog con el monto deducido"
+      ],
+      "filesToModify": [],
+      "verification": "grep -n 'pricePerTicket\\|ticketValue\\|balance.*-' packages/api/src/routes/casino.routes.ts",
+      "visualVerification": "N/A - tarea de investigacion",
+      "passes": true
+    },
+    {
+      "id": "US-121",
+      "title": "Eliminar actualizacion de wallet.balance en consumo de tickets",
+      "description": "Eliminar la logica que deduce el balance cuando se consume un ticket",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Eliminar calculo de ticketValue",
+        "Eliminar wallet.update que deduce balance",
+        "Eliminar referencia a balanceBefore y balanceAfter en este contexto",
+        "El balance de la wallet NO cambia cuando se valida un ticket"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/casino.routes.ts"
+      ],
+      "verification": "grep -c 'wallet.update.*balance' packages/api/src/routes/casino.routes.ts | grep -q '^0$' || echo 'Revisar: aun hay wallet.update'",
+      "visualVerification": "N/A - cambio de logica backend",
+      "passes": true
+    },
+    {
+      "id": "US-122",
+      "title": "Solo decrementar StudentTicket.quantity en consumo",
+      "description": "La unica operacion al consumir ticket es restar 1 del quantity",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "studentTicket.update solo modifica quantity: quantity - body.quantity",
+        "No hay otras operaciones sobre el ticket",
+        "La logica es simple: restar tickets consumidos",
+        "Validar que quantity >= body.quantity antes de restar"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/casino.routes.ts"
+      ],
+      "verification": "grep -A3 'studentTicket.update' packages/api/src/routes/casino.routes.ts",
+      "visualVerification": "N/A - simplificacion de logica",
+      "passes": true
+    },
+    {
+      "id": "US-123",
+      "title": "Crear Transaction con amount: 0 para consumo de tickets",
+      "description": "El registro de Transaction debe tener amount: 0 ya que no hay valor monetario",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Transaction.create tiene amount: 0",
+        "Transaction.ticketsUsed tiene JSON con tipo y cantidad consumida",
+        "Transaction.description indica el consumo de tickets",
+        "El registro sirve para historial sin implicar dinero"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/casino.routes.ts"
+      ],
+      "verification": "grep -B2 -A10 'transaction.create' packages/api/src/routes/casino.routes.ts | grep 'amount.*0'",
+      "visualVerification": "N/A - formato de transaccion",
+      "passes": true
+    },
+    {
+      "id": "US-124",
+      "title": "Actualizar descripcion de Transaction para historial legible",
+      "description": "La descripcion debe ser clara para mostrar al apoderado",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "description incluye: 'Se resto X ticket(s) de [tipo] - [nombre estudiante] comio'",
+        "Incluir fecha y hora en formato legible",
+        "El mensaje es claro para el apoderado cuando lo vea en historial",
+        "Usar formato consistente con otros mensajes del sistema"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/casino.routes.ts"
+      ],
+      "verification": "grep -n 'Se resto.*ticket' packages/api/src/routes/casino.routes.ts",
+      "visualVerification": "N/A - formato de descripcion",
+      "passes": true
+    },
+    {
+      "id": "US-125",
+      "title": "Verificar compilacion de casino.routes.ts",
+      "description": "Asegurar que el archivo compila sin errores de TypeScript",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "cd packages/api && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a pricePerTicket ni ticketValue",
+        "La logica de consumo funciona correctamente"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/casino.routes.ts"
+      ],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-130",
+      "title": "Identificar responses que incluyen pricePerTicket en students.routes.ts",
+      "description": "Encontrar donde se mapean tickets con pricePerTicket y totalValue",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Identificar GET / (lineas 374-380 aprox) donde se mapean tickets",
+        "Identificar GET /:id (lineas 481-487 aprox) donde se mapean tickets",
+        "Documentar estructura actual: type, quantity, pricePerTicket, totalValue, expiresAt"
+      ],
+      "filesToModify": [],
+      "verification": "grep -n 'pricePerTicket\\|totalValue' packages/api/src/routes/students.routes.ts",
+      "visualVerification": "N/A - tarea de investigacion",
+      "passes": true
+    },
+    {
+      "id": "US-131",
+      "title": "Eliminar pricePerTicket de response de tickets",
+      "description": "Eliminar el campo pricePerTicket del mapeo de tickets en responses",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "El mapeo de tickets NO incluye pricePerTicket",
+        "Estructura nueva: { type, quantity, expiresAt }",
+        "Aplicar cambio en GET / y GET /:id",
+        "El archivo compila sin errores"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/students.routes.ts"
+      ],
+      "verification": "grep -c 'pricePerTicket' packages/api/src/routes/students.routes.ts | grep -q '^0$' && echo 'OK: pricePerTicket eliminado'",
+      "visualVerification": "N/A - cambio de response",
+      "passes": true
+    },
+    {
+      "id": "US-132",
+      "title": "Eliminar totalValue de response de tickets",
+      "description": "Eliminar el campo totalValue que calculaba quantity * pricePerTicket",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "El mapeo de tickets NO incluye totalValue",
+        "No hay calculo de t.quantity * t.pricePerTicket",
+        "La response es mas simple sin valores monetarios de tickets"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/students.routes.ts"
+      ],
+      "verification": "grep -c 'totalValue' packages/api/src/routes/students.routes.ts | grep -q '^0$' && echo 'OK: totalValue eliminado'",
+      "visualVerification": "N/A - cambio de response",
+      "passes": true
+    },
+    {
+      "id": "US-133",
+      "title": "Verificar compilacion de students.routes.ts",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "cd packages/api && npx tsc --noEmit ejecuta sin errores",
+        "Endpoints /students y /students/:id funcionan",
+        "Response de tickets tiene solo: type, quantity, expiresAt"
+      ],
+      "filesToModify": [
+        "packages/api/src/routes/students.routes.ts"
+      ],
+      "verification": "cd packages/api && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-140",
+      "title": "Actualizar interface Student.tickets en api.ts mobile",
+      "description": "Actualizar el tipo de tickets en la interface Student",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Encontrar interface Student o tipo equivalente en api.ts",
+        "Modificar tickets para que sea: Array<{ type: string; quantity: number; expiresAt?: string }>",
+        "Eliminar pricePerTicket y totalValue del tipo"
+      ],
+      "filesToModify": [
+        "apps/mobile/src/services/api.ts"
+      ],
+      "verification": "grep -A5 'tickets.*Array' apps/mobile/src/services/api.ts",
+      "visualVerification": "N/A - cambio de tipos",
+      "passes": true
+    },
+    {
+      "id": "US-141",
+      "title": "Eliminar referencias a pricePerTicket en mobile",
+      "description": "Buscar y eliminar cualquier referencia a ticket.pricePerTicket en mobile",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Buscar 'pricePerTicket' en todo apps/mobile",
+        "Eliminar cada referencia encontrada",
+        "El codigo no usa pricePerTicket en ningun lugar"
+      ],
+      "filesToModify": [
+        "apps/mobile/src/services/api.ts"
+      ],
+      "verification": "grep -r 'pricePerTicket' apps/mobile/ | wc -l | grep -q '^0$' && echo 'OK: sin pricePerTicket'",
+      "visualVerification": "N/A - limpieza de codigo",
+      "passes": true
+    },
+    {
+      "id": "US-142",
+      "title": "Eliminar referencias a totalValue de tickets en mobile",
+      "description": "Buscar y eliminar cualquier referencia a ticket.totalValue en mobile",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Buscar 'totalValue' relacionado con tickets en apps/mobile",
+        "Eliminar cada referencia encontrada",
+        "El codigo no usa ticket.totalValue en ningun lugar"
+      ],
+      "filesToModify": [
+        "apps/mobile/src/services/api.ts",
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -r 'ticket.*totalValue\\|totalValue.*ticket' apps/mobile/ | wc -l | grep -q '^0$' && echo 'OK: sin totalValue'",
+      "visualVerification": "N/A - limpieza de codigo",
+      "passes": true
+    },
+    {
+      "id": "US-150",
+      "title": "Eliminar bloque Saldo disponible de index.tsx",
+      "description": "Eliminar la seccion que muestra 'Saldo disponible' en el home",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 218-229 que muestran balanceAmountContainer",
+        "Eliminar el texto 'Saldo disponible'",
+        "Eliminar el Text que muestra formatCLP(selectedStudent.balance)",
+        "Eliminar estilos positiveBalance, negativeBalance, zeroBalance si no se usan en otro lugar"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -c 'Saldo disponible' apps/mobile/app/\\(tabs\\)/index.tsx | grep -q '^0$' && echo 'OK: Saldo eliminado'",
+      "visualVerification": "Abrir app > Tab Home > Verificar que NO aparece 'Saldo disponible'",
+      "passes": true
+    },
+    {
+      "id": "US-151",
+      "title": "Eliminar bloque Limite diario de index.tsx",
+      "description": "Eliminar la seccion que muestra limite diario",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 231-236 que muestran limitContainer",
+        "Eliminar el texto 'Limite diario:'",
+        "Eliminar la logica condicional dailyLimit > 0 && businessModel !== 'tickets_only'"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -c 'Limite diario' apps/mobile/app/\\(tabs\\)/index.tsx | grep -q '^0$' && echo 'OK: Limite eliminado'",
+      "visualVerification": "Abrir app > Tab Home > Verificar que NO aparece 'Limite diario'",
+      "passes": true
+    },
+    {
+      "id": "US-152",
+      "title": "Eliminar totalValue de visualizacion de tickets",
+      "description": "Eliminar la parte que muestra el valor monetario de tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar linea 250: {ticket.totalValue > 0 && ` (${formatCLP(ticket.totalValue)})`}",
+        "Los tickets solo muestran: '{quantity}x {type}'",
+        "No hay valores en CLP junto a los tickets"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -c 'totalValue' apps/mobile/app/\\(tabs\\)/index.tsx | grep -q '^0$' && echo 'OK: totalValue eliminado'",
+      "visualVerification": "Abrir app > Tab Home > Verificar que tickets muestran solo 'Xx tipo' sin valor",
+      "passes": true
+    },
+    {
+      "id": "US-153",
+      "title": "Cambiar texto de boton Ver historial a Historial de tickets",
+      "description": "Renombrar el boton de historial para reflejar tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Encontrar Button con texto 'Ver historial' (linea 288 aprox)",
+        "Cambiar texto a 'Historial de tickets'",
+        "Mantener icono 'history'"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -c 'Historial de tickets' apps/mobile/app/\\(tabs\\)/index.tsx | grep -q '^1$' && echo 'OK: texto actualizado'",
+      "visualVerification": "Abrir app > Tab Home > Verificar boton dice 'Historial de tickets'",
+      "passes": true
+    },
+    {
+      "id": "US-154",
+      "title": "Cambiar texto de boton Ver estadisticas a Consumos",
+      "description": "Renombrar el boton de estadisticas",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Encontrar Button con texto 'Ver estadisticas' (linea 296 aprox)",
+        "Cambiar texto a 'Consumos' o 'Ver consumos'",
+        "Mantener icono o cambiarlo a uno apropiado"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -c 'Consumos\\|Ver consumos' apps/mobile/app/\\(tabs\\)/index.tsx | grep -q '^1$' && echo 'OK: texto actualizado'",
+      "visualVerification": "Abrir app > Tab Home > Verificar boton dice 'Consumos'",
+      "passes": true
+    },
+    {
+      "id": "US-155",
+      "title": "Eliminar condicion businessModel de botones de historial",
+      "description": "Mostrar botones de historial siempre, no solo cuando no es tickets_only",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar condicion: selectedStudent.school.businessModel !== 'tickets_only'",
+        "Los botones de historial y consumos aparecen SIEMPRE",
+        "No dependen del businessModel del colegio"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "grep -B2 'Historial de tickets' apps/mobile/app/\\(tabs\\)/index.tsx | grep -v 'tickets_only'",
+      "visualVerification": "Abrir app con cualquier colegio > Verificar que aparecen botones de historial",
+      "passes": true
+    },
+    {
+      "id": "US-156",
+      "title": "Verificar compilacion de index.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "cd apps/mobile && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a balance, dailyLimit, totalValue, pricePerTicket",
+        "La pantalla home funciona correctamente"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/index.tsx"
+      ],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-157",
+      "title": "Verificacion visual completa del Home",
+      "description": "Verificar visualmente que el home muestra solo tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "NO aparece 'Saldo disponible' ni ningun monto en CLP de saldo",
+        "NO aparece 'Limite diario'",
+        "SI aparecen tickets: 'Xx almuerzo', 'Xx colacion', etc",
+        "NO aparece valor monetario junto a tickets",
+        "SI aparece boton 'Historial de tickets'",
+        "SI aparece boton 'Consumos'"
+      ],
+      "filesToModify": [],
+      "verification": "cd apps/mobile && npx expo start --clear",
+      "visualVerification": "Abrir app en Expo > Tab Home > Verificar TODOS los criterios listados. Tomar screenshot.",
+      "passes": true
+    },
+    {
+      "id": "US-160",
+      "title": "Eliminar View de Saldo en students.tsx",
+      "description": "Eliminar la seccion que muestra saldo en la lista de estudiantes",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 181-190 con metaItem de 'Saldo'",
+        "Eliminar Text con metaLabel 'Saldo'",
+        "Eliminar Text con formatCLP(student.balance)",
+        "Eliminar estilos de colores de balance"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/students.tsx"
+      ],
+      "verification": "grep -c 'metaLabel.*Saldo\\|Saldo' apps/mobile/app/students.tsx | grep -q '^0$' && echo 'OK: Saldo eliminado'",
+      "visualVerification": "Abrir app > Estudiantes > Verificar que NO aparece 'Saldo' en las tarjetas",
+      "passes": true
+    },
+    {
+      "id": "US-161",
+      "title": "Mantener solo tickets visibles en tarjeta de estudiante",
+      "description": "Asegurar que la tarjeta de estudiante muestra solo tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Cada tarjeta de estudiante muestra sus tickets",
+        "Formato: 'Xx tipo' sin valor monetario",
+        "Si no tiene tickets, mostrar 'Sin tickets'"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/students.tsx"
+      ],
+      "verification": "grep -n 'ticket.*quantity\\|Sin tickets' apps/mobile/app/students.tsx",
+      "visualVerification": "Abrir app > Estudiantes > Verificar que cada tarjeta muestra tickets correctamente",
+      "passes": true
+    },
+    {
+      "id": "US-162",
+      "title": "Verificar compilacion de students.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "cd apps/mobile && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a balance ni valores de saldo"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/students.tsx"
+      ],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-170",
+      "title": "Cambiar titulo de Recargar Saldo a Comprar Tickets",
+      "description": "Cambiar el titulo de la pantalla de recarga",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "ScreenHeader title cambia de 'Recargar Saldo' a 'Comprar Tickets'",
+        "Cualquier otra referencia al titulo tambien cambia",
+        "El titulo es consistente en toda la pantalla"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'Comprar Tickets' apps/mobile/app/recharge.tsx | grep -q '^[1-9]' && echo 'OK: titulo actualizado'",
+      "visualVerification": "Abrir app > Boton Recargar > Verificar que dice 'Comprar Tickets'",
+      "passes": true
+    },
+    {
+      "id": "US-171",
+      "title": "Eliminar seccion Saldo actual en recharge.tsx",
+      "description": "Eliminar la seccion que muestra el saldo actual",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 246-252 con currentBalance",
+        "Eliminar texto 'Saldo actual'",
+        "Eliminar formatCLP(student.balance)"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'Saldo actual\\|currentBalance' apps/mobile/app/recharge.tsx | grep -q '^0$' && echo 'OK: saldo eliminado'",
+      "visualVerification": "Abrir pantalla Comprar Tickets > Verificar que NO aparece 'Saldo actual'",
+      "passes": true
+    },
+    {
+      "id": "US-172",
+      "title": "Eliminar selector de montos rapidos",
+      "description": "Eliminar los botones de montos predefinidos ($5.000, $10.000, etc)",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 265-289 con Surface de montos",
+        "Eliminar texto 'Selecciona un monto'",
+        "Eliminar botones de QUICK_AMOUNTS",
+        "Solo quedan los paquetes de tickets"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'QUICK_AMOUNTS\\|Selecciona un monto' apps/mobile/app/recharge.tsx | grep -q '^0$' && echo 'OK: montos eliminados'",
+      "visualVerification": "Abrir pantalla Comprar Tickets > Verificar que NO hay botones de montos rapidos",
+      "passes": true
+    },
+    {
+      "id": "US-173",
+      "title": "Eliminar input de monto personalizado",
+      "description": "Eliminar el campo de texto para ingresar monto custom",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 291-308 con TextInput de monto",
+        "Eliminar texto 'O ingresa un monto'",
+        "Eliminar validacion de monto minimo/maximo",
+        "Solo se puede comprar paquetes predefinidos"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'O ingresa un monto\\|customAmount' apps/mobile/app/recharge.tsx | grep -q '^0$' && echo 'OK: input eliminado'",
+      "visualVerification": "Abrir pantalla Comprar Tickets > Verificar que NO hay campo de monto personalizado",
+      "passes": true
+    },
+    {
+      "id": "US-174",
+      "title": "Actualizar etiqueta de seccion de paquetes",
+      "description": "Cambiar el titulo de la seccion de paquetes",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Titulo de seccion es: 'Paquetes de tickets disponibles'",
+        "No menciona 'saldo' en ningun lugar",
+        "Es claro que son paquetes de tickets"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'Paquetes de tickets' apps/mobile/app/recharge.tsx | grep -q '^[1-9]' && echo 'OK: etiqueta actualizada'",
+      "visualVerification": "Abrir pantalla Comprar Tickets > Verificar titulo de seccion de paquetes",
+      "passes": true
+    },
+    {
+      "id": "US-175",
+      "title": "Eliminar Nuevo saldo estimado del resumen",
+      "description": "Eliminar la linea que muestra el saldo estimado despues de la compra",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 404-420 con 'Nuevo saldo estimado'",
+        "El resumen solo muestra: paquete seleccionado, cantidad de tickets, precio",
+        "No hay mencion de saldo"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -c 'Nuevo saldo estimado\\|newBalance' apps/mobile/app/recharge.tsx | grep -q '^0$' && echo 'OK: saldo estimado eliminado'",
+      "visualVerification": "Seleccionar paquete > Ver resumen > Verificar que NO aparece 'Nuevo saldo estimado'",
+      "passes": true
+    },
+    {
+      "id": "US-176",
+      "title": "Mostrar resumen de tickets a comprar",
+      "description": "El resumen debe mostrar cuantos tickets se van a agregar",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Resumen muestra: 'Tickets a agregar: X'",
+        "Resumen muestra: 'Tipo: almuerzo/colacion/etc'",
+        "Resumen muestra: 'Precio: $XX.XXX'",
+        "Es claro cuantos tickets se compraran"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -n 'Tickets a agregar\\|ticketCount' apps/mobile/app/recharge.tsx",
+      "visualVerification": "Seleccionar paquete > Ver resumen > Verificar que muestra tickets a agregar",
+      "passes": true
+    },
+    {
+      "id": "US-177",
+      "title": "Actualizar pantalla de exito para mostrar tickets",
+      "description": "La pantalla de exito debe mostrar tickets comprados, no saldo",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Mensaje de exito: 'Compraste X tickets de [tipo]'",
+        "NO mostrar 'Nuevo saldo: $X'",
+        "Mostrar 'Ahora tienes Y tickets de [tipo]' (total)",
+        "Boton para volver al inicio"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "grep -n 'Compraste.*tickets\\|Ahora tienes.*tickets' apps/mobile/app/recharge.tsx",
+      "visualVerification": "Completar compra > Ver pantalla de exito > Verificar mensaje de tickets",
+      "passes": true
+    },
+    {
+      "id": "US-178",
+      "title": "Verificar compilacion de recharge.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "cd apps/mobile && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a balance ni saldo",
+        "La pantalla funciona correctamente"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/recharge.tsx"
+      ],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-179",
+      "title": "Verificacion visual de pantalla de compra",
+      "description": "Verificar que la pantalla de compra muestra solo tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Titulo: 'Comprar Tickets'",
+        "NO aparece 'Saldo actual'",
+        "NO aparecen montos rapidos",
+        "NO aparece input de monto personalizado",
+        "SI aparecen paquetes de tickets con nombre, cantidad, precio",
+        "Resumen muestra tickets a agregar"
+      ],
+      "filesToModify": [],
+      "verification": "cd apps/mobile && npx expo start",
+      "visualVerification": "Abrir app > Boton Recargar > Verificar TODOS los criterios listados. Tomar screenshot.",
+      "passes": true
+    },
+    {
+      "id": "US-190",
+      "title": "Identificar validacion actual de balance en cafeteria.tsx",
+      "description": "Encontrar donde se valida que el balance sea suficiente",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Identificar lineas 289-297 con validacion de balance",
+        "Documentar: if (selectedStudent.balance < cartTotal)",
+        "Documentar: Alert 'Saldo insuficiente'"
+      ],
+      "filesToModify": [],
+      "verification": "grep -n 'Saldo insuficiente\\|balance.*<.*cartTotal' apps/mobile/app/\\(tabs\\)/cafeteria.tsx",
+      "visualVerification": "N/A - tarea de investigacion",
+      "passes": false
+    },
+    {
+      "id": "US-191",
+      "title": "Cambiar validacion de balance a tickets en cafeteria",
+      "description": "Validar por cantidad de tickets en lugar de saldo",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Calcular totalTicketsRequired = cart items quantity total",
+        "Calcular totalTicketsAvailable = suma de todos los tickets del estudiante",
+        "Validar: if (totalTicketsAvailable < totalTicketsRequired)",
+        "La validacion usa tickets, no balance"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/cafeteria.tsx"
+      ],
+      "verification": "grep -n 'totalTicketsRequired\\|totalTicketsAvailable' apps/mobile/app/\\(tabs\\)/cafeteria.tsx",
+      "visualVerification": "N/A - cambio de logica",
+      "passes": false
+    },
+    {
+      "id": "US-192",
+      "title": "Eliminar seccion Saldo disponible de cafeteria",
+      "description": "Eliminar la tarjeta que muestra el saldo en el carrito",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar lineas 441-456 con balanceCard",
+        "Eliminar texto 'Saldo disponible:'",
+        "Eliminar formatCLP(selectedStudent.balance)",
+        "Eliminar mensaje 'Saldo insuficiente'"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/cafeteria.tsx"
+      ],
+      "verification": "grep -c 'Saldo disponible\\|balanceCard' apps/mobile/app/\\(tabs\\)/cafeteria.tsx | grep -q '^0$' && echo 'OK: saldo eliminado'",
+      "visualVerification": "Abrir cafeteria > Agregar items > Verificar que NO aparece 'Saldo disponible'",
+      "passes": false
+    },
+    {
+      "id": "US-193",
+      "title": "Agregar seccion Tickets disponibles en cafeteria",
+      "description": "Mostrar cuantos tickets tiene el estudiante en lugar de saldo",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Agregar Surface/View con 'Tickets disponibles:'",
+        "Mostrar suma total de tickets del estudiante",
+        "Usar estilo similar al anterior de saldo",
+        "Mostrar en color rojo si tickets < items en carrito"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/cafeteria.tsx"
+      ],
+      "verification": "grep -n 'Tickets disponibles' apps/mobile/app/\\(tabs\\)/cafeteria.tsx",
+      "visualVerification": "Abrir cafeteria > Seleccionar estudiante > Verificar que aparece 'Tickets disponibles: X'",
+      "passes": false
+    },
+    {
+      "id": "US-194",
+      "title": "Actualizar mensaje de error a Tickets insuficientes",
+      "description": "Cambiar el mensaje de error cuando no hay suficientes tickets",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Alert.alert('Tickets insuficientes', ...)",
+        "Mensaje: '[nombre] necesita X ticket(s) pero solo tiene Y'",
+        "El mensaje es claro sobre cuantos faltan"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/cafeteria.tsx"
+      ],
+      "verification": "grep -n 'Tickets insuficientes' apps/mobile/app/\\(tabs\\)/cafeteria.tsx",
+      "visualVerification": "Intentar pedir mas items que tickets disponibles > Verificar mensaje de error",
+      "passes": false
+    },
+    {
+      "id": "US-195",
+      "title": "Verificar compilacion de cafeteria.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "cd apps/mobile && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a balance para validacion",
+        "La logica de validacion por tickets funciona"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/(tabs)/cafeteria.tsx"
+      ],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": false
+    },
+    {
+      "id": "US-200",
+      "title": "Cambiar titulo de wallet-history a Historial de Tickets",
+      "description": "Actualizar el titulo de la pantalla de historial",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "ScreenHeader title cambia de 'Historial de Billetera' a 'Historial de Tickets'",
+        "El titulo refleja que es historial de tickets, no de saldo"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -c 'Historial de Tickets' apps/mobile/app/wallet-history.tsx | grep -q '^[1-9]' && echo 'OK: titulo actualizado'",
+      "visualVerification": "Abrir Historial de tickets > Verificar titulo",
+      "passes": true
+    },
+    {
+      "id": "US-201",
+      "title": "Eliminar seccion Saldo Actual de wallet-history",
+      "description": "Eliminar la tarjeta que muestra el saldo actual",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar Surface con balanceCard",
+        "Eliminar texto 'Saldo Actual'",
+        "Eliminar formatCLP(currentBalance)",
+        "La pantalla empieza directamente con el listado"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -c 'Saldo Actual\\|balanceCard\\|currentBalance' apps/mobile/app/wallet-history.tsx | grep -q '^0$' && echo 'OK: saldo eliminado'",
+      "visualVerification": "Abrir Historial de tickets > Verificar que NO aparece 'Saldo Actual'",
+      "passes": true
+    },
+    {
+      "id": "US-202",
+      "title": "Adaptar logs de compra en historial",
+      "description": "Mostrar compras como 'Compraste X tickets de [tipo] por $Y'",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Logs tipo 'deposit' relacionados con tickets muestran: 'Compraste X tickets de [tipo] por $Y'",
+        "El formato es claro y legible",
+        "Incluye tipo de ticket (almuerzo, colacion, etc)",
+        "Incluye precio pagado"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -n 'Compraste.*tickets' apps/mobile/app/wallet-history.tsx",
+      "visualVerification": "Abrir Historial > Ver una compra > Verificar formato del mensaje",
+      "passes": true
+    },
+    {
+      "id": "US-203",
+      "title": "Adaptar logs de consumo en historial",
+      "description": "Mostrar consumos como 'Se resto 1 ticket - [nombre] comio'",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Logs tipo 'purchase' con tickets muestran: 'Se resto X ticket(s) - [nombre] comio'",
+        "Incluye fecha y hora del consumo",
+        "El mensaje es claro para el apoderado",
+        "Muestra tipo de ticket consumido si es relevante"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -n 'Se resto.*ticket' apps/mobile/app/wallet-history.tsx",
+      "visualVerification": "Abrir Historial > Ver un consumo > Verificar formato del mensaje",
+      "passes": true
+    },
+    {
+      "id": "US-204",
+      "title": "Ocultar balanceBefore y balanceAfter en historial",
+      "description": "No mostrar las columnas de saldo antes/despues",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Eliminar View con balanceChange",
+        "Eliminar texto 'Saldo:' con balanceBefore -> balanceAfter",
+        "Los logs no muestran informacion de saldo",
+        "Solo muestran: tipo de operacion, descripcion, fecha"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -c 'balanceBefore\\|balanceAfter\\|Saldo:' apps/mobile/app/wallet-history.tsx | grep -q '^0$' && echo 'OK: balance eliminado'",
+      "visualVerification": "Abrir Historial > Verificar que NO aparece 'Saldo: $X -> $Y'",
+      "passes": true
+    },
+    {
+      "id": "US-205",
+      "title": "Agregar tickets actuales al inicio del historial",
+      "description": "Mostrar cuantos tickets tiene actualmente",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Al inicio del historial, mostrar: 'Tickets actuales: X almuerzo, Y colacion'",
+        "O mostrar como tarjeta resumen",
+        "Es claro cuantos tickets tiene ahora el estudiante"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "grep -n 'Tickets actuales' apps/mobile/app/wallet-history.tsx",
+      "visualVerification": "Abrir Historial > Verificar que muestra tickets actuales al inicio",
+      "passes": true
+    },
+    {
+      "id": "US-206",
+      "title": "Verificar compilacion de wallet-history.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "cd apps/mobile && npx tsc --noEmit ejecuta sin errores",
+        "No hay referencias a balance ni saldo",
+        "La pantalla funciona correctamente"
+      ],
+      "filesToModify": [
+        "apps/mobile/app/wallet-history.tsx"
+      ],
+      "verification": "cd apps/mobile && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-210",
+      "title": "Identificar selector de tipo balance/ticket en admin",
+      "description": "Encontrar donde se selecciona el tipo de paquete en admin",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Encontrar formulario en packages/new/page.tsx",
+        "Identificar radio buttons o select para type: 'ticket' | 'balance'",
+        "Documentar lineas a modificar"
+      ],
+      "filesToModify": [],
+      "verification": "grep -n 'type.*ticket\\|type.*balance\\|radio' apps/admin/src/app/\\(dashboard\\)/packages/new/page.tsx",
+      "visualVerification": "Abrir admin > Paquetes > Nuevo paquete > Ver opciones de tipo",
+      "passes": true
+    },
+    {
+      "id": "US-211",
+      "title": "Ocultar opcion de tipo balance en admin",
+      "description": "Eliminar la opcion de crear paquetes tipo balance",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "El formulario NO muestra opcion 'Saldo' o 'Balance'",
+        "Solo se puede crear paquetes tipo 'ticket'",
+        "O el selector de tipo es removido completamente"
+      ],
+      "filesToModify": [
+        "apps/admin/src/app/(dashboard)/packages/new/page.tsx"
+      ],
+      "verification": "grep -c 'type.*balance\\|Saldo' apps/admin/src/app/\\(dashboard\\)/packages/new/page.tsx | grep -q '^0$' && echo 'OK: balance eliminado'",
+      "visualVerification": "Abrir admin > Paquetes > Nuevo paquete > Verificar que NO hay opcion 'Saldo'",
+      "passes": true
+    },
+    {
+      "id": "US-212",
+      "title": "Forzar type=ticket por defecto",
+      "description": "El formulario debe usar type='ticket' siempre",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "El estado inicial del formulario tiene type: 'ticket'",
+        "Al enviar, siempre se envia type: 'ticket'",
+        "No hay forma de cambiar el tipo a 'balance'"
+      ],
+      "filesToModify": [
+        "apps/admin/src/app/(dashboard)/packages/new/page.tsx"
+      ],
+      "verification": "grep -n 'type.*ticket' apps/admin/src/app/\\(dashboard\\)/packages/new/page.tsx",
+      "visualVerification": "Crear paquete > Verificar que se crea como tipo ticket",
+      "passes": true
+    },
+    {
+      "id": "US-213",
+      "title": "Actualizar labels en formulario de paquetes",
+      "description": "Los labels deben reflejar que son paquetes de tickets",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Titulo: 'Nuevo Paquete de Tickets' o similar",
+        "Label de cantidad: 'Cantidad de tickets'",
+        "Label de tipo de ticket: 'Tipo de ticket (almuerzo, colacion, etc)'",
+        "No mencionar 'saldo' en ningun label"
+      ],
+      "filesToModify": [
+        "apps/admin/src/app/(dashboard)/packages/new/page.tsx"
+      ],
+      "verification": "grep -c 'saldo\\|Saldo' apps/admin/src/app/\\(dashboard\\)/packages/new/page.tsx | grep -q '^0$' && echo 'OK: sin saldo'",
+      "visualVerification": "Abrir admin > Paquetes > Nuevo paquete > Verificar todos los labels",
+      "passes": true
+    },
+    {
+      "id": "US-214",
+      "title": "Verificar compilacion de packages/new/page.tsx",
+      "description": "Asegurar que el archivo compila sin errores",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "cd apps/admin && npx tsc --noEmit ejecuta sin errores",
+        "El formulario funciona correctamente",
+        "Solo permite crear paquetes de tickets"
+      ],
+      "filesToModify": [
+        "apps/admin/src/app/(dashboard)/packages/new/page.tsx"
+      ],
+      "verification": "cd apps/admin && npx tsc --noEmit",
+      "visualVerification": "N/A - verificacion de compilacion",
+      "passes": true
+    },
+    {
+      "id": "US-220",
+      "title": "Verificar build completo del proyecto",
+      "description": "Asegurar que todo el proyecto compila sin errores",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "pnpm build ejecuta sin errores",
+        "Todas las apps compilan: api, admin, mobile",
+        "No hay errores de TypeScript en ningun paquete"
+      ],
+      "filesToModify": [],
+      "verification": "pnpm build",
+      "visualVerification": "N/A - verificacion de build",
+      "passes": false
+    },
+    {
+      "id": "US-221",
+      "title": "Test: Comprar paquete - tickets aumentan, balance NO cambia",
+      "description": "Verificar que al comprar tickets el balance no cambia",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Antes de comprar: anotar balance y tickets del estudiante",
+        "Comprar paquete de 5 tickets",
+        "Despues: tickets aumentaron en 5",
+        "Despues: balance es EXACTAMENTE igual que antes",
+        "El WalletLog muestra la compra pero balanceBefore === balanceAfter"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual de compra de tickets'",
+      "visualVerification": "1. Ver balance y tickets actuales. 2. Comprar paquete. 3. Verificar que tickets aumentaron y balance NO cambio.",
+      "passes": false
+    },
+    {
+      "id": "US-222",
+      "title": "Test: Validar ticket - tickets disminuyen, balance NO cambia",
+      "description": "Verificar que al validar ticket el balance no cambia",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Antes de validar: anotar balance y tickets del estudiante",
+        "Validar 1 ticket en POS/casino",
+        "Despues: tickets disminuyeron en 1",
+        "Despues: balance es EXACTAMENTE igual que antes",
+        "La Transaction se creo con amount: 0"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual de validacion de ticket'",
+      "visualVerification": "1. Ver balance y tickets actuales. 2. Validar ticket en POS. 3. Verificar que tickets disminuyeron y balance NO cambio.",
+      "passes": false
+    },
+    {
+      "id": "US-223",
+      "title": "Test: UI Mobile no muestra saldo en ninguna parte",
+      "description": "Verificar que la palabra 'saldo' no aparece en la UI",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Pantalla Home: NO aparece 'Saldo'",
+        "Pantalla Estudiantes: NO aparece 'Saldo'",
+        "Pantalla Comprar Tickets: NO aparece 'Saldo'",
+        "Pantalla Cafeteria: NO aparece 'Saldo'",
+        "Pantalla Historial: NO aparece 'Saldo'"
+      ],
+      "filesToModify": [],
+      "verification": "grep -ri 'saldo' apps/mobile/app/ | grep -v '.tsx.bak' | wc -l",
+      "visualVerification": "Navegar por TODAS las pantallas de la app mobile buscando la palabra 'Saldo'. No debe aparecer en ninguna.",
+      "passes": false
+    },
+    {
+      "id": "US-224",
+      "title": "Test: Historial muestra compras y consumos de tickets",
+      "description": "Verificar que el historial muestra correctamente",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Compras muestran: 'Compraste X tickets de [tipo] por $Y'",
+        "Consumos muestran: 'Se resto X ticket(s) - [nombre] comio'",
+        "Cada entrada tiene fecha y hora",
+        "NO hay menciones de saldo o balance"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual de historial'",
+      "visualVerification": "Abrir Historial de tickets > Verificar que muestra compras y consumos con formato correcto.",
+      "passes": false
+    },
+    {
+      "id": "US-225",
+      "title": "Test: Admin no permite crear paquetes tipo balance",
+      "description": "Verificar que solo se pueden crear paquetes de tickets",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "En formulario de nuevo paquete NO hay opcion 'Saldo'",
+        "Al crear paquete, siempre se crea como tipo 'ticket'",
+        "No hay forma de crear paquete tipo 'balance'"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual de admin'",
+      "visualVerification": "Admin > Paquetes > Nuevo paquete > Verificar que solo hay opcion de tickets.",
+      "passes": false
+    },
+    {
+      "id": "US-226",
+      "title": "Crear commit con todos los cambios",
+      "description": "Crear commit con mensaje descriptivo",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Todos los archivos modificados estan en staging",
+        "Commit message describe los cambios principales",
+        "Incluye Co-Authored-By: Claude"
+      ],
+      "filesToModify": [],
+      "verification": "git status && git log -1 --oneline",
+      "visualVerification": "N/A - commit de git",
+      "passes": false
+    },
+    {
+      "id": "US-227",
+      "title": "Actualizar AGENTS.md con aprendizajes",
+      "description": "Documentar aprendizajes de esta iteracion",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Agregar seccion: 'Iteracion X - Simplificacion Solo Tickets'",
+        "Documentar: cambios realizados en schema",
+        "Documentar: patron de separar balance y tickets",
+        "Documentar: como funciona el nuevo flujo de compra/validacion"
+      ],
+      "filesToModify": [
+        "AGENTS.md"
+      ],
+      "verification": "grep -n 'Simplificacion Solo Tickets' AGENTS.md",
+      "visualVerification": "N/A - documentacion",
+      "passes": true
+    },
+    {
+      "id": "US-228",
+      "title": "Verificacion E2E final",
+      "description": "Verificacion completa end-to-end del flujo",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "API corriendo en localhost:3001",
+        "Admin corriendo en localhost:3000",
+        "Mobile corriendo en Expo",
+        "Flujo completo: Admin crea paquete -> Mobile compra -> POS valida -> Historial muestra",
+        "TODO funciona sin mencionar saldo"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Verificacion E2E completa'",
+      "visualVerification": "Ejecutar flujo completo con admin, mobile y POS. Documentar con screenshots.",
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "dataModel": {
+      "Wallet": "Mantener balance en BD pero no usarlo ni mostrarlo",
+      "StudentTicket": "Solo tiene: id, studentId, ticketType, quantity, expiresAt",
+      "Transaction": "amount: 0 para consumos de tickets, ticketsUsed: JSON con detalle"
+    },
+    "businessRules": {
+      "compraTickets": "NO actualiza wallet.balance, solo crea/actualiza StudentTicket",
+      "consumoTickets": "Solo decrementa StudentTicket.quantity, NO toca wallet.balance",
+      "historial": "Muestra compras y consumos de tickets, oculta info de saldo"
+    },
+    "uiChanges": {
+      "eliminar": [
+        "Saldo disponible",
+        "Limite diario",
+        "totalValue de tickets",
+        "pricePerTicket"
+      ],
+      "mantener": [
+        "Tickets disponibles",
+        "Historial de tickets",
+        "Paquetes de tickets"
+      ],
+      "renombrar": {
+        "Recargar Saldo": "Comprar Tickets",
+        "Ver historial": "Historial de tickets",
+        "Ver estadisticas": "Consumos"
+      }
+    }
+  },
+  "verificationCommands": {
+    "compileApi": "cd packages/api && npx tsc --noEmit",
+    "compileAdmin": "cd apps/admin && npx tsc --noEmit",
+    "compileMobile": "cd apps/mobile && npx tsc --noEmit",
+    "buildAll": "pnpm build",
+    "prismaValidate": "cd packages/api && npx prisma validate",
+    "prismaMigrate": "cd packages/api && npx prisma migrate dev",
+    "startApi": "cd packages/api && pnpm dev",
+    "startAdmin": "cd apps/admin && pnpm dev",
+    "startMobile": "cd apps/mobile && npx expo start"
+  },
+  "agentsToUse": [
+    {
+      "agent": "database-architect",
+      "for": "US-100 a US-102 (cambios en schema Prisma y migracion)"
+    },
+    {
+      "agent": "backend-architect",
+      "for": "US-110 a US-133 (cambios en payments, casino y students routes)"
+    },
+    {
+      "agent": "frontend-developer",
+      "for": "US-140 a US-206 (cambios en mobile React Native)"
+    },
+    {
+      "agent": "frontend-developer",
+      "for": "US-210 a US-214 (cambios en admin React/Next.js)"
+    },
+    {
+      "agent": "test-engineer",
+      "for": "US-220 a US-225 (testing y verificacion)"
+    },
+    {
+      "agent": "documentation-expert",
+      "for": "US-227 (documentacion en AGENTS.md)"
+    }
+  ]
+}
