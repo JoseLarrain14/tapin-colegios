@@ -30,6 +30,8 @@ export interface AuthResult {
       lastName: string;
       relationship: string;
     };
+    schoolId?: string;
+    schoolName?: string;
   };
   accessToken: string;
   refreshToken: string;
@@ -146,6 +148,8 @@ export class AuthService {
               relationship: user.guardian.relationship,
             }
           : undefined,
+        schoolId: user.schoolAdmin?.schoolId,
+        schoolName: user.schoolAdmin?.school?.name,
       },
       accessToken,
       refreshToken,

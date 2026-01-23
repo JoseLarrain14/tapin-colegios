@@ -7,6 +7,7 @@ export interface User {
   name?: string
   role: 'ADMIN' | 'SCHOOL_ADMIN' | 'PARENT' | 'STUDENT' | 'school_admin' | 'guardian'
   schoolId?: string
+  schoolName?: string
   emailVerified?: boolean
 }
 

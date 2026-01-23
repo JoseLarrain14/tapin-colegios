@@ -1,6 +1,39 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
+import { authService } from '../services/auth.service.js';
+
+// Helper to verify auth token
+async function verifyAuth(request: FastifyRequest, reply: FastifyReply) {
+  const authHeader = request.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    reply.status(401).send({
+      success: false,
+      message: 'Token de acceso requerido',
+    });
+    return null;
+  }
+
+  const token = authHeader.substring(7);
+  const decoded = authService.verifyAccessToken(token);
+
+  if (!decoded) {
+    reply.status(401).send({
+      success: false,
+      message: 'Token invalido o expirado',
+    });
+    return null;
+  }
+
+  return decoded;
+}
+
+// Helper to get guardian from user
+async function getGuardian(userId: string) {
+  return prisma.guardian.findUnique({
+    where: { userId },
+  });
+}
 
 // Validation schemas
 const listTransactionsSchema = z.object({
@@ -343,6 +376,128 @@ export async function transactionsRoutes(app: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         message: 'Error al obtener transaccion',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/transactions/my-consumptions
+   * Get ticket consumptions for the guardian's students (used from mobile app)
+   */
+  app.get('/my-consumptions', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const decoded = await verifyAuth(request, reply);
+      if (!decoded) return;
+
+      const guardian = await getGuardian(decoded.userId);
+      if (!guardian) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Perfil de apoderado no encontrado',
+        });
+      }
+
+      // Get all students linked to this guardian
+      const guardianStudents = await prisma.guardianStudent.findMany({
+        where: { guardianId: guardian.id },
+        select: { studentId: true },
+      });
+
+      const studentIds = guardianStudents.map(gs => gs.studentId);
+
+      if (studentIds.length === 0) {
+        return reply.send({
+          success: true,
+          data: {
+            consumptions: [],
+            totalConsumptions: 0,
+          },
+        });
+      }
+
+      // Get all transactions where ticketsUsed is NOT NULL for these students
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          ticketsUsed: { not: null },
+          wallet: {
+            studentId: { in: studentIds },
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          description: true,
+          ticketsUsed: true,
+          validationMethod: true,
+          source: true,
+          createdAt: true,
+          wallet: {
+            select: {
+              student: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+          cafeteria: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Format response
+      const consumptions = transactions.map(tx => {
+        let ticketsUsed = null;
+        try {
+          ticketsUsed = tx.ticketsUsed ? JSON.parse(tx.ticketsUsed) : null;
+        } catch (e) {
+          console.error('Error parsing tickets used:', e);
+        }
+
+        // Extract ticket info for display
+        const ticketInfo = Array.isArray(ticketsUsed) ? ticketsUsed[0] : ticketsUsed;
+        const ticketType = ticketInfo?.type || 'almuerzo';
+        const ticketQuantity = ticketInfo?.quantity || 1;
+
+        return {
+          id: tx.id,
+          type: 'ticket_consumption',
+          ticketsUsed,
+          ticketType,
+          ticketQuantity,
+          description: tx.description,
+          validationMethod: tx.validationMethod,
+          source: tx.source,
+          createdAt: tx.createdAt,
+          student: {
+            id: tx.wallet.student.id,
+            firstName: tx.wallet.student.firstName,
+            lastName: tx.wallet.student.lastName,
+          },
+          cafeteria: tx.cafeteria,
+        };
+      });
+
+      return reply.send({
+        success: true,
+        data: {
+          consumptions,
+          totalConsumptions: consumptions.length,
+        },
+      });
+    } catch (error) {
+      console.error('Get my consumptions error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Error al obtener consumos de tickets',
       });
     }
   });

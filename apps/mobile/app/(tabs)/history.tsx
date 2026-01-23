@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
-import { apiService, Student, Order, WalletLog, Payment } from '../../src/services/api';
+import { apiService, Student, Order, WalletLog, Payment, TicketConsumption } from '../../src/services/api';
 import { formatDateTime, formatRelativeTime, formatCLP, formatShortDate } from '../../src/utils/dateFormat';
 import { NetworkError } from '../../src/components/NetworkError';
 
@@ -18,7 +18,7 @@ interface OrderItem {
 
 interface TransactionItem {
   id: string;
-  type: 'order' | 'payment' | 'wallet_log';
+  type: 'order' | 'payment' | 'wallet_log' | 'ticket_consumption';
   title: string;
   description: string;
   amount: number;
@@ -34,6 +34,9 @@ interface TransactionItem {
   pickupDate?: string;
   pickupTime?: string;
   comments?: string;
+  // Ticket consumption fields
+  ticketType?: string;
+  ticketQuantity?: number;
 }
 
 export default function HistoryTab() {
@@ -104,6 +107,12 @@ export default function HistoryTab() {
         ? paymentsResponse.data.payments || []
         : [];
 
+      // Get ticket consumptions
+      const consumptionsResponse = await apiService.getTicketConsumptions(accessToken);
+      const consumptions = consumptionsResponse.success && consumptionsResponse.data
+        ? consumptionsResponse.data.consumptions || []
+        : [];
+
       // Transform orders to transaction items
       const orderTransactions: TransactionItem[] = orders.map((order: Order) => ({
         id: order.id,
@@ -137,8 +146,25 @@ export default function HistoryTab() {
         studentName: payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : undefined,
       }));
 
+      // Transform ticket consumptions to transaction items
+      const consumptionTransactions: TransactionItem[] = consumptions.map((consumption: TicketConsumption) => ({
+        id: consumption.id,
+        type: 'ticket_consumption' as const,
+        title: 'Ticket usado',
+        description: `${consumption.ticketQuantity} ticket(s) de ${consumption.ticketType}`,
+        amount: 0, // Tickets don't have monetary value
+        isPositive: false,
+        timestamp: consumption.createdAt,
+        status: 'completed',
+        studentName: `${consumption.student.firstName} ${consumption.student.lastName}`,
+        source: consumption.source,
+        cafeteriaName: consumption.cafeteria?.name,
+        ticketType: consumption.ticketType,
+        ticketQuantity: consumption.ticketQuantity,
+      }));
+
       // Combine and sort by timestamp (most recent first)
-      const allTransactions = [...orderTransactions, ...paymentTransactions].sort(
+      const allTransactions = [...orderTransactions, ...paymentTransactions, ...consumptionTransactions].sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
@@ -420,6 +446,7 @@ export default function HistoryTab() {
       case 'order': return '🍽️';
       case 'payment': return '💳';
       case 'wallet_log': return '💰';
+      case 'ticket_consumption': return '🎫';
       default: return '📋';
     }
   };
@@ -786,12 +813,16 @@ export default function HistoryTab() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tickets usados:</Text>
             <Text style={styles.summaryValue}>
-              {formatCLP(filteredTransactions.filter(t => !t.isPositive).reduce((sum, t) => sum + t.amount, 0))}
+              {filteredTransactions
+                .filter(t => t.type === 'ticket_consumption')
+                .reduce((sum, t) => sum + (t.ticketQuantity || 0), 0)} ticket(s)
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Transacciones:</Text>
-            <Text style={styles.summaryValue}>{filteredTransactions.length}</Text>
+            <Text style={styles.summaryLabel}>Recargas:</Text>
+            <Text style={styles.summaryValue}>
+              {filteredTransactions.filter(t => t.type === 'payment').length}
+            </Text>
           </View>
         </Surface>
 

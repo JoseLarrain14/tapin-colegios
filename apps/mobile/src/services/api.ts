@@ -208,6 +208,20 @@ export interface CreateOrderData {
   comments?: string;
 }
 
+export interface TicketConsumption {
+  id: string;
+  type: 'ticket_consumption';
+  ticketsUsed: Array<{ type: string; quantity: number }> | null;
+  ticketType: string;
+  ticketQuantity: number;
+  description?: string;
+  validationMethod?: string;
+  source: 'app' | 'casino';
+  createdAt: string;
+  student: { id: string; firstName: string; lastName: string };
+  cafeteria?: { id: string; name: string };
+}
+
 
 class ApiService {
   private client: AxiosInstance;
@@ -1009,6 +1023,28 @@ class ApiService {
         return { success: false, message: error.message };
       }
       return { success: false, message: 'Error al obtener pedidos' };
+    }
+  }
+
+  async getTicketConsumptions(accessToken: string): Promise<ApiResponse<{
+    consumptions: TicketConsumption[];
+    totalConsumptions: number;
+  }>> {
+    try {
+      const response = await this.client.get<ApiResponse<{
+        consumptions: TicketConsumption[];
+        totalConsumptions: number;
+      }>>('/transactions/my-consumptions', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Error al obtener consumos de tickets' };
     }
   }
 

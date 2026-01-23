@@ -60,7 +60,23 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGRlNmY5OC00MjFkLTQzZWQtYjkwYy1mNWRmNjk4OGY2OTQiLCJyb2xlIjoic2Nob29sX2FkbWluIiwiaWF0IjoxNzY4NzU3MTc2LCJleHAiOjE3Njg3NTgwNzYsInNjaG9vbElkIjoiYzhlNGFmZDMtNTIyNy00MzMxLTk2NTAtODU1MjUxYWRhMThlIn0.0s_PDwBQ8KaDTyf4esVyebl1ops_gWKB7Cdv5utMBNs\")",
       "Bash(chmod:*)",
       "Bash(pnpm run dev:mobile:*)",
-      "Bash(npx kill-port 8081)"
+      "Bash(npx kill-port 8081)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx prisma:*)",
+      "Bash(pnpm build:api:*)",
+      "Bash(pnpm build:admin:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGRlNmY5OC00MjFkLTQzZWQtYjkwYy1mNWRmNjk4OGY2OTQiLCJyb2xlIjoic2Nob29sX2FkbWluIiwiaWF0IjoxNzY4OTIzMzY4LCJleHAiOjE3Njg5MjQyNjgsInNjaG9vbElkIjoiYzhlNGFmZDMtNTIyNy00MzMxLTk2NTAtODU1MjUxYWRhMThlIn0.kAZTQwd-KNNB68fbPH3LIXEaT0amI7HV9tkh-51apII\")",
+      "Bash(sqlite3:*)",
+      "Bash(git -C \"C:\\\\Users\\\\josel\\\\Documents\\\\app-casinos-tapin\" diff packages/api/src/routes/menu-planning.routes.ts)",
+      "Bash(npm run dev:admin:*)",
+      "Bash(git reset:*)",
+      "Bash(git push:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh api:*)"
     ]
   }
 }

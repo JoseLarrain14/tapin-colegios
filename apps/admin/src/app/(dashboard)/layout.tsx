@@ -63,9 +63,20 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile Header */}
       <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Tap In Colegios
-        </h1>
+        <div>
+          {isSchoolAdmin && user?.schoolName ? (
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bienvenido</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate max-w-[200px]">
+                {user.schoolName}
+              </h1>
+            </>
+          ) : (
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              Tap In Colegios
+            </h1>
+          )}
+        </div>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -84,12 +95,23 @@ export default function DashboardLayout({
         <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           {/* Logo */}
           <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              Tap In Colegios
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Panel de Administración
-            </p>
+            {isSchoolAdmin && user?.schoolName ? (
+              <>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Bienvenido</p>
+                <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400 leading-tight">
+                  {user.schoolName}
+                </h1>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  Tap In Colegios
+                </h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Panel de Administración
+                </p>
+              </>
+            )}
           </div>
 
           {/* Navigation */}
@@ -140,9 +162,18 @@ export default function DashboardLayout({
             >
               {/* Logo */}
               <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-                <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  Tap In Colegios
-                </h1>
+                {isSchoolAdmin && user?.schoolName ? (
+                  <>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Bienvenido</p>
+                    <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400 leading-tight">
+                      {user.schoolName}
+                    </h1>
+                  </>
+                ) : (
+                  <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    Tap In Colegios
+                  </h1>
+                )}
               </div>
 
               {/* Navigation */}
