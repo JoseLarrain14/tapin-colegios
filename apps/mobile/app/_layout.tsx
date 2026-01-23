@@ -10,8 +10,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
 
-// Load icon fonts for web
-if (Platform.OS === 'web') {
+// Load icon fonts for web (only runs on client, not during SSR)
+function loadWebIconFonts() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
   const iconFontStyles = `
     @font-face {
       font-family: 'MaterialCommunityIcons';
@@ -128,6 +130,11 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     ...MaterialCommunityIcons.font,
   });
+
+  // Load icon fonts for web on client mount
+  useEffect(() => {
+    loadWebIconFonts();
+  }, []);
 
   if (!fontsLoaded) {
     return (
