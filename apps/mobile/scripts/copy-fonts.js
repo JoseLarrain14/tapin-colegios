@@ -37,6 +37,9 @@ if (fs.existsSync(assetsDir)) {
     console.log(`Copied: ${fileName}`);
   }
 
+  // Regex to replace long asset paths with simple /fonts/ paths
+  const fontPathRegex = /\/assets\/__node_modules\/[^"'\)]+\/Fonts\/([^"'\)]+\.ttf)/g;
+
   // Update JS bundle to use new font paths
   const expoDir = path.join(distDir, '_expo', 'static', 'js', 'web');
   if (fs.existsSync(expoDir)) {
@@ -44,15 +47,40 @@ if (fs.existsSync(assetsDir)) {
     for (const jsFile of jsFiles) {
       const jsPath = path.join(expoDir, jsFile);
       let content = fs.readFileSync(jsPath, 'utf8');
-
-      // Replace long asset paths with simple /fonts/ paths
-      const regex = /\/assets\/__node_modules\/[^"']+\/Fonts\/([^"']+\.ttf)/g;
-      const newContent = content.replace(regex, '/fonts/$1');
+      const newContent = content.replace(fontPathRegex, '/fonts/$1');
 
       if (content !== newContent) {
         fs.writeFileSync(jsPath, newContent);
-        console.log(`Updated font paths in: ${jsFile}`);
+        console.log(`Updated font paths in JS: ${jsFile}`);
       }
+    }
+  }
+
+  // Update HTML files to use new font paths
+  function findHtmlFiles(dir, htmlFiles = []) {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const fullPath = path.join(dir, file);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        findHtmlFiles(fullPath, htmlFiles);
+      } else if (file.endsWith('.html')) {
+        htmlFiles.push(fullPath);
+      }
+    }
+    return htmlFiles;
+  }
+
+  const htmlFiles = findHtmlFiles(distDir);
+  console.log(`Found ${htmlFiles.length} HTML files`);
+
+  for (const htmlPath of htmlFiles) {
+    let content = fs.readFileSync(htmlPath, 'utf8');
+    const newContent = content.replace(fontPathRegex, '/fonts/$1');
+
+    if (content !== newContent) {
+      fs.writeFileSync(htmlPath, newContent);
+      console.log(`Updated font paths in HTML: ${path.basename(htmlPath)}`);
     }
   }
 
