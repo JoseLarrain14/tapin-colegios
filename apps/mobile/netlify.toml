@@ -7,11 +7,12 @@
   EXPO_PUBLIC_API_URL = "https://tapinapi-production.up.railway.app/api/v1"
   EXPO_PUBLIC_ENV = "production"
 
-# Redirects para SPA (Expo Router)
+# SPA redirect - solo aplica si el archivo no existe (force = false es default)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 # Headers de seguridad
 [[headers]]
@@ -29,5 +30,10 @@
 
 [[headers]]
   for = "/_expo/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
