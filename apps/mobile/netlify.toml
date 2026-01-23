@@ -7,6 +7,23 @@
   EXPO_PUBLIC_API_URL = "https://tapinapi-production.up.railway.app/api/v1"
   EXPO_PUBLIC_ENV = "production"
 
+# Serve font files directly (must be before the SPA redirect)
+[[redirects]]
+  from = "/fonts/*"
+  to = "/fonts/:splat"
+  status = 200
+
+# Serve static assets directly
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/_expo/*"
+  to = "/_expo/:splat"
+  status = 200
+
 # SPA redirect - solo aplica si el archivo no existe (force = false es default)
 [[redirects]]
   from = "/*"
@@ -33,7 +50,10 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+# Font files with proper MIME type
 [[headers]]
   for = "/fonts/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "font/ttf"
+    Access-Control-Allow-Origin = "*"
