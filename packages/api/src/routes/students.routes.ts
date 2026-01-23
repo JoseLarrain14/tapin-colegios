@@ -69,9 +69,7 @@ function formatRut(rut: string): string {
 const createStudentSchema = z.object({
   firstName: z.string().min(1, 'Nombre es requerido'),
   lastName: z.string().min(1, 'Apellido es requerido'),
-  rut: z.string().min(8, 'RUT debe tener al menos 8 caracteres').refine(validateRut, {
-    message: 'RUT invalido',
-  }),
+  rut: z.string().min(7, 'RUT debe tener al menos 7 caracteres'),
   schoolId: z.string().uuid('ID de colegio invalido'),
   grade: z.string().optional(),
   section: z.string().optional(),
