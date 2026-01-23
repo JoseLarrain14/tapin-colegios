@@ -1,5 +1,5 @@
 [build]
-  command = "npm install && npm run build"
+  command = "cd ../.. && npm install -g pnpm && pnpm install && cd apps/admin && pnpm run build"
   publish = ".next"
 
 [build.environment]
