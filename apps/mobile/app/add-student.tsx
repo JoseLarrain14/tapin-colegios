@@ -43,24 +43,9 @@ function validateRutDetailed(rut: string): RutValidationResult {
 
   const cleanedRut = cleanRut(rut);
 
-  if (cleanedRut.length < 8 || cleanedRut.length > 9) {
-    return { valid: false, error: 'format', message: 'El RUT debe tener entre 8 y 9 caracteres' };
-  }
-
-  const rutNumber = cleanedRut.slice(0, -1);
-  const providedDigit = cleanedRut.slice(-1);
-
-  if (!/^\d+$/.test(rutNumber)) {
-    return { valid: false, error: 'format', message: 'El RUT contiene caracteres invalidos' };
-  }
-
-  if (!/^[0-9K]$/.test(providedDigit)) {
-    return { valid: false, error: 'format', message: 'El digito verificador debe ser un numero o K' };
-  }
-
-  const calculatedDigit = calculateVerificationDigit(rutNumber);
-  if (providedDigit !== calculatedDigit) {
-    return { valid: false, error: 'digit', message: 'El digito verificador es incorrecto. Por favor verifica el RUT.' };
+  // Solo verificar longitud mínima (7 caracteres mínimo para RUTs cortos)
+  if (cleanedRut.length < 7 || cleanedRut.length > 9) {
+    return { valid: false, error: 'format', message: 'El RUT debe tener entre 7 y 9 caracteres' };
   }
 
   return { valid: true };
