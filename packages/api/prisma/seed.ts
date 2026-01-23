@@ -237,6 +237,51 @@ async function main() {
     console.log(`✅ Created/Updated guardian profile: ${guardian.firstName} ${guardian.lastName}`);
 
     // =========================================================================
+    // 4b. Additional Guardian User (tapin@prueba.cl)
+    // =========================================================================
+    const tapinPassword = await bcrypt.hash('tapin123', SALT_ROUNDS);
+    const tapinUser = await prisma.user.upsert({
+      where: { email: 'tapin@prueba.cl' },
+      update: {
+        passwordHash: tapinPassword,
+        role: 'guardian',
+        active: true,
+        emailVerified: true,
+      },
+      create: {
+        email: 'tapin@prueba.cl',
+        passwordHash: tapinPassword,
+        role: 'guardian',
+        active: true,
+        emailVerified: true,
+      },
+    });
+    console.log(`✅ Created/Updated guardian user: ${tapinUser.email}`);
+
+    // Create Guardian profile for tapin@prueba.cl
+    const tapinGuardian = await prisma.guardian.upsert({
+      where: { userId: tapinUser.id },
+      update: {
+        firstName: 'Usuario',
+        lastName: 'Prueba',
+        phone: '+56900000000',
+        rut: '99999999-9',
+        relationship: 'father',
+        preferredSchoolId: firstSchool.id,
+      },
+      create: {
+        userId: tapinUser.id,
+        firstName: 'Usuario',
+        lastName: 'Prueba',
+        phone: '+56900000000',
+        rut: '99999999-9',
+        relationship: 'father',
+        preferredSchoolId: firstSchool.id,
+      },
+    });
+    console.log(`✅ Created/Updated guardian profile: ${tapinGuardian.firstName} ${tapinGuardian.lastName}`);
+
+    // =========================================================================
     // Create Cafeteria for testing
     // =========================================================================
     const cafeteria = await prisma.cafeteria.upsert({
@@ -527,6 +572,7 @@ async function main() {
   console.log('   School Admin:       admin@colegio.cl / admin123');
   console.log('   Cafeteria Operator: casino@colegio.cl / casino123');
   console.log('   Guardian (Mobile):  apoderado@test.cl / apoderado123');
+  console.log('   Guardian (Mobile):  tapin@prueba.cl / tapin123');
   console.log('='.repeat(60));
   console.log('');
   console.log('✨ Seeding completed!');
