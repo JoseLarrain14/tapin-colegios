@@ -1,5 +1,5 @@
 [build]
-  command = "npm install && npm run build"
+  command = "cd ../.. && pnpm install && cd apps/mobile && pnpm run build"
   publish = "dist"
 
 [build.environment]
