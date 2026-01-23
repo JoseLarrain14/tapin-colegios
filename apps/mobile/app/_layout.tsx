@@ -10,21 +10,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
 
-// Load icon fonts for web (only runs on client, not during SSR)
-function loadWebIconFonts() {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-
-  // Check if already loaded
-  if (document.getElementById('mdi-font-css')) return;
-
-  // Load Material Design Icons CSS from CDN
-  const link = document.createElement('link');
-  link.id = 'mdi-font-css';
-  link.rel = 'stylesheet';
-  link.href = 'https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css';
-  document.head.appendChild(link);
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -124,12 +109,7 @@ export default function RootLayout() {
     Platform.OS === 'web' ? {} : MaterialCommunityIcons.font
   );
 
-  // Load icon fonts for web on client mount
-  useEffect(() => {
-    loadWebIconFonts();
-  }, []);
-
-  // On native, wait for fonts; on web, fonts come from CDN
+  // On native, wait for fonts; on web, fonts come from +html.tsx
   if (Platform.OS !== 'web' && !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>

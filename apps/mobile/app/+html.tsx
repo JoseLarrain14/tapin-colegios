@@ -15,9 +15,10 @@ export default function Root({ children }: PropsWithChildren) {
         <style dangerouslySetInnerHTML={{ __html: `
           @font-face {
             font-family: 'MaterialCommunityIcons';
-            src: url('https://unpkg.com/react-native-vector-icons@10.0.3/Fonts/MaterialCommunityIcons.ttf') format('truetype');
+            src: url('https://cdn.jsdelivr.net/npm/react-native-vector-icons@10.2.0/Fonts/MaterialCommunityIcons.ttf') format('truetype');
             font-weight: normal;
             font-style: normal;
+            font-display: swap;
           }
         `}} />
 
