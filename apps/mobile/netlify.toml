@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  EXPO_PUBLIC_API_URL = "https://tapinapi-production.up.railway.app/api/v1"
+  EXPO_PUBLIC_ENV = "production"
 
 # Redirects para SPA (Expo Router)
 [[redirects]]
