@@ -11,7 +11,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-        {/* MaterialCommunityIcons font for @expo/vector-icons */}
+        {/* Icon fonts for @expo/vector-icons - loaded via local /fonts/ after build */}
         <style dangerouslySetInnerHTML={{ __html: `
           @font-face {
             font-family: 'MaterialCommunityIcons';
