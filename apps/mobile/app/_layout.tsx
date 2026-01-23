@@ -4,11 +4,33 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
+
+// Load icon fonts for web
+if (Platform.OS === 'web') {
+  const iconFontStyles = `
+    @font-face {
+      font-family: 'MaterialCommunityIcons';
+      src: url(https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/fonts/materialdesignicons-webfont.woff2) format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Material Icons';
+      src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+  `;
+  const style = document.createElement('style');
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(iconFontStyles));
+  document.head.appendChild(style);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
