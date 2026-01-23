@@ -14,24 +14,15 @@ import { useAuthStore } from '../src/store/authStore';
 function loadWebIconFonts() {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
 
-  const iconFontStyles = `
-    @font-face {
-      font-family: 'MaterialCommunityIcons';
-      src: url(https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/fonts/materialdesignicons-webfont.woff2) format('woff2');
-      font-weight: normal;
-      font-style: normal;
-    }
-    @font-face {
-      font-family: 'Material Icons';
-      src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
-      font-weight: normal;
-      font-style: normal;
-    }
-  `;
-  const style = document.createElement('style');
-  style.type = 'text/css';
-  style.appendChild(document.createTextNode(iconFontStyles));
-  document.head.appendChild(style);
+  // Check if already loaded
+  if (document.getElementById('mdi-font-css')) return;
+
+  // Load Material Design Icons CSS from CDN
+  const link = document.createElement('link');
+  link.id = 'mdi-font-css';
+  link.rel = 'stylesheet';
+  link.href = 'https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css';
+  document.head.appendChild(link);
 }
 
 const queryClient = new QueryClient({
