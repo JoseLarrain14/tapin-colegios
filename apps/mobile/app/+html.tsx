@@ -11,11 +11,15 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-        {/* Material Design Icons font */}
-        <link
-          href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css"
-          rel="stylesheet"
-        />
+        {/* MaterialCommunityIcons font for @expo/vector-icons */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @font-face {
+            font-family: 'MaterialCommunityIcons';
+            src: url('https://unpkg.com/react-native-vector-icons@10.0.3/Fonts/MaterialCommunityIcons.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
+        `}} />
 
         {/*
           Disable body scrolling on web. This makes ScrollView components work closer to how they do on native.
