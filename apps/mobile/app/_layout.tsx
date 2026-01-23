@@ -118,16 +118,19 @@ const styles = StyleSheet.create({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    ...MaterialCommunityIcons.font,
-  });
+  // On web, skip expo-font loading (causes 404) and use CDN fonts from +html.tsx
+  // On native, load fonts normally
+  const [fontsLoaded] = useFonts(
+    Platform.OS === 'web' ? {} : MaterialCommunityIcons.font
+  );
 
   // Load icon fonts for web on client mount
   useEffect(() => {
     loadWebIconFonts();
   }, []);
 
-  if (!fontsLoaded) {
+  // On native, wait for fonts; on web, fonts come from CDN
+  if (Platform.OS !== 'web' && !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
