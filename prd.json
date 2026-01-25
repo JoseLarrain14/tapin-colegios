@@ -57,7 +57,7 @@
         "Manejar SSR (typeof window check)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -70,7 +70,7 @@
         "Sin dependencias de React Native",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -86,7 +86,7 @@
         "Exportar ApiService class y apiService instance",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
@@ -102,7 +102,7 @@
         "Mantener: login, logout, register, checkAuth, refreshAccessToken",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
@@ -115,7 +115,7 @@
         "Sin cambios necesarios (es Zustand puro)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-009",
@@ -233,7 +233,7 @@
         "Estilo: pequeño, rounded-full, colores según variant",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-017",
