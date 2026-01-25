@@ -61,7 +61,28 @@ export default function SpendingStatsScreen() {
       // Get stats
       const statsResponse = await apiService.getWalletStats(params.studentId, period, accessToken);
       if (statsResponse.success && statsResponse.data) {
-        setStats(statsResponse.data);
+        // Mapear respuesta del backend a la estructura esperada por el frontend
+        const backendData = statsResponse.data as any;
+        const transactionCount = backendData.summary?.transactionCount || 0;
+        const totalSpent = backendData.summary?.totalSpent || 0;
+
+        setStats({
+          period: backendData.period || period,
+          startDate: backendData.startDate || new Date().toISOString(),
+          endDate: backendData.endDate || new Date().toISOString(),
+          summary: {
+            totalSpent,
+            transactionCount,
+            averagePerTransaction: transactionCount > 0 ? totalSpent / transactionCount : 0,
+            currentBalance: studentResponse.data?.balance || 0,
+          },
+          // El backend puede enviar 'breakdown' o 'chartData', mapeamos ambos
+          chartData: (backendData.breakdown || backendData.chartData || []).map((item: any) => ({
+            label: item.label,
+            spent: item.spent,
+            count: item.transactions || item.count || 0,
+          })),
+        });
       } else {
         // Si no hay stats disponibles, mostrar datos vacíos en lugar de error
         setStats({
@@ -234,18 +255,11 @@ export default function SpendingStatsScreen() {
                   {stats.summary.transactionCount}
                 </Text>
               </View>
-              <View style={styles.summaryItem}>
+              <View style={[styles.summaryItem, styles.summaryItemWide]}>
                 <MaterialCommunityIcons name="calculator" size={24} color={colors.warning} />
                 <Text style={styles.summaryLabel}>Promedio</Text>
                 <Text style={styles.summaryValue}>
                   {formatCLP(stats.summary.averagePerTransaction)}
-                </Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <MaterialCommunityIcons name="ticket" size={24} color={colors.success} />
-                <Text style={styles.summaryLabel}>Consumos</Text>
-                <Text style={[styles.summaryValue, styles.balanceValue]}>
-                  {stats.summary.transactionCount} tickets
                 </Text>
               </View>
             </View>
@@ -383,6 +397,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     alignItems: 'center',
+  },
+  summaryItemWide: {
+    width: '100%',
   },
   summaryLabel: {
     fontSize: 12,
