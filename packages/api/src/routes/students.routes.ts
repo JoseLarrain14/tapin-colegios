@@ -3,26 +3,9 @@ import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authService } from '../services/auth.service.js';
 
-// RUT validation functions (copied from shared utils for now)
+// RUT validation functions (flexible validation - does NOT verify check digit)
 function cleanRut(rut: string): string {
   return rut.replace(/[.\-\s]/g, '').toUpperCase();
-}
-
-function calculateVerificationDigit(rutNumber: string | number): string {
-  const rut = String(rutNumber);
-  let sum = 0;
-  let multiplier = 2;
-
-  for (let i = rut.length - 1; i >= 0; i--) {
-    sum += parseInt(rut[i], 10) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-
-  const remainder = 11 - (sum % 11);
-
-  if (remainder === 11) return '0';
-  if (remainder === 10) return 'K';
-  return String(remainder);
 }
 
 function validateRut(rut: string): boolean {
@@ -32,7 +15,8 @@ function validateRut(rut: string): boolean {
 
   const cleanedRut = cleanRut(rut);
 
-  if (cleanedRut.length < 8 || cleanedRut.length > 9) {
+  // Allow 7-9 characters (flexible for shorter RUTs)
+  if (cleanedRut.length < 7 || cleanedRut.length > 9) {
     return false;
   }
 
@@ -43,12 +27,12 @@ function validateRut(rut: string): boolean {
     return false;
   }
 
+  // Only check that digit is a valid character (0-9 or K), NOT mathematically correct
   if (!/^[0-9K]$/.test(providedDigit)) {
     return false;
   }
 
-  const calculatedDigit = calculateVerificationDigit(rutNumber);
-  return providedDigit === calculatedDigit;
+  return true;
 }
 
 function formatRut(rut: string): string {
@@ -775,21 +759,28 @@ export async function studentsRoutes(app: FastifyInstance) {
 
         const { rut } = request.params;
 
-        // Validate RUT
+        // Validate RUT format (flexible - does not check verification digit)
         if (!validateRut(rut)) {
           return reply.status(400).send({
             success: false,
-            message: 'RUT invalido',
+            message: 'RUT invalido. Debe tener entre 7 y 9 caracteres',
           });
         }
 
+        // Generate multiple possible formats for flexible search
+        const cleanedRut = cleanRut(rut);
         const formattedRut = formatRut(rut);
+        const rutWithDash = `${cleanedRut.slice(0, -1)}-${cleanedRut.slice(-1)}`; // XXXXXXXX-X
 
-        // Search for student by RUT
+        // Search for student by RUT - try multiple formats
         const student = await prisma.student.findFirst({
           where: {
-            rut: formattedRut,
             active: true,
+            OR: [
+              { rut: formattedRut },    // XX.XXX.XXX-X (standard format)
+              { rut: cleanedRut },       // XXXXXXXXX (no formatting)
+              { rut: rutWithDash },      // XXXXXXXX-X (dash only, no dots)
+            ],
           },
           include: {
             school: {

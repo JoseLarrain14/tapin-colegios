@@ -33,9 +33,10 @@ export function calculateVerificationDigit(rutNumber: string | number): string {
 }
 
 /**
- * Validate a Chilean RUT
+ * Validate a Chilean RUT format (flexible validation - does NOT verify the check digit)
+ * Only validates that the format is correct (7-9 characters, digits + valid check digit character)
  * @param rut - RUT string in any format (with or without dots/hyphen)
- * @returns true if valid, false otherwise
+ * @returns true if format is valid, false otherwise
  */
 export function validateRut(rut: string): boolean {
   if (!rut || typeof rut !== 'string') {
@@ -44,8 +45,8 @@ export function validateRut(rut: string): boolean {
 
   const cleanedRut = cleanRut(rut);
 
-  // Must be at least 8 characters (7 digits + 1 verification digit)
-  if (cleanedRut.length < 8 || cleanedRut.length > 9) {
+  // Must be between 7-9 characters (6-8 digits + 1 verification digit)
+  if (cleanedRut.length < 7 || cleanedRut.length > 9) {
     return false;
   }
 
@@ -58,14 +59,23 @@ export function validateRut(rut: string): boolean {
     return false;
   }
 
-  // Check if verification digit is valid (0-9 or K)
+  // Check if verification digit is valid character (0-9 or K)
   if (!/^[0-9K]$/.test(providedDigit)) {
     return false;
   }
 
-  // Calculate and compare verification digit
-  const calculatedDigit = calculateVerificationDigit(rutNumber);
-  return providedDigit === calculatedDigit;
+  return true;
+}
+
+/**
+ * Compare two RUTs ignoring format differences
+ * @param rut1 - First RUT
+ * @param rut2 - Second RUT
+ * @returns true if both RUTs are the same (ignoring format)
+ */
+export function compareRuts(rut1: string, rut2: string): boolean {
+  if (!rut1 || !rut2) return false;
+  return cleanRut(rut1) === cleanRut(rut2);
 }
 
 /**
@@ -91,6 +101,7 @@ export function formatRut(rut: string): string {
 
 /**
  * Parse RUT and extract its components
+ * Note: isValid only checks format, not the mathematical validity of the check digit
  */
 export function parseRut(rut: string): {
   isValid: boolean;
@@ -115,6 +126,22 @@ export function parseRut(rut: string): {
     verificationDigit: cleanedRut.slice(-1),
     formatted: formatRut(rut),
   };
+}
+
+/**
+ * Validate RUT with strict check digit verification (optional, for special cases)
+ * @param rut - RUT string
+ * @returns true if RUT format is valid AND check digit is mathematically correct
+ */
+export function validateRutStrict(rut: string): boolean {
+  if (!validateRut(rut)) return false;
+
+  const cleanedRut = cleanRut(rut);
+  const rutNumber = cleanedRut.slice(0, -1);
+  const providedDigit = cleanedRut.slice(-1);
+  const calculatedDigit = calculateVerificationDigit(rutNumber);
+
+  return providedDigit === calculatedDigit;
 }
 
 /**
