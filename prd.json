@@ -131,7 +131,7 @@
         "Usar cookie 'auth_token' para verificar",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-010",
