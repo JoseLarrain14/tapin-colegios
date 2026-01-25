@@ -348,6 +348,12 @@ export default function EditStudentScreen() {
   };
 
   const handleSubmit = async () => {
+    // DESHABILITADO - Pantalla solo lectura
+    // La edición de estudiantes está deshabilitada. El botón de guardar está oculto.
+    // Mantenemos la función para uso futuro.
+    return;
+
+    /* Código original comentado para uso futuro
     if (!validateForm()) {
       return;
     }
@@ -410,6 +416,7 @@ export default function EditStudentScreen() {
     } finally {
       setSaving(false);
     }
+    Código original comentado hasta aquí */
   };
 
   const handleDelete = () => {
@@ -462,7 +469,7 @@ export default function EditStudentScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScreenHeader
-          title="Editar Estudiante"
+          title="Detalle Estudiante"
           showBackButton={true}
         />
         <View style={styles.loadingContainer}>
@@ -476,17 +483,8 @@ export default function EditStudentScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
-        title="Editar Estudiante"
+        title="Detalle Estudiante"
         showBackButton={true}
-        rightAction={
-          <IconButton
-            icon="delete"
-            size={24}
-            onPress={handleDelete}
-            iconColor={colors.error}
-            disabled={deleting || saving}
-          />
-        }
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -541,14 +539,12 @@ export default function EditStudentScreen() {
             {/* First Name */}
             <View style={styles.inputContainer}>
               <TextInput
-                label="Nombre *"
+                label="Nombre"
                 value={firstName}
-                onChangeText={setFirstName}
+                editable={false}
                 mode="outlined"
-                error={!!errors.firstName}
-                style={styles.input}
+                style={[styles.input, styles.readOnlyInput]}
                 outlineColor={colors.border}
-                activeOutlineColor={colors.primary}
               />
               {errors.firstName && (
                 <View accessibilityRole="alert" accessibilityLiveRegion="polite">
@@ -562,14 +558,12 @@ export default function EditStudentScreen() {
             {/* Last Name */}
             <View style={styles.inputContainer}>
               <TextInput
-                label="Apellido *"
+                label="Apellido"
                 value={lastName}
-                onChangeText={setLastName}
+                editable={false}
                 mode="outlined"
-                error={!!errors.lastName}
-                style={styles.input}
+                style={[styles.input, styles.readOnlyInput]}
                 outlineColor={colors.border}
-                activeOutlineColor={colors.primary}
               />
               {errors.lastName && (
                 <View accessibilityRole="alert" accessibilityLiveRegion="polite">
@@ -583,17 +577,12 @@ export default function EditStudentScreen() {
             {/* RUT */}
             <View style={styles.inputContainer}>
               <TextInput
-                label="RUT *"
+                label="RUT"
                 value={rut}
-                onChangeText={handleRutChange}
-                onBlur={handleRutBlur}
+                editable={false}
                 mode="outlined"
-                error={!!errors.rut}
-                style={styles.input}
-                placeholder="12.345.678-9"
+                style={[styles.input, styles.readOnlyInput]}
                 outlineColor={colors.border}
-                activeOutlineColor={colors.primary}
-                autoCapitalize="characters"
               />
               {errors.rut ? (
                 <HelperText type="error" visible={true}>
@@ -771,7 +760,7 @@ export default function EditStudentScreen() {
             </View>
           </Surface>
 
-          {/* Submit Button */}
+          {/* Botón Guardar deshabilitado - Pantalla solo lectura
           <Button
             mode="contained"
             onPress={handleSubmit}
@@ -783,6 +772,7 @@ export default function EditStudentScreen() {
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </Button>
+          */}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -948,6 +938,10 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.background,
+  },
+  readOnlyInput: {
+    backgroundColor: '#F5F5F5',
+    color: '#666666',
   },
   divider: {
     marginVertical: spacing.lg,

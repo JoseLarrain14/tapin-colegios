@@ -121,17 +121,17 @@ export default function StudentsScreen() {
 
         {students.length === 0 && !error && (
           <Surface style={styles.emptyCard} elevation={1}>
-            <Text style={styles.emptyTitle}>No tienes estudiantes</Text>
+            <Text style={styles.emptyTitle}>No tienes estudiantes vinculados</Text>
             <Text style={styles.emptyText}>
-              Agrega a tus hijos para comenzar a gestionar sus almuerzos escolares.
+              Busca a tus hijos por RUT y vincúlalos para gestionar sus almuerzos escolares.
             </Text>
             <Button
               mode="contained"
               onPress={handleAddStudent}
               style={styles.emptyButton}
-              icon="plus"
+              icon="link-variant"
             >
-              Agregar Estudiante
+              Vincular Estudiante
             </Button>
           </Surface>
         )}
@@ -166,7 +166,7 @@ export default function StudentsScreen() {
                 </View>
               </View>
               <IconButton
-                icon="pencil"
+                icon="eye"
                 size={20}
                 onPress={() => handleEditStudent(student)}
                 style={styles.editButton}
@@ -199,10 +199,10 @@ export default function StudentsScreen() {
       </ScrollView>
 
       <FAB
-        icon="plus"
+        icon="link-variant"
         style={styles.fab}
         onPress={handleAddStudent}
-        label="Agregar"
+        label="Vincular"
         color="#FFFFFF"
       />
     </SafeAreaView>

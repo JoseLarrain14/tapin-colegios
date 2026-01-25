@@ -1,0 +1,630 @@
+{
+  "projectName": "Solo Vincular Estudiantes - Casino Carga Datos",
+  "branchName": "feature/solo-vincular-estudiantes",
+  "description": "Cambiar el flujo de gestión de estudiantes para que los padres NO puedan crear estudiantes, solo vincularlos. El casino será responsable de cargar todos los estudiantes mediante importación CSV/Excel, incluyendo los emails de los padres asociados. Cuando un padre busca por RUT, el sistema validará si su email coincide con los emails registrados y mostrará una indicación visual. Los padres solo podrán vincular estudiantes existentes o desvincularlos, pero no podrán crear ni editar datos de estudiantes.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Agregar campo parentEmails al modelo Student en schema.prisma",
+      "description": "Como desarrollador backend, necesito agregar un nuevo campo opcional 'parentEmails' al modelo Student para almacenar los emails de los padres/apoderados asociados a cada estudiante, permitiendo validaciones posteriores en el flujo de vinculación.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "El campo 'parentEmails' debe ser de tipo String? (opcional) en el modelo Student",
+        "Debe incluir el decorador @map(\"parent_emails\") para mapear correctamente a la columna en la base de datos",
+        "El campo debe ubicarse después del campo 'curso' y antes de 'createdAt'",
+        "La sintaxis Prisma debe ser válida y seguir las convenciones del proyecto",
+        "El campo debe aceptar múltiples emails separados por coma o punto y coma",
+        "Debe incluir comentario explicativo: // Emails de padres/apoderados separados por comas"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\prisma\\schema.prisma"
+      ],
+      "verification": "grep -n 'parentEmails' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\prisma\\schema.prisma",
+      "visualVerification": "Verificar que el archivo schema.prisma contiene la línea con 'parentEmails String? @map(\"parent_emails\")' en el modelo Student",
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Ejecutar migración de Prisma para agregar columna parent_emails",
+      "description": "Como desarrollador backend, necesito ejecutar la migración de Prisma para crear la nueva columna 'parent_emails' en la tabla 'students' de la base de datos, asegurando que la estructura de datos esté sincronizada con el schema.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Ejecutar comando 'npx prisma migrate dev --name add-parent-emails-to-student' en el directorio packages/api",
+        "La migración debe crear exitosamente la columna 'parent_emails' en la tabla 'students'",
+        "La columna debe ser de tipo TEXT y permitir valores NULL",
+        "El archivo de migración debe generarse en packages/api/prisma/migrations/",
+        "El cliente Prisma debe regenerarse automáticamente después de la migración",
+        "Verificar que no hay errores en la salida del comando de migración"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\prisma\\migrations\\*_add_parent_emails_to_student\\migration.sql"
+      ],
+      "verification": "cd C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api && npx prisma migrate status",
+      "visualVerification": "Verificar que el comando muestra 'Database schema is up to date!' y que existe el archivo de migración en la carpeta migrations",
+      "passes": true
+    },
+    {
+      "id": "US-010",
+      "title": "Modificar parseo CSV para incluir columna Emails_Padres",
+      "description": "Como administrador del casino, necesito que el sistema lea y procese la columna 'Emails_Padres' del archivo CSV importado, para poder asociar emails de padres a cada estudiante durante la carga masiva.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Localizar la función de parseo CSV en admin.routes.ts (buscar 'parse' o 'csv')",
+        "Agregar 'Emails_Padres' o 'Emails Padres' a la lista de columnas esperadas del CSV",
+        "Extraer el valor de la columna Emails_Padres para cada fila procesada",
+        "Almacenar el valor en una variable 'parentEmails' o 'emails_padres'",
+        "Validar que el campo es opcional (no debe fallar si viene vacío)",
+        "Mantener compatibilidad con CSVs antiguos que no tienen esta columna"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts"
+      ],
+      "verification": "grep -n 'Emails_Padres\\|parentEmails' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts",
+      "visualVerification": "Buscar en admin.routes.ts la función que procesa CSV y verificar que incluye lógica para extraer Emails_Padres",
+      "passes": true
+    },
+    {
+      "id": "US-011",
+      "title": "Modificar parseo Excel para incluir columna Emails_Padres",
+      "description": "Como administrador del casino, necesito que el sistema lea y procese la columna 'Emails_Padres' del archivo Excel importado, para poder asociar emails de padres a cada estudiante durante la carga masiva mediante archivos .xlsx.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Localizar la función de parseo Excel en admin.routes.ts (buscar 'xlsx' o 'excel')",
+        "Agregar 'Emails_Padres' o 'Emails Padres' a la lista de columnas esperadas del Excel",
+        "Extraer el valor de la columna Emails_Padres para cada fila procesada",
+        "Almacenar el valor en una variable 'parentEmails' o 'emails_padres'",
+        "Validar que el campo es opcional (no debe fallar si viene vacío)",
+        "Mantener compatibilidad con archivos Excel antiguos que no tienen esta columna"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts"
+      ],
+      "verification": "grep -n 'xlsx\\|excel' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts | head -20",
+      "visualVerification": "Buscar en admin.routes.ts la función que procesa Excel y verificar que incluye lógica para extraer Emails_Padres",
+      "passes": true
+    },
+    {
+      "id": "US-012",
+      "title": "Guardar parentEmails en la creación de estudiantes durante importación",
+      "description": "Como desarrollador backend, necesito asegurar que el valor de 'parentEmails' extraído del CSV/Excel se guarde correctamente en el campo correspondiente del modelo Student al crear cada registro en la base de datos.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Localizar la llamada a prisma.student.create o prisma.student.createMany en admin.routes.ts",
+        "Agregar el campo 'parentEmails' al objeto de datos que se envía a Prisma",
+        "Mapear correctamente el valor extraído del CSV/Excel al campo parentEmails",
+        "Manejar valores vacíos, null o undefined correctamente (guardar como null)",
+        "Normalizar el formato de emails (trim, lowercase) antes de guardar",
+        "No debe romper la importación si parentEmails viene vacío o no existe"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts"
+      ],
+      "verification": "grep -A 10 'student.create' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts | grep parentEmails",
+      "visualVerification": "Verificar que en la llamada a prisma.student.create existe el campo parentEmails siendo asignado",
+      "passes": true
+    },
+    {
+      "id": "US-013",
+      "title": "Incluir parentEmails en el listado de estudiantes para administradores",
+      "description": "Como administrador del casino, necesito ver los emails de padres asociados a cada estudiante en el listado de estudiantes del panel admin, para verificar que la importación fue correcta.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Localizar el endpoint GET que devuelve el listado de estudiantes en admin.routes.ts o students.routes.ts",
+        "Verificar que el select de Prisma incluye el campo 'parentEmails'",
+        "Si no está incluido, agregar 'parentEmails: true' al objeto select",
+        "El campo debe estar disponible en la respuesta JSON del endpoint",
+        "No debe afectar el rendimiento de la consulta (es un campo simple)",
+        "Verificar que el tipo de retorno TypeScript incluye parentEmails?: string | null"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts",
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts"
+      ],
+      "verification": "grep -B 5 -A 15 'prisma.student.findMany' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts | grep -E 'parentEmails|select'",
+      "visualVerification": "Verificar que en la consulta findMany existe un select que incluye parentEmails",
+      "passes": true
+    },
+    {
+      "id": "US-014",
+      "title": "Obtener email del usuario autenticado en búsqueda por RUT",
+      "description": "Como desarrollador backend, necesito acceder al email del usuario autenticado (padre) que está buscando un estudiante por RUT, para poder compararlo con los emails registrados en parentEmails del estudiante.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Localizar el endpoint de búsqueda por RUT en students.routes.ts (probablemente GET /students/search o similar)",
+        "Verificar que el endpoint tiene middleware de autenticación (req.user debe estar disponible)",
+        "Extraer el email del usuario autenticado desde req.user.email o similar",
+        "Almacenar el email en una variable 'userEmail' para uso posterior",
+        "Agregar validación: si no hay usuario autenticado, retornar error 401",
+        "Agregar log para debugging: console.log('User email:', userEmail)"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts"
+      ],
+      "verification": "grep -B 5 -A 20 'rut' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts | grep -E 'req.user|email'",
+      "visualVerification": "Verificar que en el handler del endpoint de búsqueda se extrae req.user.email",
+      "passes": true
+    },
+    {
+      "id": "US-015",
+      "title": "Comparar email del usuario con parentEmails y retornar isEmailMatch",
+      "description": "Como padre usuario, necesito que el sistema compare mi email con los emails registrados en el estudiante buscado, y me indique si soy uno de los padres/apoderados registrados para ese estudiante.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Después de encontrar el estudiante por RUT, extraer el campo 'parentEmails'",
+        "Si parentEmails es null o vacío, isEmailMatch debe ser false",
+        "Si parentEmails contiene emails, dividir por coma o punto y coma",
+        "Normalizar todos los emails a lowercase y hacer trim",
+        "Comparar el email del usuario (también normalizado) con cada email en la lista",
+        "Agregar campo 'isEmailMatch: boolean' al objeto de respuesta del estudiante",
+        "Si hay coincidencia exacta, isEmailMatch = true, sino false"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts"
+      ],
+      "verification": "grep -A 30 'rut' C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts | grep isEmailMatch",
+      "visualVerification": "Verificar que la respuesta del endpoint incluye la propiedad isEmailMatch con valor booleano",
+      "passes": true
+    },
+    {
+      "id": "US-016",
+      "title": "Verificar compilación exitosa del backend después de cambios",
+      "description": "Como desarrollador, necesito asegurar que todos los cambios en el backend compilan correctamente sin errores de TypeScript, para garantizar que el código está listo para testing.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Ejecutar 'npm run build' en el directorio packages/api",
+        "No debe haber errores de compilación de TypeScript",
+        "No debe haber errores de tipos relacionados con parentEmails",
+        "No debe haber errores de tipos relacionados con isEmailMatch",
+        "El proceso debe completarse con código de salida 0",
+        "Ejecutar 'npx prisma generate' para asegurar que el cliente Prisma está actualizado"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\admin.routes.ts",
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api\\src\\routes\\students.routes.ts"
+      ],
+      "verification": "cd C:\\Users\\josel\\Documents\\app-casinos-tapin\\packages\\api && npm run build",
+      "visualVerification": "Verificar que la salida del comando no muestra errores y termina exitosamente",
+      "passes": true
+    },
+    {
+      "id": "US-020",
+      "title": "Actualizar interface SearchedStudent con campo isEmailMatch",
+      "description": "Como desarrollador frontend, necesito actualizar la interfaz TypeScript SearchedStudent para incluir el nuevo campo 'isEmailMatch' que viene del backend, evitando errores de tipo.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar la interface SearchedStudent en add-student.tsx o en un archivo de tipos compartido",
+        "Agregar el campo 'isEmailMatch?: boolean' a la interface",
+        "El campo debe ser opcional (?) ya que puede no venir en estudiantes existentes",
+        "Ubicar el campo al final de la interface para mantener orden lógico",
+        "Verificar que no hay otras interfaces relacionadas que necesiten actualización",
+        "Agregar comentario: // Indica si el email del usuario coincide con parentEmails"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -n 'interface.*Student' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx | head -5",
+      "visualVerification": "Verificar que la interface SearchedStudent incluye el campo isEmailMatch?: boolean",
+      "passes": true
+    },
+    {
+      "id": "US-021",
+      "title": "Forzar mode='link' por defecto en add-student.tsx",
+      "description": "Como desarrollador frontend, necesito que el componente AddStudent siempre inicie en modo 'link' (vincular), eliminando la opción de crear estudiantes para los padres.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el estado 'mode' en add-student.tsx (useState)",
+        "Cambiar el valor inicial de 'link' | 'create' a únicamente 'link'",
+        "Modificar la línea: const [mode, setMode] = useState<'link' | 'create'>('link') a const [mode] = useState<'link'>('link')",
+        "Eliminar 'setMode' del destructuring ya que no se usará más",
+        "Buscar cualquier llamada a setMode() y comentarla o eliminarla",
+        "El modo debe permanecer siempre como 'link' durante todo el ciclo de vida del componente"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -n \"useState.*mode\" C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+      "visualVerification": "Verificar que el estado mode está definido como const [mode] = useState<'link'>('link')",
+      "passes": true
+    },
+    {
+      "id": "US-022",
+      "title": "Ocultar SegmentedButtons de selección de modo en add-student.tsx",
+      "description": "Como padre usuario, no debo ver el selector de modo (Vincular/Crear) en la pantalla de agregar estudiante, ya que solo está disponible la opción de vincular.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el componente SegmentedButtons en add-student.tsx",
+        "Comentar completamente el bloque JSX que contiene los SegmentedButtons",
+        "Agregar comentario explicativo: {/* Modo CREATE deshabilitado - Solo vinculación permitida */}",
+        "Verificar que no queden imports sin usar relacionados con SegmentedButtons",
+        "El espacio visual que ocupaba debe eliminarse (no dejar espacio en blanco)",
+        "La UI debe mostrar directamente el campo de búsqueda por RUT"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -n 'SegmentedButtons' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+      "visualVerification": "Verificar que el código de SegmentedButtons está comentado y tiene el comentario explicativo",
+      "passes": true
+    },
+    {
+      "id": "US-023",
+      "title": "Comentar formulario CREATE completo en add-student.tsx",
+      "description": "Como desarrollador, necesito preservar el código del formulario de creación de estudiantes comentándolo, para que pueda ser restaurado en el futuro si se requiere, sin que se muestre en la UI actual.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el bloque condicional {mode === 'create' && (...)} en add-student.tsx",
+        "Comentar todo el bloque JSX del formulario de creación usando {/* ... */}",
+        "Agregar comentario al inicio: {/* FORMULARIO CREATE - Deshabilitado temporalmente - Solo vinculación activa */}",
+        "Asegurar que todos los campos (nombre, apellido, RUT, curso, etc.) quedan comentados",
+        "Verificar que el botón de submit del formulario CREATE también está comentado",
+        "El código debe permanecer legible y bien indentado dentro de los comentarios"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -B 2 'mode === .create' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+      "visualVerification": "Verificar que el bloque del modo create está completamente comentado con el comentario explicativo",
+      "passes": true
+    },
+    {
+      "id": "US-024",
+      "title": "Actualizar mensaje de error cuando RUT no se encuentra",
+      "description": "Como padre usuario, cuando busco un RUT que no existe en el sistema, necesito recibir un mensaje claro indicándome que debo contactar al colegio/casino para que agreguen al estudiante.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el manejo de error cuando la búsqueda por RUT no retorna resultados",
+        "Buscar el mensaje actual de error (probablemente 'Estudiante no encontrado' o similar)",
+        "Cambiar el mensaje a: 'Estudiante no registrado. Por favor, contacte al colegio o casino para que agreguen al estudiante al sistema.'",
+        "El mensaje debe mostrarse usando el componente de error/alerta existente (Snackbar, Toast, etc.)",
+        "El mensaje debe ser visible durante al menos 5 segundos",
+        "Debe limpiar el campo de búsqueda después de mostrar el error"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -n 'no encontrado\\|not found\\|contacte' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+      "visualVerification": "Verificar que el código contiene el mensaje 'Estudiante no registrado. Por favor, contacte al colegio o casino'",
+      "passes": true
+    },
+    {
+      "id": "US-025",
+      "title": "Agregar badge 'Este es tu hijo' cuando isEmailMatch es true",
+      "description": "Como padre usuario, cuando busco un estudiante y mi email coincide con los emails registrados, necesito ver un badge visual que indique 'Este es tu hijo' para identificarlo fácilmente.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Después de recibir searchedStudent del backend, verificar el valor de isEmailMatch",
+        "Si isEmailMatch === true, mostrar un Badge o Chip con el texto 'Este es tu hijo'",
+        "El badge debe tener un color distintivo (verde o azul) para resaltar",
+        "Ubicar el badge junto al nombre del estudiante en los resultados de búsqueda",
+        "El badge debe usar el componente Chip de react-native-paper si está disponible",
+        "Si isEmailMatch === false o undefined, no mostrar ningún badge"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx"
+      ],
+      "verification": "grep -n 'Este es tu hijo\\|isEmailMatch' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+      "visualVerification": "Verificar que existe un componente condicional que muestra 'Este es tu hijo' basado en isEmailMatch",
+      "passes": true
+    },
+    {
+      "id": "US-026",
+      "title": "Cambiar título de edit-student.tsx a 'Detalle Estudiante'",
+      "description": "Como padre usuario, cuando accedo a la pantalla de edición de estudiante, necesito ver el título 'Detalle Estudiante' en lugar de 'Editar Estudiante', reflejando que es solo lectura.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el título de la pantalla en edit-student.tsx (probablemente en Stack.Screen o Appbar)",
+        "Cambiar el texto de 'Editar Estudiante' a 'Detalle Estudiante'",
+        "Si hay un subtitle o descripción, actualizarlo a 'Información del estudiante vinculado'",
+        "Verificar que no hay otros textos en la pantalla que mencionen 'editar'",
+        "El cambio debe reflejarse en el header de la navegación",
+        "Mantener el mismo estilo visual del título"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx"
+      ],
+      "verification": "grep -n 'Editar\\|Edit\\|title' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx | head -10",
+      "visualVerification": "Verificar que el título de la pantalla dice 'Detalle Estudiante' y no 'Editar Estudiante'",
+      "passes": true
+    },
+    {
+      "id": "US-027",
+      "title": "Hacer todos los campos de edit-student.tsx solo lectura",
+      "description": "Como padre usuario, cuando veo el detalle de un estudiante vinculado, todos los campos deben ser de solo lectura ya que no tengo permisos para modificar la información del estudiante.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar todos los componentes TextInput en edit-student.tsx",
+        "Agregar la prop 'editable={false}' a cada TextInput",
+        "Agregar la prop 'disabled={true}' como respaldo",
+        "Los campos deben verse visualmente deshabilitados (color gris, sin cursor)",
+        "Verificar que no hay dropdowns o selects editables (curso, etc.)",
+        "Si hay selects, deben mostrarse como texto plano o deshabilitados",
+        "El RUT, nombre, apellido, curso deben ser todos solo lectura"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx"
+      ],
+      "verification": "grep -n 'TextInput\\|editable\\|disabled' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx",
+      "visualVerification": "Verificar que todos los TextInput tienen editable={false} o disabled={true}",
+      "passes": true
+    },
+    {
+      "id": "US-028",
+      "title": "Ocultar botón guardar/actualizar en edit-student.tsx",
+      "description": "Como padre usuario, no debo ver el botón de guardar o actualizar en la pantalla de detalle del estudiante, ya que no puedo realizar modificaciones.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el botón de guardar/actualizar en edit-student.tsx (probablemente Button con texto 'Guardar' o 'Actualizar')",
+        "Comentar completamente el botón usando {/* ... */}",
+        "Agregar comentario: {/* Botón guardar deshabilitado - Pantalla solo lectura */}",
+        "Verificar que no hay funciones de submit o update que se ejecuten automáticamente",
+        "Si hay un formulario wrapping, considerar comentarlo también",
+        "La pantalla debe mostrar solo los datos sin acciones de modificación"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx"
+      ],
+      "verification": "grep -n 'Button\\|onPress\\|Guardar\\|Actualizar' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx",
+      "visualVerification": "Verificar que el botón de guardar está comentado con el comentario explicativo",
+      "passes": true
+    },
+    {
+      "id": "US-029",
+      "title": "Ocultar opción de eliminar estudiante en edit-student.tsx",
+      "description": "Como padre usuario, no debo ver la opción de eliminar estudiante en la pantalla de detalle, ya que esta acción solo debe estar disponible para administradores del casino.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el botón o menú de eliminar estudiante en edit-student.tsx",
+        "Comentar completamente el elemento de eliminación usando {/* ... */}",
+        "Agregar comentario: {/* Opción eliminar deshabilitada - Solo administradores pueden eliminar */}",
+        "Verificar que no hay dialogs de confirmación de eliminación accesibles",
+        "Si hay un icono de basurero o trash, debe ser comentado también",
+        "Considerar agregar un botón 'Desvincular' como alternativa (solo desvincula, no elimina)"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx"
+      ],
+      "verification": "grep -n 'eliminar\\|delete\\|trash\\|remove' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx",
+      "visualVerification": "Verificar que la opción de eliminar está comentada y tiene el comentario explicativo",
+      "passes": true
+    },
+    {
+      "id": "US-030",
+      "title": "Cambiar icono de lápiz (edit) a ojo (view) en students.tsx",
+      "description": "Como padre usuario, cuando veo el listado de mis estudiantes vinculados, el icono de acción debe ser un ojo (view/ver) en lugar de un lápiz (edit/editar), indicando que solo puedo ver detalles.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el icono de edición en students.tsx (probablemente IconButton con 'pencil' o 'edit')",
+        "Cambiar el nombre del icono de 'pencil' a 'eye' o 'eye-outline'",
+        "Si se usa Material Icons, cambiar de 'edit' a 'visibility'",
+        "El icono debe mantener el mismo tamaño y posición",
+        "La acción del icono (onPress) debe seguir navegando a edit-student.tsx",
+        "Considerar cambiar el color del icono a uno más neutral (azul en lugar de verde/amarillo)"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx"
+      ],
+      "verification": "grep -n 'icon.*pencil\\|icon.*edit\\|icon.*eye' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx",
+      "visualVerification": "Verificar que el icono cambió de 'pencil' o 'edit' a 'eye' o 'eye-outline'",
+      "passes": true
+    },
+    {
+      "id": "US-031",
+      "title": "Cambiar texto del FAB de 'Agregar' a 'Vincular Estudiante'",
+      "description": "Como padre usuario, cuando veo el botón flotante (FAB) en la pantalla de estudiantes, debe decir 'Vincular Estudiante' en lugar de 'Agregar Estudiante', reflejando la acción real disponible.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el FAB (FloatingActionButton) en students.tsx",
+        "Cambiar el label o texto de 'Agregar Estudiante' a 'Vincular Estudiante'",
+        "Si el FAB tiene un label corto, cambiarlo a 'Vincular'",
+        "Considerar cambiar el icono del FAB de 'plus' a 'link' o 'account-plus-outline'",
+        "El tooltip (si existe) debe decir 'Vincular un estudiante existente'",
+        "Mantener la misma funcionalidad de navegación a add-student.tsx"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx"
+      ],
+      "verification": "grep -n 'FAB\\|Agregar\\|label' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx",
+      "visualVerification": "Verificar que el FAB tiene el texto 'Vincular Estudiante' o 'Vincular'",
+      "passes": true
+    },
+    {
+      "id": "US-032",
+      "title": "Actualizar texto de estado vacío en students.tsx",
+      "description": "Como padre usuario, cuando no tengo estudiantes vinculados, el mensaje de estado vacío debe indicar claramente que debo vincular estudiantes, no crearlos.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Localizar el componente de estado vacío en students.tsx (EmptyState, Text condicional, etc.)",
+        "Cambiar el mensaje de 'No hay estudiantes. Agrega uno.' a 'No tienes estudiantes vinculados. Busca y vincula a tus hijos.'",
+        "Si hay un subtítulo, actualizarlo a 'Los estudiantes deben estar registrados por el casino. Búscalos por RUT.'",
+        "El mensaje debe ser claro y orientar al usuario sobre los pasos a seguir",
+        "Mantener el mismo estilo visual del mensaje de estado vacío",
+        "El botón de acción en el estado vacío debe decir 'Vincular Estudiante'"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx"
+      ],
+      "verification": "grep -n 'No hay\\|vacío\\|empty\\|estudiantes' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx",
+      "visualVerification": "Verificar que el mensaje de estado vacío menciona 'vincular' en lugar de 'agregar' o 'crear'",
+      "passes": true
+    },
+    {
+      "id": "US-033",
+      "title": "Verificar compilación exitosa de la app mobile",
+      "description": "Como desarrollador, necesito asegurar que todos los cambios en la app mobile compilan correctamente sin errores de TypeScript o React, preparando el código para testing.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Ejecutar 'npm run build' o 'npx expo export' en el directorio apps/mobile",
+        "No debe haber errores de compilación de TypeScript",
+        "No debe haber errores de tipos relacionados con isEmailMatch",
+        "No debe haber warnings críticos de React o componentes",
+        "Verificar que no hay imports sin usar después de comentar código",
+        "El proceso debe completarse con código de salida 0"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\add-student.tsx",
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\edit-student.tsx",
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile\\app\\students.tsx"
+      ],
+      "verification": "cd C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\mobile && npm run type-check",
+      "visualVerification": "Verificar que no hay errores de TypeScript en la salida del comando",
+      "passes": true
+    },
+    {
+      "id": "US-040",
+      "title": "Agregar columna 'Emails Padres' a tabla de estudiantes en admin",
+      "description": "Como administrador del casino, necesito ver una nueva columna 'Emails Padres' en la tabla de estudiantes del panel admin, para verificar qué emails están asociados a cada estudiante.",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Localizar el componente de tabla de estudiantes en apps/admin/src/app/(dashboard)/students/page.tsx",
+        "Agregar una nueva columna con header 'Emails Padres' después de la columna 'Curso'",
+        "La columna debe mostrar el valor de student.parentEmails",
+        "Si parentEmails es null o vacío, mostrar '-' o 'No especificado'",
+        "Si hay múltiples emails, mostrarlos separados por comas legiblemente",
+        "La columna debe ser responsiva y truncar si el contenido es muy largo",
+        "Agregar tooltip para ver emails completos si están truncados"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin\\src\\app\\(dashboard)\\students\\page.tsx"
+      ],
+      "verification": "grep -n 'Emails.*Padres\\|parentEmails' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin\\src\\app\\(dashboard)\\students\\page.tsx",
+      "visualVerification": "Verificar que existe una columna con header 'Emails Padres' en la definición de la tabla",
+      "passes": true
+    },
+    {
+      "id": "US-041",
+      "title": "Actualizar instrucciones de importación con columna Emails_Padres",
+      "description": "Como administrador del casino, cuando veo las instrucciones para importar estudiantes, necesito saber que puedo incluir la columna 'Emails_Padres' con los emails de los padres separados por comas.",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Localizar el modal o sección de instrucciones de importación en page.tsx",
+        "Agregar 'Emails_Padres (opcional)' a la lista de columnas esperadas",
+        "Incluir ejemplo: 'padre1@mail.com, padre2@mail.com'",
+        "Especificar que los emails deben separarse por comas",
+        "Indicar que la columna es opcional y puede dejarse vacía",
+        "Actualizar cualquier plantilla CSV/Excel de ejemplo para incluir la columna",
+        "Si hay descarga de plantilla, agregar la columna Emails_Padres al archivo"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin\\src\\app\\(dashboard)\\students\\page.tsx"
+      ],
+      "verification": "grep -n 'instrucciones\\|columnas\\|CSV\\|Excel' C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin\\src\\app\\(dashboard)\\students\\page.tsx",
+      "visualVerification": "Verificar que las instrucciones mencionan la columna Emails_Padres con formato y ejemplo",
+      "passes": true
+    },
+    {
+      "id": "US-042",
+      "title": "Verificar compilación exitosa de la app admin",
+      "description": "Como desarrollador, necesito asegurar que todos los cambios en el panel admin compilan correctamente sin errores de TypeScript o Next.js, preparando el código para deployment.",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Ejecutar 'npm run build' en el directorio apps/admin",
+        "No debe haber errores de compilación de TypeScript",
+        "No debe haber errores de tipos relacionados con parentEmails",
+        "No debe haber errores de renderizado de Next.js",
+        "Verificar que no hay warnings críticos de React Server Components",
+        "El proceso debe completarse con código de salida 0 y generar el build exitosamente"
+      ],
+      "filesToModify": [
+        "C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin\\src\\app\\(dashboard)\\students\\page.tsx"
+      ],
+      "verification": "cd C:\\Users\\josel\\Documents\\app-casinos-tapin\\apps\\admin && npm run build",
+      "visualVerification": "Verificar que el build de Next.js se completa sin errores",
+      "passes": true
+    },
+    {
+      "id": "US-050",
+      "title": "Test: Importar archivo CSV con columna Emails_Padres",
+      "description": "Como QA, necesito verificar que el sistema puede importar correctamente un archivo CSV que incluye la columna Emails_Padres y que los datos se guardan correctamente en la base de datos.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Crear un archivo CSV de prueba con columnas: RUT, Nombre, Apellido, Curso, Emails_Padres",
+        "Incluir al menos 3 filas con diferentes escenarios: con emails, sin emails, múltiples emails",
+        "Importar el CSV desde el panel admin",
+        "Verificar que la importación se completa sin errores",
+        "Consultar la base de datos para verificar que parentEmails se guardó correctamente",
+        "Verificar en la tabla del admin que la columna Emails Padres muestra los valores importados"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual - Crear CSV y verificar importación desde panel admin'",
+      "visualVerification": "1. Crear CSV con Emails_Padres. 2. Importar en admin. 3. Verificar columna Emails Padres muestra datos. 4. Verificar en DB que parentEmails tiene valores correctos.",
+      "passes": false
+    },
+    {
+      "id": "US-051",
+      "title": "Test: Búsqueda de estudiante con email match (isEmailMatch = true)",
+      "description": "Como QA, necesito verificar que cuando un padre busca un estudiante por RUT y su email coincide con parentEmails, el sistema retorna isEmailMatch = true y muestra el badge 'Este es tu hijo'.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Crear un estudiante en la DB con RUT '12345678-9' y parentEmails 'padre@test.com'",
+        "Iniciar sesión en la app mobile con usuario que tenga email 'padre@test.com'",
+        "Navegar a la pantalla de vincular estudiante",
+        "Buscar por RUT '12345678-9'",
+        "Verificar que el backend retorna isEmailMatch: true en la respuesta",
+        "Verificar que aparece el badge 'Este es tu hijo' en la UI",
+        "Verificar que se puede vincular el estudiante correctamente"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual - Verificar isEmailMatch true y badge en app mobile'",
+      "visualVerification": "1. Login con email que coincide. 2. Buscar estudiante con ese email en parentEmails. 3. Verificar badge verde 'Este es tu hijo'. 4. Vincular exitosamente.",
+      "passes": false
+    },
+    {
+      "id": "US-052",
+      "title": "Test: Búsqueda de estudiante sin email match (isEmailMatch = false)",
+      "description": "Como QA, necesito verificar que cuando un padre busca un estudiante por RUT y su email NO coincide con parentEmails, el sistema retorna isEmailMatch = false y NO muestra el badge.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Usar el estudiante creado anteriormente con parentEmails 'padre@test.com'",
+        "Iniciar sesión en la app mobile con usuario que tenga email diferente 'otro@test.com'",
+        "Navegar a la pantalla de vincular estudiante",
+        "Buscar por RUT del estudiante",
+        "Verificar que el backend retorna isEmailMatch: false en la respuesta",
+        "Verificar que NO aparece el badge 'Este es tu hijo' en la UI",
+        "Verificar que igualmente se puede vincular el estudiante (la funcionalidad no se bloquea)"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual - Verificar isEmailMatch false y sin badge en app mobile'",
+      "visualVerification": "1. Login con email diferente. 2. Buscar mismo estudiante. 3. Verificar que NO aparece badge. 4. Confirmar que aún se puede vincular.",
+      "passes": false
+    },
+    {
+      "id": "US-053",
+      "title": "Test: UI mobile solo muestra opción de vincular (no crear)",
+      "description": "Como QA, necesito verificar que la interfaz mobile ya no permite crear estudiantes, solo vincularlos, y que todos los textos e iconos reflejan este cambio.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Abrir la app mobile y navegar a la pantalla de estudiantes",
+        "Verificar que el FAB dice 'Vincular Estudiante' (no 'Agregar Estudiante')",
+        "Tocar el FAB y verificar que NO aparecen las pestañas 'Vincular' / 'Crear'",
+        "Verificar que solo se muestra el campo de búsqueda por RUT",
+        "Buscar un RUT inexistente y verificar mensaje: 'Estudiante no registrado. Contacte al colegio...'",
+        "En el listado, verificar que el icono es un ojo (no lápiz)",
+        "Tocar el ojo y verificar que la pantalla dice 'Detalle Estudiante' y todos los campos son solo lectura"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test manual - Verificar cambios de UI en app mobile'",
+      "visualVerification": "1. FAB dice 'Vincular'. 2. No hay pestañas. 3. Solo búsqueda RUT. 4. Mensaje error correcto. 5. Icono ojo. 6. Pantalla detalle solo lectura.",
+      "passes": false
+    },
+    {
+      "id": "US-054",
+      "title": "Test: Verificación E2E del flujo completo",
+      "description": "Como QA, necesito ejecutar un test end-to-end completo que simule el flujo real: admin importa estudiantes con emails, padre busca y vincula, padre ve detalles.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "1. Admin: Crear CSV con 2 estudiantes, uno con parentEmails, otro sin",
+        "2. Admin: Importar CSV y verificar en tabla que columna Emails Padres muestra correctamente",
+        "3. Mobile: Login como padre con email que coincide con parentEmails del estudiante 1",
+        "4. Mobile: Buscar estudiante 1 por RUT y verificar badge 'Este es tu hijo'",
+        "5. Mobile: Vincular estudiante 1 exitosamente",
+        "6. Mobile: Ver detalle del estudiante (solo lectura, título correcto)",
+        "7. Mobile: Buscar estudiante 2 (sin email match) y verificar que NO hay badge",
+        "8. Mobile: Vincular estudiante 2 y confirmar que funciona igual"
+      ],
+      "filesToModify": [],
+      "verification": "echo 'Test E2E manual - Flujo completo admin + mobile'",
+      "visualVerification": "Ejecutar los 8 pasos descritos en acceptanceCriteria y documentar screenshots de cada paso exitoso. Verificar que todo el flujo funciona sin errores.",
+      "passes": false
+    }
+  ]
+}

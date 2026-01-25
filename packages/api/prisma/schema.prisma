@@ -106,6 +106,7 @@ model Student {
   fingerprintTemplate Bytes?   @map("fingerprint_template")
   dailyLimit          Int      @default(0) @map("daily_limit")
   active              Boolean  @default(true)
+  parentEmails        String?  @map("parent_emails") // Emails de padres/apoderados separados por comas
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

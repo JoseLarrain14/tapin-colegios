@@ -249,6 +249,7 @@ interface ImportRow {
   lastName: string;
   grade?: string;
   section?: string;
+  parentEmails?: string; // Emails de padres/apoderados separados por comas
 }
 
 interface ImportError {
@@ -410,6 +411,7 @@ export async function adminRoutes(app: FastifyInstance) {
             photoUrl: true,
             dailyLimit: true,
             active: true,
+            parentEmails: true,
             createdAt: true,
             school: {
               select: {
@@ -684,6 +686,7 @@ export async function adminRoutes(app: FastifyInstance) {
           lastName: record['Apellido'] || record['apellido'] || record['APELLIDO'] || record['LastName'] || '',
           grade: record['Curso'] || record['curso'] || record['CURSO'] || record['Grade'] || '',
           section: record['Seccion'] || record['seccion'] || record['SECCION'] || record['Sección'] || record['Section'] || '',
+          parentEmails: record['Emails_Padres'] || record['emails_padres'] || record['ParentEmails'] || record['parent_emails'] || record['EmailsPadres'] || '',
         }));
       } else if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
         // Parse Excel
@@ -698,6 +701,7 @@ export async function adminRoutes(app: FastifyInstance) {
           lastName: String(record['Apellido'] || record['apellido'] || record['APELLIDO'] || record['LastName'] || ''),
           grade: String(record['Curso'] || record['curso'] || record['CURSO'] || record['Grade'] || ''),
           section: String(record['Seccion'] || record['seccion'] || record['SECCION'] || record['Sección'] || record['Section'] || ''),
+          parentEmails: String(record['Emails_Padres'] || record['emails_padres'] || record['ParentEmails'] || record['parent_emails'] || record['EmailsPadres'] || ''),
         }));
       } else {
         return reply.status(400).send({
@@ -768,12 +772,22 @@ export async function adminRoutes(app: FastifyInstance) {
         }
 
         // Add to create list
+        // Normalize parent emails: trim, lowercase, filter empty
+        const normalizedEmails = row.parentEmails
+          ? row.parentEmails
+              .split(/[,;]/)
+              .map(email => email.trim().toLowerCase())
+              .filter(email => email.length > 0)
+              .join(',')
+          : undefined;
+
         toCreate.push({
           rut: formattedRut,
           firstName: row.firstName.trim(),
           lastName: row.lastName.trim(),
           grade: row.grade?.trim() || undefined,
           section: row.section?.trim() || undefined,
+          parentEmails: normalizedEmails || undefined,
         });
       }
 
@@ -792,6 +806,7 @@ export async function adminRoutes(app: FastifyInstance) {
                 lastName: student.lastName,
                 grade: student.grade || null,
                 section: student.section || null,
+                parentEmails: student.parentEmails || null,
                 dailyLimit: 0,
                 active: true,
               },

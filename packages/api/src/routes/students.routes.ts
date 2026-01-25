@@ -836,6 +836,24 @@ export async function studentsRoutes(app: FastifyInstance) {
           });
         }
 
+        // Get user email to compare with parentEmails
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: { email: true },
+        });
+
+        // Check if user email matches any of the parent emails
+        let isEmailMatch = false;
+        if (student.parentEmails && user?.email) {
+          const parentEmailsList = student.parentEmails
+            .split(/[,;]/)
+            .map(email => email.trim().toLowerCase())
+            .filter(email => email.length > 0);
+
+          const userEmail = user.email.trim().toLowerCase();
+          isEmailMatch = parentEmailsList.includes(userEmail);
+        }
+
         // Return student info for confirmation
         return reply.send({
           success: true,
@@ -848,6 +866,7 @@ export async function studentsRoutes(app: FastifyInstance) {
             section: student.section,
             photoUrl: student.photoUrl,
             school: student.school,
+            isEmailMatch, // Indica si el email del usuario coincide con parentEmails
           },
         });
       } catch (error) {

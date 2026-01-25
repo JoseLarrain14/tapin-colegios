@@ -74,6 +74,7 @@ interface Student {
   photoUrl: string | null
   dailyLimit: number
   active: boolean
+  parentEmails: string | null  // Emails de padres/apoderados
   createdAt: string
   totalTickets?: number
   school?: {
@@ -388,6 +389,9 @@ export default function StudentsPage() {
                     Tickets
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Emails Padres
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Estado
                   </th>
                 </tr>
@@ -428,6 +432,9 @@ export default function StudentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {getTicketsDisplay(student)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={student.parentEmails || ''}>
+                      {student.parentEmails || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -623,7 +630,7 @@ export default function StudentsPage() {
                         Formato esperado
                       </p>
                       <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        El archivo debe tener las columnas: <strong>RUT</strong>, <strong>Nombre</strong>, <strong>Apellido</strong>, <strong>Curso</strong> (opcional), <strong>Sección</strong> (opcional)
+                        El archivo debe tener las columnas: <strong>RUT</strong>, <strong>Nombre</strong>, <strong>Apellido</strong>, <strong>Curso</strong> (opcional), <strong>Sección</strong> (opcional), <strong>Emails_Padres</strong> (opcional, separados por coma)
                       </p>
                     </div>
                   </div>

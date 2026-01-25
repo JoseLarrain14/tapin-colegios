@@ -98,14 +98,16 @@ interface SearchedStudent {
   section?: string;
   photoUrl?: string;
   school: { id: string; name: string; code: string };
+  isEmailMatch?: boolean; // Indica si el email del usuario coincide con parentEmails
 }
 
 export default function AddStudentScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
 
-  // Mode state
-  const [mode, setMode] = useState<'create' | 'link'>('create');
+  // Mode state - SOLO MODO LINK (crear estudiantes deshabilitado)
+  // Los estudiantes solo pueden ser creados por el casino via importación CSV/Excel
+  const mode = 'link' as const; // Modo fijo, CREATE deshabilitado
 
   // Link mode state
   const [searchRut, setSearchRut] = useState('');
@@ -235,7 +237,7 @@ export default function AddStudentScreen() {
       if (response.success && response.data) {
         setSearchedStudent(response.data);
       } else {
-        showSnackbar(response.message || 'Estudiante no encontrado', 'error');
+        showSnackbar(response.message || 'Estudiante no registrado. Por favor, contacte al colegio o casino para que agreguen al estudiante al sistema.', 'error');
       }
     } catch (error) {
       showSnackbar('Error al buscar estudiante', 'error');
@@ -330,7 +332,7 @@ export default function AddStudentScreen() {
           showsVerticalScrollIndicator={false}
         >
 
-          {/* Mode Toggle */}
+          {/* Mode Toggle - DESHABILITADO: Solo modo vincular permitido
           <Surface style={styles.modeToggleCard} elevation={1}>
             <SegmentedButtons
               value={mode}
@@ -347,6 +349,7 @@ export default function AddStudentScreen() {
               style={styles.segmentedButtons}
             />
           </Surface>
+          */}
 
           {/* Link Mode */}
           {mode === 'link' && (
@@ -423,6 +426,12 @@ export default function AddStudentScreen() {
                       <View style={styles.schoolBadge}>
                         <Text style={styles.schoolBadgeText}>{searchedStudent.school.name}</Text>
                       </View>
+                      {/* Badge "Este es tu hijo" cuando el email coincide */}
+                      {searchedStudent.isEmailMatch && (
+                        <View style={styles.emailMatchBadge}>
+                          <Text style={styles.emailMatchBadgeText}>✓ Este es tu hijo</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -442,8 +451,9 @@ export default function AddStudentScreen() {
             </Surface>
           )}
 
-          {/* Create Mode - Form */}
-          {mode === 'create' && (
+          {/* Create Mode - Form (DESHABILITADO - Solo modo vincular activo)
+              Para reactivar: cambiar 'false' por 'mode === "create"' y habilitar toggle de modo */}
+          {false && (
           <>
           <Surface style={styles.formCard} elevation={1}>
             <Text style={styles.sectionTitle}>Datos del Estudiante</Text>
@@ -913,6 +923,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+  },
+  emailMatchBadge: {
+    backgroundColor: colors.success || '#4CAF50',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  emailMatchBadgeText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   linkButton: {
     backgroundColor: colors.success,
