@@ -14,7 +14,7 @@
         "package.json con scripts de dev/build/start",
         "Proyecto compila con pnpm build"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -29,7 +29,7 @@
         "Agregar shadows: sm, md, lg",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -44,7 +44,7 @@
         "Agregar meta tags PWA en src/app/layout.tsx",
         "Build compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
