@@ -1,0 +1,708 @@
+{
+  "projectName": "Migración App Mobile a Next.js PWA",
+  "branchName": "feature/web-nextjs",
+  "description": "Migrar apps/mobile/ (React Native/Expo) a apps/web/ (Next.js 14 + Tailwind CSS + PWA)",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Crear proyecto Next.js",
+      "description": "Inicializar proyecto Next.js en apps/web con TypeScript y App Router",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Ejecutar: cd apps && npx create-next-app@latest web --typescript --tailwind --eslint --app --src-dir --no-import-alias",
+        "Estructura creada en apps/web/",
+        "package.json con scripts de dev/build/start",
+        "Proyecto compila con pnpm build"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Configurar Tailwind con tema del proyecto",
+      "description": "Configurar Tailwind CSS con los colores y espaciado del tema actual",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Leer apps/mobile/src/constants/theme.ts como referencia",
+        "Configurar tailwind.config.ts con colores: primary (#C9384E), background, surface, text, success, warning, error, info, border",
+        "Agregar spacing: xs (4px), sm (8px), md (16px), lg (24px), xl (32px), 2xl (48px)",
+        "Agregar borderRadius: sm (4px), md (8px), lg (12px), xl (16px)",
+        "Agregar shadows: sm, md, lg",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Configurar PWA",
+      "description": "Configurar next-pwa para Progressive Web App",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Instalar: pnpm add next-pwa",
+        "Crear public/manifest.json con name 'Tap In Colegios', theme_color '#C9384E'",
+        "Crear iconos placeholder en public/icons/ (icon-192x192.png, icon-512x512.png)",
+        "Configurar next.config.js con withPWA",
+        "Agregar meta tags PWA en src/app/layout.tsx",
+        "Build compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Crear utility de storage",
+      "description": "Crear wrapper de localStorage para almacenamiento",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/lib/storage.ts",
+        "Implementar: getItem, setItem, removeItem",
+        "Manejar SSR (typeof window check)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Migrar utilidades de formateo de fechas",
+      "description": "Copiar y adaptar dateFormat.ts",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "Copiar apps/mobile/src/utils/dateFormat.ts a apps/web/src/utils/dateFormat.ts",
+        "Verificar que funciones formatDateTime, formatDate, formatTime, formatRelativeTime, formatShortDate, formatCLP funcionan",
+        "Sin dependencias de React Native",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Migrar API service",
+      "description": "Adaptar servicio API de mobile a web",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/lib/api.ts",
+        "Copiar contenido de apps/mobile/src/services/api.ts",
+        "Cambiar Constants.expoConfig?.extra?.apiUrl por process.env.NEXT_PUBLIC_API_URL",
+        "Crear .env.local con NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1",
+        "Mantener todos los métodos y tipos",
+        "Exportar ApiService class y apiService instance",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Migrar authStore (Zustand)",
+      "description": "Adaptar store de autenticación para web",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "Instalar: pnpm add zustand",
+        "Crear apps/web/src/store/authStore.ts",
+        "Copiar lógica de apps/mobile/src/store/authStore.ts",
+        "Cambiar storage de SecureStore a localStorage (usar lib/storage.ts)",
+        "Remover lógica de push notifications",
+        "Mantener: login, logout, register, checkAuth, refreshAccessToken",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Migrar registerStore (Zustand)",
+      "description": "Copiar store de registro multi-paso",
+      "priority": 8,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/store/registerStore.ts",
+        "Copiar contenido de apps/mobile/src/store/registerStore.ts",
+        "Sin cambios necesarios (es Zustand puro)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Crear middleware de autenticación",
+      "description": "Middleware Next.js para proteger rutas",
+      "priority": 9,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/middleware.ts",
+        "Definir rutas protegidas: /students, /recharge, /profile, /cafeteria, /history, etc.",
+        "Definir rutas de auth: /login, /register",
+        "Redirigir a /login si no autenticado y accede a ruta protegida",
+        "Redirigir a / si autenticado y accede a /login o /register",
+        "Usar cookie 'auth_token' para verificar",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-010",
+      "title": "Crear componente Button",
+      "description": "Componente Button con variantes",
+      "priority": 10,
+      "acceptanceCriteria": [
+        "Instalar: pnpm add clsx tailwind-merge",
+        "Crear apps/web/src/lib/utils.ts con función cn() para merge de clases",
+        "Crear apps/web/src/components/ui/Button.tsx",
+        "Variantes: primary (default), outline, ghost, danger",
+        "Tamaños: sm, md (default), lg",
+        "Props: disabled, loading (muestra spinner), fullWidth",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-011",
+      "title": "Crear componente Input",
+      "description": "Componente Input con label y error",
+      "priority": 11,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/Input.tsx",
+        "Props: label, error, helperText, type, placeholder, value, onChange, disabled",
+        "Estilo: borde gris, focus borde primary, error borde rojo",
+        "Mostrar label arriba del input",
+        "Mostrar error/helperText debajo",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-012",
+      "title": "Crear componente Card",
+      "description": "Componente Card container",
+      "priority": 12,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/Card.tsx",
+        "Props: children, className, padding (boolean, default true)",
+        "Estilo: bg-white, rounded-xl, shadow-sm, p-4 (si padding)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-013",
+      "title": "Crear componente Dialog/Modal",
+      "description": "Componente Modal para dialogs y confirmaciones",
+      "priority": 13,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/Dialog.tsx",
+        "Usar createPortal para renderizar en body",
+        "Props: open, onClose, title, children",
+        "Overlay oscuro con click para cerrar",
+        "Animación de fade in/out con CSS",
+        "Crear también ConfirmDialog con props: title, message, onConfirm, onCancel",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-014",
+      "title": "Crear componente LoadingSpinner",
+      "description": "Spinner de carga",
+      "priority": 14,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/LoadingSpinner.tsx",
+        "SVG spinner animado con Tailwind animate-spin",
+        "Props: size (sm, md, lg), color (default primary)",
+        "Exportar también FullPageLoader (spinner centrado en pantalla)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-015",
+      "title": "Crear componente Avatar",
+      "description": "Avatar con imagen o iniciales",
+      "priority": 15,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/Avatar.tsx",
+        "Props: src (opcional), name, size (sm, md, lg)",
+        "Si src: mostrar imagen con next/image",
+        "Si no src: mostrar iniciales con fondo de color",
+        "Forma circular",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-016",
+      "title": "Crear componente Badge",
+      "description": "Badge para tags y estados",
+      "priority": 16,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/Badge.tsx",
+        "Props: children, variant (default, success, warning, error, info)",
+        "Estilo: pequeño, rounded-full, colores según variant",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-017",
+      "title": "Crear index de componentes UI",
+      "description": "Archivo index para exportar todos los componentes UI",
+      "priority": 17,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/ui/index.ts",
+        "Exportar: Button, Input, Card, Dialog, ConfirmDialog, LoadingSpinner, FullPageLoader, Avatar, Badge",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-018",
+      "title": "Crear Root Layout con providers",
+      "description": "Layout raíz con providers de estado",
+      "priority": 18,
+      "acceptanceCriteria": [
+        "Instalar: pnpm add @tanstack/react-query",
+        "Editar apps/web/src/app/layout.tsx",
+        "Agregar QueryClientProvider",
+        "Agregar metadata: title 'Tap In Colegios', description",
+        "Importar globals.css",
+        "Agregar fuente Inter de next/font",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-019",
+      "title": "Crear Auth Layout",
+      "description": "Layout para páginas de autenticación (sin navegación)",
+      "priority": 19,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/layout.tsx",
+        "Layout simple con fondo claro",
+        "Logo centrado en la parte superior",
+        "Contenedor centrado para formularios",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-020",
+      "title": "Crear Dashboard Layout con navegación",
+      "description": "Layout para páginas autenticadas con sidebar y bottom nav",
+      "priority": 20,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/layout.tsx",
+        "Crear apps/web/src/components/layout/Sidebar.tsx - navegación lateral para desktop",
+        "Crear apps/web/src/components/layout/BottomNav.tsx - navegación inferior para mobile",
+        "Sidebar visible en md: y superiores, BottomNav visible en mobile",
+        "Items: Inicio (/), Cafetería (/cafeteria), Historial (/history), Perfil (/profile)",
+        "Instalar: pnpm add lucide-react",
+        "Marcar item activo según ruta actual",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-021",
+      "title": "Crear componente Header",
+      "description": "Header para dashboard con logo y user menu",
+      "priority": 21,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/components/layout/Header.tsx",
+        "Logo 'Tap In' a la izquierda",
+        "Menú de usuario a la derecha (avatar, dropdown con logout)",
+        "Integrar en Dashboard layout",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-022",
+      "title": "Crear página Landing/Redirect",
+      "description": "Página inicial que redirige según estado de auth",
+      "priority": 22,
+      "acceptanceCriteria": [
+        "Editar apps/web/src/app/page.tsx",
+        "Si autenticado: redirect a /(dashboard)",
+        "Si no autenticado: mostrar landing simple con botón 'Iniciar Sesión'",
+        "Usar useAuthStore para verificar estado",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-023",
+      "title": "Migrar página Login",
+      "description": "Página de inicio de sesión",
+      "priority": 23,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/login/page.tsx",
+        "Referencia: apps/mobile/app/login.tsx",
+        "Formulario: email, password",
+        "Validación: email requerido y válido, password requerido",
+        "Usar authStore.login()",
+        "Mostrar errores de API",
+        "Links: 'Crear cuenta' -> /register, 'Olvidé mi contraseña' -> /forgot-password",
+        "Redirigir a / después de login exitoso",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-024",
+      "title": "Migrar Register Step 1 (Relación)",
+      "description": "Paso 1 del registro: seleccionar relación con estudiante",
+      "priority": 24,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/register/page.tsx",
+        "Referencia: apps/mobile/app/register/index.tsx",
+        "Opciones: Padre, Madre, Apoderado, Otro",
+        "Guardar en registerStore",
+        "Botón 'Continuar' -> /register/step2",
+        "Link 'Ya tengo cuenta' -> /login",
+        "Progress indicator (paso 1 de 5)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-025",
+      "title": "Migrar Register Step 2 (Email)",
+      "description": "Paso 2: ingresar email",
+      "priority": 25,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/register/step2/page.tsx",
+        "Referencia: apps/mobile/app/register/step2.tsx",
+        "Input email con validación",
+        "Guardar en registerStore",
+        "Botón 'Continuar' -> /register/step3",
+        "Botón 'Atrás' -> /register",
+        "Progress indicator (paso 2 de 5)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-026",
+      "title": "Migrar Register Step 3 (Password)",
+      "description": "Paso 3: crear contraseña",
+      "priority": 26,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/register/step3/page.tsx",
+        "Referencia: apps/mobile/app/register/step3.tsx",
+        "Input password con toggle mostrar/ocultar",
+        "Input confirmar password",
+        "Validación: mínimo 8 caracteres, passwords coinciden",
+        "Guardar en registerStore",
+        "Botón 'Continuar' -> /register/step4",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-027",
+      "title": "Migrar Register Step 4 (Datos personales)",
+      "description": "Paso 4: nombre y apellido",
+      "priority": 27,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/register/step4/page.tsx",
+        "Referencia: apps/mobile/app/register/step4.tsx",
+        "Inputs: firstName, lastName",
+        "Checkbox aceptar términos",
+        "Guardar en registerStore",
+        "Botón 'Continuar' -> /register/step5",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-028",
+      "title": "Migrar Register Step 5 (Seleccionar colegio)",
+      "description": "Paso 5: buscar y seleccionar colegio",
+      "priority": 28,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/register/step5/page.tsx",
+        "Referencia: apps/mobile/app/register/step5.tsx",
+        "Input búsqueda de colegio (debounce)",
+        "Lista de colegios encontrados",
+        "Seleccionar colegio",
+        "Botón 'Crear cuenta' -> ejecutar authStore.register()",
+        "Mostrar loading y errores",
+        "Redirigir a / después de registro exitoso",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-029",
+      "title": "Migrar Forgot Password",
+      "description": "Página para recuperar contraseña",
+      "priority": 29,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/forgot-password/page.tsx",
+        "Referencia: apps/mobile/app/forgot-password.tsx",
+        "Input email",
+        "Botón 'Enviar instrucciones'",
+        "Llamar apiService.forgotPassword()",
+        "Mostrar mensaje de éxito o error",
+        "Link 'Volver al login' -> /login",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-030",
+      "title": "Migrar Reset Password",
+      "description": "Página para restablecer contraseña con token",
+      "priority": 30,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(auth)/reset-password/page.tsx",
+        "Referencia: apps/mobile/app/reset-password.tsx",
+        "Leer token de query params",
+        "Inputs: nueva contraseña, confirmar contraseña",
+        "Validar token con apiService.verifyResetToken()",
+        "Llamar apiService.resetPassword() al enviar",
+        "Redirigir a /login después de éxito",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-031",
+      "title": "Migrar Home/Dashboard",
+      "description": "Página principal con estudiantes y saldo",
+      "priority": 31,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/page.tsx",
+        "Referencia: apps/mobile/app/(tabs)/index.tsx",
+        "Cargar estudiantes con apiService.getStudents()",
+        "Selector de estudiante (si tiene múltiples)",
+        "Mostrar saldo del estudiante seleccionado (apiService.getWallet)",
+        "Card de tickets disponibles",
+        "Acciones rápidas: Recargar, Ver historial, Agregar estudiante",
+        "Estado de loading y error",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-032",
+      "title": "Migrar Cafetería",
+      "description": "Página de menú de cafetería",
+      "priority": 32,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/cafeteria/page.tsx",
+        "Referencia: apps/mobile/app/(tabs)/cafeteria.tsx",
+        "Selector de semana (anterior, actual, siguiente)",
+        "Tabs de días de la semana",
+        "Mostrar menú del día seleccionado",
+        "Selector de estudiante",
+        "Mostrar items del menú con precios",
+        "Estado de loading y error",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-033",
+      "title": "Migrar Historial",
+      "description": "Página de historial de transacciones",
+      "priority": 33,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/history/page.tsx",
+        "Referencia: apps/mobile/app/(tabs)/history.tsx",
+        "Listar órdenes con apiService.getOrders()",
+        "Listar consumos de tickets con apiService.getTicketConsumptions()",
+        "Filtro por estudiante",
+        "Filtro por mes/fecha",
+        "Mostrar fecha, tipo, monto, items",
+        "Paginación o scroll infinito",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-034",
+      "title": "Migrar Perfil",
+      "description": "Página de perfil del usuario",
+      "priority": 34,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/profile/page.tsx",
+        "Referencia: apps/mobile/app/(tabs)/profile.tsx",
+        "Mostrar datos del guardian: nombre, email, relación",
+        "Links a: Editar perfil, Mis estudiantes, Historial de pagos, etc.",
+        "Botón 'Cerrar sesión' -> authStore.logout()",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-035",
+      "title": "Migrar Students list",
+      "description": "Lista de estudiantes del guardian",
+      "priority": 35,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/students/page.tsx",
+        "Referencia: apps/mobile/app/students.tsx",
+        "Listar estudiantes con apiService.getStudents()",
+        "Mostrar: foto, nombre, RUT, curso",
+        "Click en estudiante -> /students/[id]/edit",
+        "Botón 'Agregar estudiante' -> /students/add",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-036",
+      "title": "Migrar Add Student",
+      "description": "Página para agregar o vincular estudiante",
+      "priority": 36,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/students/add/page.tsx",
+        "Referencia: apps/mobile/app/add-student.tsx",
+        "Dos flujos: crear nuevo o vincular existente",
+        "Buscar por RUT (apiService.searchStudentByRut)",
+        "Si existe: vincular con apiService.linkStudent()",
+        "Si no existe: formulario para crear",
+        "Campos: nombre, apellido, RUT, curso, límite diario",
+        "Redirigir a /students después de éxito",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-037",
+      "title": "Migrar Edit Student",
+      "description": "Página para editar estudiante",
+      "priority": 37,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/students/[id]/edit/page.tsx",
+        "Referencia: apps/mobile/app/edit-student.tsx",
+        "Cargar datos con apiService.getStudent()",
+        "Formulario editable: nombre, apellido, curso, límite diario",
+        "Guardar con apiService.updateStudent()",
+        "Manejar error 409 (concurrent modification)",
+        "Botón eliminar (con confirmación)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-038",
+      "title": "Migrar Recharge",
+      "description": "Página de recarga de saldo",
+      "priority": 38,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/recharge/page.tsx",
+        "Referencia: apps/mobile/app/recharge.tsx",
+        "Selector de estudiante",
+        "Cargar paquetes de recarga (apiService.getRechargePackages)",
+        "Seleccionar paquete",
+        "Iniciar pago (apiService.initPayment)",
+        "Mostrar link/redirect a pasarela de pago",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-039",
+      "title": "Migrar Wallet History",
+      "description": "Historial de movimientos de billetera",
+      "priority": 39,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/wallet-history/page.tsx",
+        "Referencia: apps/mobile/app/wallet-history.tsx",
+        "Selector de estudiante",
+        "Cargar logs con apiService.getWalletLogs()",
+        "Mostrar: fecha, tipo, monto, balance",
+        "Colores según tipo (verde depósito, rojo gasto)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-040",
+      "title": "Migrar Spending Stats",
+      "description": "Estadísticas de gastos",
+      "priority": 40,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/spending-stats/page.tsx",
+        "Referencia: apps/mobile/app/spending-stats.tsx",
+        "Selector de estudiante",
+        "Selector de período (diario, semanal, mensual)",
+        "Cargar stats con apiService.getWalletStats()",
+        "Mostrar total gastado, promedio, desglose",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-041",
+      "title": "Migrar Payment History",
+      "description": "Historial de pagos/recargas",
+      "priority": 41,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/payment-history/page.tsx",
+        "Referencia: apps/mobile/app/payment-history.tsx",
+        "Cargar pagos con apiService.getPayments()",
+        "Mostrar: fecha, monto, estado, método de pago",
+        "Badge de estado (aprobado, pendiente, rechazado)",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-042",
+      "title": "Migrar Edit Profile",
+      "description": "Editar perfil del guardian",
+      "priority": 42,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/profile/edit/page.tsx",
+        "Referencia: apps/mobile/app/edit-profile.tsx",
+        "Cargar datos con apiService.getGuardianProfile()",
+        "Formulario: firstName, lastName, phone",
+        "Guardar con apiService.updateGuardianProfile()",
+        "Redirigir a /profile después de éxito",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-043",
+      "title": "Migrar Notifications",
+      "description": "Centro de notificaciones",
+      "priority": 43,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/notifications/page.tsx",
+        "Referencia: apps/mobile/app/notifications.tsx",
+        "Cargar notificaciones con apiService.getNotifications()",
+        "Mostrar lista con título, mensaje, fecha",
+        "Marcar como leída al hacer click",
+        "Botón 'Marcar todas como leídas'",
+        "Badge de no leídas",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-044",
+      "title": "Migrar Coupons",
+      "description": "Página de cupones disponibles",
+      "priority": 44,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/coupons/page.tsx",
+        "Referencia: apps/mobile/app/coupons.tsx",
+        "Mostrar lista de cupones (si hay endpoint)",
+        "Si no hay endpoint: mostrar mensaje 'Próximamente'",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-045",
+      "title": "Migrar Help",
+      "description": "Página de ayuda y soporte",
+      "priority": 45,
+      "acceptanceCriteria": [
+        "Crear apps/web/src/app/(dashboard)/help/page.tsx",
+        "Referencia: apps/mobile/app/help.tsx",
+        "FAQ o información de contacto",
+        "Link a email de soporte",
+        "TypeScript compila sin errores"
+      ],
+      "passes": false
+    }
+  ]
+}
