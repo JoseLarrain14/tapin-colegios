@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { getJSON, setJSON, removeItem } from '../lib/storage';
 import { apiService } from '../lib/api';
 
+/**
+ * Set auth cookie for middleware authentication
+ * Cookie is used by server-side middleware since it cannot access localStorage
+ */
+function setAuthCookie(token: string | null): void {
+  if (typeof document === 'undefined') return;
+
+  if (token) {
+    // Set cookie with SameSite=Lax for security, expires in 7 days
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+    document.cookie = `auth_token=${token}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+  } else {
+    // Remove cookie by setting expired date
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+}
+
 interface Guardian {
   id: string;
   firstName: string;
@@ -63,6 +81,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ accessToken, refreshToken });
     // Store tokens in localStorage
     setJSON(TOKEN_KEY, { accessToken, refreshToken });
+    // Set cookie for middleware authentication
+    setAuthCookie(accessToken);
   },
 
   clearAuth: () => {
@@ -75,6 +95,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
     removeItem(TOKEN_KEY);
     removeItem(USER_KEY);
+    // Clear auth cookie
+    setAuthCookie(null);
   },
 
   checkAuth: async () => {
@@ -132,6 +154,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         setJSON(TOKEN_KEY, { accessToken, refreshToken });
         setJSON(USER_KEY, user);
+        // Set cookie for middleware authentication
+        setAuthCookie(accessToken);
       } else {
         throw new Error(response.message || 'Error al iniciar sesion');
       }
@@ -160,6 +184,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         setJSON(TOKEN_KEY, { accessToken, refreshToken });
         setJSON(USER_KEY, user);
+        // Set cookie for middleware authentication
+        setAuthCookie(accessToken);
       } else {
         throw new Error(response.message || 'Error al registrar');
       }
@@ -200,6 +226,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           accessToken,
           refreshToken: newRefreshToken
         });
+        // Set cookie for middleware authentication
+        setAuthCookie(accessToken);
 
         // Get user data with new token
         const userResponse = await apiService.getCurrentUser(accessToken);
