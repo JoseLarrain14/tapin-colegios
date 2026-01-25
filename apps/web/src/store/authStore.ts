@@ -48,6 +48,26 @@ interface RegisterData {
 
 const TOKEN_KEY = 'auth_tokens';
 const USER_KEY = 'auth_user';
+const AUTH_COOKIE_NAME = 'auth_token';
+
+/**
+ * Set auth cookie for middleware authentication
+ * Cookie is HttpOnly=false so it can be set from client-side
+ * but middleware can still read it
+ */
+function setAuthCookie(token: string): void {
+  if (typeof document === 'undefined') return;
+  const maxAge = 60 * 60 * 24 * 7; // 7 days
+  document.cookie = `${AUTH_COOKIE_NAME}=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+/**
+ * Clear auth cookie
+ */
+function clearAuthCookie(): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -63,6 +83,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ accessToken, refreshToken });
     // Store tokens in localStorage
     setJSON(TOKEN_KEY, { accessToken, refreshToken });
+    // Set auth cookie for middleware
+    setAuthCookie(accessToken);
   },
 
   clearAuth: () => {
@@ -75,6 +97,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
     removeItem(TOKEN_KEY);
     removeItem(USER_KEY);
+    // Clear auth cookie
+    clearAuthCookie();
   },
 
   checkAuth: async () => {
@@ -132,6 +156,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         setJSON(TOKEN_KEY, { accessToken, refreshToken });
         setJSON(USER_KEY, user);
+        // Set auth cookie for middleware
+        setAuthCookie(accessToken);
       } else {
         throw new Error(response.message || 'Error al iniciar sesion');
       }
@@ -160,6 +186,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Store tokens
         setJSON(TOKEN_KEY, { accessToken, refreshToken });
         setJSON(USER_KEY, user);
+        // Set auth cookie for middleware
+        setAuthCookie(accessToken);
       } else {
         throw new Error(response.message || 'Error al registrar');
       }
@@ -200,6 +228,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           accessToken,
           refreshToken: newRefreshToken
         });
+        // Update auth cookie with new token
+        setAuthCookie(accessToken);
 
         // Get user data with new token
         const userResponse = await apiService.getCurrentUser(accessToken);
