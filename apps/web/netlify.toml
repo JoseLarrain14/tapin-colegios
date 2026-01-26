@@ -1,7 +1,7 @@
 [build]
   command = "cd ../.. && pnpm install --frozen-lockfile && cd apps/web && pnpm build"
+  publish = ".next"
 
-# Next.js plugin handles publish directory, SSR, ISR, middleware automatically
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
