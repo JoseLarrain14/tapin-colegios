@@ -1,15 +1,12 @@
 [build]
-  command = "pnpm build"
-  publish = ".next"
+  command = "cd ../.. && pnpm install --frozen-lockfile && cd apps/web && pnpm build"
 
-# Next.js plugin for full support (SSR, ISR, middleware, etc.)
+# Next.js plugin handles publish directory, SSR, ISR, middleware automatically
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Environment variables (set these in Netlify UI for production values)
 [build.environment]
   NODE_VERSION = "20"
-  NEXT_PUBLIC_API_URL = "https://your-api-url.com/api/v1"
 
 # Headers for PWA
 [[headers]]
@@ -21,10 +18,3 @@
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-
-# Redirects for SPA fallback (Next.js handles most, but just in case)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  conditions = {Role = ["admin"]}
