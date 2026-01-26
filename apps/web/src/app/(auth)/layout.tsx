@@ -1,10 +1,8 @@
-import { type ReactNode } from 'react';
-
-interface AuthLayoutProps {
-  children: ReactNode;
-}
-
-export default function AuthLayout({ children }: AuthLayoutProps) {
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
       {/* Logo */}
