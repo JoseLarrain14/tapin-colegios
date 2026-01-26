@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { Header } from '@/components/layout/Header';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -11,6 +12,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Sidebar - desktop only */}
       <Sidebar />
+
+      {/* Header - mobile only */}
+      <Header />
 
       {/* Main content */}
       <main className="md:pl-64 pb-20 md:pb-0">
