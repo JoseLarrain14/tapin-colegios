@@ -131,7 +131,7 @@
         "Usar cookie 'auth_token' para verificar",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-010",
@@ -147,7 +147,7 @@
         "Props: disabled, loading (muestra spinner), fullWidth",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-011",
@@ -162,7 +162,7 @@
         "Mostrar error/helperText debajo",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-012",
@@ -175,7 +175,7 @@
         "Estilo: bg-white, rounded-xl, shadow-sm, p-4 (si padding)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-013",
@@ -191,7 +191,7 @@
         "Crear también ConfirmDialog con props: title, message, onConfirm, onCancel",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-014",
@@ -205,7 +205,7 @@
         "Exportar también FullPageLoader (spinner centrado en pantalla)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-015",
@@ -220,7 +220,7 @@
         "Forma circular",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-016",
@@ -245,7 +245,7 @@
         "Exportar: Button, Input, Card, Dialog, ConfirmDialog, LoadingSpinner, FullPageLoader, Avatar, Badge",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-018",
@@ -261,7 +261,7 @@
         "Agregar fuente Inter de next/font",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-019",
@@ -275,7 +275,7 @@
         "Contenedor centrado para formularios",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-020",
@@ -292,7 +292,7 @@
         "Marcar item activo según ruta actual",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-021",
@@ -306,7 +306,7 @@
         "Integrar en Dashboard layout",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-022",
@@ -320,7 +320,7 @@
         "Usar useAuthStore para verificar estado",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-023",
@@ -338,7 +338,7 @@
         "Redirigir a / después de login exitoso",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-024",
@@ -355,7 +355,7 @@
         "Progress indicator (paso 1 de 5)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-025",
@@ -372,7 +372,7 @@
         "Progress indicator (paso 2 de 5)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-026",
@@ -389,7 +389,7 @@
         "Botón 'Continuar' -> /register/step4",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-027",
@@ -405,7 +405,7 @@
         "Botón 'Continuar' -> /register/step5",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-028",
@@ -423,7 +423,7 @@
         "Redirigir a / después de registro exitoso",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-029",
@@ -440,7 +440,7 @@
         "Link 'Volver al login' -> /login",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-030",
@@ -457,7 +457,7 @@
         "Redirigir a /login después de éxito",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-031",
@@ -475,7 +475,7 @@
         "Estado de loading y error",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-032",
@@ -493,7 +493,7 @@
         "Estado de loading y error",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-033",
@@ -511,7 +511,7 @@
         "Paginación o scroll infinito",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-034",
@@ -526,7 +526,7 @@
         "Botón 'Cerrar sesión' -> authStore.logout()",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-035",
@@ -542,7 +542,7 @@
         "Botón 'Agregar estudiante' -> /students/add",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-036",
@@ -560,7 +560,7 @@
         "Redirigir a /students después de éxito",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-037",
@@ -577,7 +577,7 @@
         "Botón eliminar (con confirmación)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-038",
@@ -594,7 +594,7 @@
         "Mostrar link/redirect a pasarela de pago",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-039",
@@ -610,7 +610,7 @@
         "Colores según tipo (verde depósito, rojo gasto)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-040",
@@ -626,7 +626,7 @@
         "Mostrar total gastado, promedio, desglose",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-041",
@@ -641,7 +641,7 @@
         "Badge de estado (aprobado, pendiente, rechazado)",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-042",
@@ -657,7 +657,7 @@
         "Redirigir a /profile después de éxito",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-043",
@@ -674,7 +674,7 @@
         "Badge de no leídas",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-044",
@@ -688,7 +688,7 @@
         "Si no hay endpoint: mostrar mensaje 'Próximamente'",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-045",
@@ -702,7 +702,7 @@
         "Link a email de soporte",
         "TypeScript compila sin errores"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

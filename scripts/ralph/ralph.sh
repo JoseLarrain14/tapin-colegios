@@ -76,8 +76,12 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     # Run Claude with the prompt
     echo -e "${BLUE}Spawning Claude instance...${NC}"
 
-    # Feed prompt to Claude
-    cat "$PROMPT_FILE" | claude --continue
+    # Use claude -p (print mode) with permissions for tools
+    claude -p "$(cat $PROMPT_FILE)" \
+        --dangerously-skip-permissions \
+        --allowedTools "Bash,Read,Write,Edit,Glob,Grep" \
+        --verbose \
+        --output-format stream-json
 
     # Log iteration
     echo "Iteration $ITERATION completed at $(date)" >> "$PROGRESS_FILE"
